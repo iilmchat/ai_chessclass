@@ -320,6 +320,68 @@ body {
   color: var(--danger);
 }
 
+/* --- chess_lab: инсайт (S-11) --- */
+.chess-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.board-wrap {
+  max-width: 420px;
+}
+
+.fen-input {
+  margin-top: 12px;
+  width: 100%;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.chess-panel h3 {
+  margin: 18px 0 8px;
+  font-size: 14px;
+}
+
+.facts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.facts-list li {
+  padding: 6px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-family: monospace;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 0;
+  text-align: left;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .chess-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171f;

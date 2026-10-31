@@ -15,10 +15,22 @@ async def heartbeat(ctx: dict) -> str:  # noqa: ARG001 — сигнатура ar
     return "pong"
 
 
+async def analyze_position(ctx: dict, fen: str, level: str) -> dict:
+    """Анализ позиции через Stockfish (S-11; SF живёт только в воркере)."""
+    from engine.service import EngineService
+
+    logger.info("worker: analyze_position %s (%s)", fen, level)
+    async with EngineService() as engine:
+        lines = await engine.analyze(fen, level, interactive=True)
+    return {"facts": [line.model_dump() for line in lines]}
+
+
 class WorkerSettings:
-    functions = [heartbeat]
+    functions = [heartbeat, analyze_position]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
-    queue_name = "default"
+    # arq default create_pool пишет в "arq:queue"; разделение на analyze/
+    # matches/pdf — при росте нагрузок (Design §11.1)
+    queue_name = "arq:queue"
     max_jobs = 4
     job_timeout = 300  # BOT_MATCH_BUDGET_S=120 + запас
     health_check_interval = 30

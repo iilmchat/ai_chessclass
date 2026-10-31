@@ -5,10 +5,10 @@ import {
   fetchAssignmentDetail,
   fetchAssignments,
   getToken,
-  login,
   logout,
   submitSolution,
 } from '../shared/api';
+import { LoginGate } from '../shared/LoginGate';
 
 const VERDICT_LABELS: Record<SubmissionDto['verdict'], string> = {
   passed: 'Пройдено',
@@ -17,52 +17,6 @@ const VERDICT_LABELS: Record<SubmissionDto['verdict'], string> = {
   restricted: 'Запрещённый код',
   error: 'Ошибка выполнения',
 };
-
-function LoginGate({ onReady }: { onReady: () => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const submit = useCallback(async () => {
-    setBusy(true);
-    setError('');
-    try {
-      await login(email.trim(), password);
-      onReady();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Ошибка входа');
-    } finally {
-      setBusy(false);
-    }
-  }, [email, password, onReady]);
-
-  return (
-    <div className="panel">
-      <h2>Вход</h2>
-      <p className="link-hint">Demo: student1@chessclass.dev / dev-student-2026</p>
-      <div className="login-form">
-        <input
-          className="field"
-          placeholder="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          className="field"
-          type="password"
-          placeholder="пароль"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <button className="retry-button" type="button" disabled={busy} onClick={submit}>
-          {busy ? 'Входим…' : 'Войти'}
-        </button>
-      </div>
-      {error && <p className="verdict failed-note">{error}</p>}
-    </div>
-  );
-}
 
 /** S-08: экран задания — условие + редактор + тесты → вердикт. */
 export function PythonPage() {

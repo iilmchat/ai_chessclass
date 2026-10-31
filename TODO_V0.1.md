@@ -114,11 +114,12 @@
   (2026-11-01: pytest 104 passed (+8 engine); отчёт — docs/sprint-reports/S-10-2026-11-01.md)
 - **Порт из annotator:** engine/ (§20.2) — почти verbatim
 
-### S-11 🧩 Инсайт позиции
-- [ ] `chess_positions`, UI/бэк: доска (react-chessboard) + панель фактов
-- [ ] маршрут chess_lab.insight: facts SF → LLM L2 (L3 для advanced), «LLM не правит факты»
-- [ ] UI переключение уровня объяснения (override)
-- **DoD:** ученик получил инсайт с фактами SF + объяснением по уровню
+### S-11 ✅ Инсайт позиции
+- [x] `chess_positions`, UI/бэк: доска (react-chessboard) + панель фактов
+- [x] маршрут chess_lab.insight: facts SF → LLM L2 (L3 для advanced), «LLM не правит факты»
+- [x] UI переключение уровня объяснения (override)
+- **DoD:** ученик получил инсайт с фактами SF + объяснением по уровню ✅
+  (2026-11-01: pytest 108 passed; демо Re8# через api→arq→worker; отчёт — docs/sprint-reports/S-11-2026-11-01.md)
 
 ### S-12 📄 PGN-анализ и блюндеры
 - [ ] upload PGN (≤ 2 МБ) → arq задача analyze: пошаговые eval'ы, детект Δeval ≥ порога

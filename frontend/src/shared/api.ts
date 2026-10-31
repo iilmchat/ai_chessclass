@@ -153,3 +153,37 @@ export function submitSolution(id: string, code: string): Promise<SubmissionDto>
     body: JSON.stringify({ code }),
   });
 }
+
+// --- chess_lab (S-11)
+
+export interface EngineLineDto {
+  multipv: number;
+  depth: number;
+  scoreCp: number | null;
+  mate: number | null;
+  moveUci: string;
+  pv: string[];
+}
+
+export interface InsightOut {
+  fen: string;
+  level: string;
+  facts: EngineLineDto[];
+  factsText: string[];
+  explanation: string;
+  modelUsed: string;
+}
+
+export function insightPosition(fen: string, level?: string): Promise<InsightOut> {
+  return apiFetch('/chess/insight', {
+    method: 'POST',
+    body: JSON.stringify({ fen, level: level || null }),
+  });
+}
+
+export function fetchPositions(): Promise<{
+  items: { id: string; fen: string; meta: Record<string, unknown> }[];
+  total: number;
+}> {
+  return apiFetch('/chess/positions?limit=20');
+}

@@ -8,6 +8,20 @@
 
 ### Добавлено
 
+#### S-11 — Инсайт позиции (2026-11-01)
+- Миграция `0007_chess_positions` (upsert по user+fen, meta: facts/factsText/
+  explanation/level).
+- `POST /chess/insight {fen, level?}`: факты SF (MultiPV + материал) —
+  отдельно от LLM-объяснения («LLM не правит факты»); override уровня
+  (§4.2); invalid FEN → 422. Исполнение: worker — напрямую, api — arq
+  (`analyze_position`, ожидание ≤30 с; `task_timeout`/`task_busy`).
+- arq-задача `analyze_position` в воркере (APP_ROLE=worker); очередь
+  унифицирована (`arq:queue`).
+- Фронтенд: ChessPage — react-chessboard 5 (Chessboard options), панель
+  фактов, селектор уровня объяснения, список последних позиций;
+  `LoginGate` вынесен в shared.
+- Deps: react-chessboard ^5.
+
 #### S-10 — Engine wrapper (2026-11-01)
 - `backend/engine/` (порт app/engine annotator, почти verbatim): собственный
   async UCI-клиент (MultiPV-линии, таймауты uciok/readyok/search+4с,

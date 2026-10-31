@@ -31,7 +31,7 @@
 | profile | `GET /profile/me`, `PATCH /profile/me`, `GET /profile/students`, `GET /profile/{id}`, `PATCH /profile/{id}/level` | — | ✅ S-03 | RBAC: свой профиль — все; список/чужой — teacher/admin; смена уровня — admin (Design §12.2); пагинация `page`+`pageSize` |
 | python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `POST /py/assignments/{id}/hint`, `GET /py/assignments/{id}/solution`, `GET /py/submissions/{id}` | — | ✅ S-08/S-09 | assert-тесты в песочнице; вердикты §3.3; ladder §3.4; флаги §8; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
-| chess | `/chess/positions/analyze`, `/chess/games/{id}/summary`, экспорт PGN/CSV | — | 🧱 S-06…S-07 | engine-контракт — Design §7, ADR-003/004 |
+| chess | `POST /chess/insight`, `GET /chess/positions` (+ S-12: upload PGN, analyses, blunders) | — | ✅ S-11 | факты SF + LLM-объяснение §3.5; SF только воркером; S-12: партии/блюндеры |
 | bots | `/bots` CRUD, `/bots/{id}/match/run` (SSE-прогресс), `/bots/{id}/reliability` | — | 🧱 S-08…S-09 | `choose_move(position)->str`, лестница Elo — Design §8, ADR-011/012 |
 | skills | `/skills/snapshot`, `/skills/scores/{user}`, PDF родителям | — | 🧱 E-08…E-09 | EMA-скоры, fpdf2 + TTF — Design §9 |
 | rag | `/rag/query`, инжест книжек | — | 🧱 S-10 | embeddings 768, pgvector — Design §10 |
@@ -130,6 +130,32 @@ interface SubmissionDto {
 Slug задания — ключ идемпотентных сидов (сверх каталога §11.2); created_at/
 updated_at — аудит. Seeds: 16 заданий (§5.2: переменные → алгоритмы) +
 18 ступеней подсказок + 16 эталонных решений.
+
+### 3.5. chess_lab: инсайт (S-11, §6.2)
+
+```ts
+// POST /chess/insight { fen, level? } → 200
+interface InsightOut {
+  fen: string; level: string;
+  facts: EngineLineDto[];   // факты SF — отдельно, «LLM не правит факты»
+  factsText: string[];      // человекочитаемые факты (панель + блок промпта)
+  explanation: string;      // текст LLM (маршрут chess_lab.insight, L2/L3)
+  modelUsed: string;
+}
+interface EngineLineDto {
+  multipv: number; depth: number; scoreCp: number | null;
+  mate: number | null; moveUci: string; pv: string[];
+}
+// GET /chess/positions?limit → свои позиции с meta {facts, factsText, explanation, level}
+```
+
+- Override уровня на запрос (`level`), по умолчанию — профиль (§4.2);
+  invalid → 422 `invalid_fen` / `invalid_level_override`.
+- Исполнение: **SF — только воркер** (§15.3): api-роль уходит в arq
+  (`analyze_position`) и ждёт результат (30 с; `task_timeout` 408,
+  `task_busy` 409). Уровень → шахматный через маппинг §4.2.
+- Хранение: `chess_positions` upsert по `(user_id, fen)` — одна запись,
+  meta обновляется (facts/factsText/explanation/level).
 
 ### 3.4. Лестница подсказок (S-09, §5.4)
 
@@ -383,3 +409,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-08: py-домен ✅ — задания/сдача/вердикты, DTO §3.3, seeds 16 заданий | S-08 |
 | 2026-11-01 | S-09: ladder/комментарии/low_effort ✅ — §3.4, §8 (флаги, веса событий) | S-09 |
 | 2026-11-01 | S-10: Engine ✅ — профили §9, UCI_Elo, SF только worker; SF 17.1 в образе | S-10 |
+| 2026-11-01 | S-11: инсайт ✅ — §3.5 (facts+LLM), arq-путь api→worker, chess_positions | S-11 |
