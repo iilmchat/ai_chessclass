@@ -1,18 +1,17 @@
-import uuid
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import redis.asyncio as redis_lib
 import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import ORJSONResponse
 
 from app.routers import healthz
 from core.config import settings
 from core.db import engine
 from core.errors import register_exception_handlers
 from core.logging import new_request_id, request_id_var, setup_logging
+from domains.auth.router import router as auth_router
 
 
 @asynccontextmanager
@@ -31,7 +30,6 @@ app = FastAPI(
         "Единая экосистема «Шахматно-программистский класс» (ChessClass). "
         "Архитектура — Design.md; контракты — docs/SPEC.md."
     ),
-    default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )
 
@@ -66,6 +64,9 @@ register_exception_handlers(app)
 # healthz — и от корня (Design §15.3: GET /healthz), и под /api/v1 (для прокси фронтенда)
 app.include_router(healthz.router, tags=["health"])
 app.include_router(healthz.router, prefix="/api/v1", include_in_schema=False)
+
+# домены API v1 (Design §12.2)
+app.include_router(auth_router, prefix="/api/v1")
 
 
 def run() -> None:

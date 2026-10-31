@@ -8,9 +8,9 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
+    "email-validator>=2.2",
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
-    "psycopg2-binary>=2.9",
     "alembic>=1.14",
     "redis>=5.2",
     "arq>=0.26",
@@ -24,6 +24,7 @@ dependencies = [
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
+    "asgi-lifespan>=0.1",
     "ruff>=0.8",
     "mypy>=1.13",
 ]
@@ -51,4 +52,6 @@ check_untyped_defs = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+pythonpath = ["."]

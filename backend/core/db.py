@@ -1,4 +1,3 @@
-import os
 from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -26,9 +25,3 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         except Exception:
             await session.rollback()
             raise
-
-
-def database_url_sync() -> str:
-    """URL для alembic (sync-драйвер psycopg2) — из асинхронного."""
-    url = os.getenv("ALEMBIC_DATABASE_URL") or settings.database_url
-    return url.replace("+asyncpg", "+psycopg2")

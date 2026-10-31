@@ -26,7 +26,7 @@ def problem_response(
     title: str,
     code: str,
     detail: str = "",
-    extra: dict[str, Any] | None = None,
+    extra: dict[str, Any] | list[dict[str, Any]] | None = None,
 ) -> JSONResponse:
     payload: dict[str, Any] = {
         "type": f"about:blank#{code}",

@@ -28,12 +28,13 @@
   (2026-10-31: `{"status":"ok","db":true,"redis":true}`; отчёт — docs/sprint-reports/S-01-2026-10-31.md)
 - **Порт из teacher:** core/config, db, logging (§20.1)
 
-### S-02 🔐 Аутентификация
-- [ ] `users`, `email_tokens`, `refresh_sessions` (DDL → SPEC)
-- [ ] Argon2id пароли; регистрация/логин; JWT access (15 м) + refresh HttpOnly (30 д, ротация)
-- [ ] email-верификация (dev — консольный SMTP), rate-limit auth
-- [ ] logout/revoke, lockout 5/мин/IP
-- **DoD:** e2e-зарегистрироваться → подтвердить email → залогиниться → refresh
+### S-02 ✅ Аутентификация
+- [x] `users`, `email_tokens`, `refresh_sessions` (DDL → SPEC)
+- [x] Argon2id пароли; регистрация/логин; JWT access (15 м) + refresh HttpOnly (30 д, ротация)
+- [x] email-верификация (dev — консольный SMTP), rate-limit auth
+- [x] logout/revoke, lockout 5/мин/IP
+- **DoD:** e2e-зарегистрироваться → подтвердить email → залогиниться → refresh ✅
+  (2026-10-31: pytest 9 passed + curl-демо; отчёт — docs/sprint-reports/S-02-2026-10-31.md)
 - **Порт из teacher:** security-модули
 
 ### S-03 👤 Профиль, уровни, RBAC + seeds

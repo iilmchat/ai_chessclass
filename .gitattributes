@@ -1,0 +1,11 @@
+# Единый перевод строк: LF в репо (CRLF-варнинги git на Windows).
+* text=auto eol=lf
+
+# Бинарные форматы
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.pdf binary

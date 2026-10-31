@@ -26,7 +26,7 @@
 | Домен | Route | Метод | Статус | Заметки |
 |---|---|---|---|---|
 | infra | `/healthz` (дублируется с корня `/`) | GET | ✅ S-01 | `HealthDto{status, db, redis}`; ping БД и Redis, сам никогда не 5xx |
-| auth | `/auth/register`, `/login`, `/refresh`, `/logout`, `/me` | — | 🧱 S-02 | Argon2id + PyJWT, refresh — HttpOnly cookie (Design §5.3) |
+| auth | `POST /auth/register`, `/auth/verify`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `GET /auth/me`, `POST /auth/password-reset`, `/auth/password-reset/confirm` | — | ✅ S-02 | Argon2id; JWT access 15м; refresh — opaque в БД, HttpOnly-cookie `cc_refresh` (path `/api/v1/auth`), ротация; login требует верифицированный email (Design §13.1) |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `/chess/positions/analyze`, `/chess/games/{id}/summary`, экспорт PGN/CSV | — | 🧱 S-06…S-07 | engine-контракт — Design §7, ADR-003/004 |
 | bots | `/bots` CRUD, `/bots/{id}/match/run` (SSE-прогресс), `/bots/{id}/reliability` | — | 🧱 S-08…S-09 | `choose_move(position)->str`, лестница Elo — Design §8, ADR-011/012 |
@@ -50,12 +50,43 @@ interface SomeDto {
 - Добавление необязательного поля не ломает клиентов; ломающее изменение —
   только через решение в Design (мажор/минор номера фиксируются в §7).
 
+### 3.1. auth (S-02, зафиксировано)
+
+```ts
+// POST /api/v1/auth/register → 201
+interface RegisterOut { id: string; email: string; role: string; emailVerified: boolean }
+// POST /api/v1/auth/login → 200 (+ Set-Cookie: cc_refresh, HttpOnly, SameSite=Lax)
+interface AuthOut { accessToken: string; tokenType: "Bearer"; user: UserOut }
+interface UserOut {
+  id: string; email: string; role: string;
+  emailVerified: boolean; isActive: boolean; createdAt: string;
+}
+// POST /api/v1/auth/refresh → 200 (ротация: Set-Cookie обновляется)
+interface TokenOut { accessToken: string; tokenType: "Bearer" }
+// /auth/verify, /auth/logout, /auth/password-reset(202), /auth/password-reset/confirm
+interface MessageOut { ok: boolean }
+```
+
+Факты сверх каталога Design §11.2 (зафиксированы реализацией 0002):
+`email_tokens`/`refresh_sessions` получили `created_at` (аудит); refresh-cookie
+живёт с `path=/api/v1/auth`; повторное использование отозванного refresh
+отзывает все сессии пользователя.
+
 ## 4. Канон ошибок
 
 | `code` | HTTP | Когда |
 |---|---|---|
 | `validation_error` | 422 | Pydantic-валидация (поля — в `errors[]`) |
-| `auth_invalid_credentials` | 401 | неверный логин/пароль/токен (S-02) |
+| `auth_unauthorized` | 401 | нет/кривой Bearer-токен (S-02) |
+| `auth_invalid_token` | 401 | email-токен недействителен/истёк/использован (S-02) |
+| `auth_invalid_credentials` | 401 | неверный email или пароль (S-02) |
+| `auth_invalid_refresh` | 401 | нет/кривой/отозванный refresh-токен (S-02) |
+| `auth_email_not_verified` | 403 | логин до подтверждения email (S-02) |
+| `auth_inactive` | 403 | аккаунт деактивирован (S-02) |
+| `auth_forbidden` | 403 | не хватает роли (S-02, `require_role`) |
+| `auth_email_taken` | 409 | email уже зарегистрирован (S-02) |
+| `rate_limited` | 429 | превышен rate-limit бакета (S-02) |
+| `auth_locked_out` | 429 | 5 неудачных логинов/мин/IP → lockout 10 мин (S-02) |
 | `quota_exceeded` | 429 | исчерпан LLM-бюджет дня (Design §5.4) |
 | `sandbox_timeout` | 408 | таймаут кода/хода (ADR-002 и ботовый ADR) |
 | `internal_error` | 500 | необработанное исключение |
@@ -91,3 +122,4 @@ interface SomeDto {
 | Дата | Изменение | Спринт |
 |---|---|---|
 | 2026-10-31 | S-01: базовые конвенции v1, `/healthz` ✅ | S-01 |
+| 2026-10-31 | S-02: auth-контракты ✅ — 8 эндпоинтов, DTO §3.1, 10 кодов ошибок | S-02 |

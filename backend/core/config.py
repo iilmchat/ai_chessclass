@@ -26,10 +26,16 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6384/0"
 
     # --- auth (S-02)
-    jwt_secret: str = "change-me-dev-s01"
+    jwt_secret: str = "dev-secret-change-me-please-0123456789abcdef"
     jwt_algorithm: str = "HS256"
     jwt_ttl: str = "15m"
     refresh_ttl: str = "30d"
+    refresh_cookie_name: str = "cc_refresh"
+    argon2_time_cost: int = 3
+    argon2_memory_cost: int = 65536  # 64 MiB
+    argon2_parallelism: int = 2
+    # ссылки из писем; dev — консольный SMTP-бэкенд (Design §13.1)
+    web_base_url: str = "http://localhost:3200"
 
     # --- rag (E-05)
     embedding_dim: int = 768

@@ -1,8 +1,9 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, FastAPI, Request
 from sqlalchemy import text
+
 from core.base import CamelModel
 from core.db import engine
 
@@ -28,8 +29,8 @@ async def _ping_db() -> bool:
         return False
 
 
-async def _ping_redis(app: object) -> bool:
-    client = getattr(app, "state", None) and getattr(app.state, "redis", None)
+async def _ping_redis(app: FastAPI) -> bool:
+    client = getattr(app.state, "redis", None)
     if client is None:
         return False
     try:
