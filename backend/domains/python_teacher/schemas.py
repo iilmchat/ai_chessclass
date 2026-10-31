@@ -55,6 +55,24 @@ class SubmitIn(CamelModel):
     code: str = Field(min_length=1, max_length=20000)
 
 
+class HintOut(CamelModel):
+    idx: int
+    kind: str
+    content: str
+    source: str  # seeded | llm
+
+
+class SolutionOut(CamelModel):
+    source: str
+    note: str | None
+
+
+class FeedbackOut(CamelModel):
+    content: str
+    model_used: str  # JSON: modelUsed
+    level: str
+
+
 class SubmissionOut(CamelModel):
     id: str
     assignment_id: str  # JSON: assignmentId
@@ -65,3 +83,8 @@ class SubmissionOut(CamelModel):
     stdout_digest: str | None  # JSON: stdoutDigest
     duration_ms: int | None  # JSON: durationMs
     created_at: datetime  # JSON: createdAt
+    feedback: FeedbackOut | None = None
+
+
+class HintRequestIn(CamelModel):
+    hint_idx: int = Field(ge=0, le=19)  # JSON: hintIdx

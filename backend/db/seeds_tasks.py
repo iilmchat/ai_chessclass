@@ -7,10 +7,17 @@ slug навыков реестра (§10.1): variables→conditions→loops→�
 
 import logging
 
+import sqlalchemy as sa
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domains.python_teacher.models import AssignmentLevel, HintKind, PyAssignment, PyHint
+from domains.python_teacher.models import (
+    AssignmentLevel,
+    HintKind,
+    PyAssignment,
+    PyHint,
+    PyReferenceSolution,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -282,14 +289,57 @@ ASSIGNMENTS: tuple[dict, ...] = (
 )
 
 
+#: эталонные решения по slug (ladder/solution S-09, plagiarism §9.2)
+SOLUTIONS: dict[str, str] = {
+    "greet-function": 'def greet(name):\n    return f"Привет, {name}!"\n',
+    "max-of-two": "def max2(a, b):\n    return a if a >= b else b\n",
+    "even-check": "def is_even(n):\n    return n % 2 == 0\n",
+    "sum-to-n": "def sum_to(n):\n    total = 0\n    for i in range(1, n + 1):\n        total += i\n    return total\n",
+    "count-vowels": 'VOWELS = "аеёиоуыэюя"\n\ndef count_vowels(text):\n    return sum(1 for ch in text.lower() if ch in VOWELS)\n',
+    "list-max-index": "def max_index(nums):\n    best = 0\n    for i, value in enumerate(nums):\n        if value > nums[best]:\n            best = i\n    return best\n",
+    "slice-reverse": "def reverse(text):\n    return text[::-1]\n",
+    "fizzbuzz": 'def fizzbuzz(n):\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append("FizzBuzz")\n        elif i % 3 == 0:\n            result.append("Fizz")\n        elif i % 5 == 0:\n            result.append("Buzz")\n        else:\n            result.append(str(i))\n    return result\n',
+    "multiplication-table": "def mul_table(n):\n    return [[i * j for j in range(1, n + 1)] for i in range(1, n + 1)]\n",
+    "star-pyramid": "def pyramid(rows):\n    return [\"*\" * (2 * i + 1) for i in range(rows)]\n",
+    "digits-sum": "def digits_sum(n):\n    total = 0\n    for ch in str(abs(n)):\n        total += int(ch)\n    return total\n",
+    "is-prime": "def is_prime(n):\n    if n < 2:\n        return False\n    if n == 2:\n        return True\n    if n % 2 == 0:\n        return False\n    d = 3\n    while d * d <= n:\n        if n % d == 0:\n            return False\n        d += 2\n    return True\n",
+    "unique-words": 'def unique_words(text):\n    words = [w.strip(".,!?") for w in text.lower().split()]\n    return sorted(w for w in words if w)\n',
+    "word-frequencies": 'def word_counts(text):\n    counts = {}\n    for word in text.split():\n        counts[word] = counts.get(word, 0) + 1\n    return counts\n',
+    "fibonacci-n": "def fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\n",
+    "binary-search": "def binary_search(sorted_list, target):\n    lo, hi = 0, len(sorted_list) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if sorted_list[mid] == target:\n            return mid\n        if sorted_list[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1\n",
+}
+
+
 async def seed_tasks(session: AsyncSession) -> dict[str, int]:
     existing = set(
         (await session.execute(select(PyAssignment.slug))).scalars()
     )
     created = 0
     hints_created = 0
+    solutions_created = 0
     for item in ASSIGNMENTS:
+        solution = SOLUTIONS.get(item["slug"])
         if item["slug"] in existing:
+            # backfill эталона для заданий, засеянных до появления solutions
+            if solution is not None:
+                has_ref = (
+                    await session.execute(
+                        select(sa.func.count())
+                        .select_from(PyReferenceSolution)
+                        .join(PyAssignment, PyAssignment.id == PyReferenceSolution.assignment_id)
+                        .where(PyAssignment.slug == item["slug"])
+                    )
+                ).scalar_one()
+                if not has_ref:
+                    assignment_id = (
+                        await session.execute(
+                            select(PyAssignment.id).where(PyAssignment.slug == item["slug"])
+                        )
+                    ).scalar_one()
+                    session.add(
+                        PyReferenceSolution(assignment_id=assignment_id, source=solution)
+                    )
+                    solutions_created += 1
             continue
         assignment = PyAssignment(
             slug=item["slug"],
@@ -313,5 +363,14 @@ async def seed_tasks(session: AsyncSession) -> dict[str, int]:
                 )
             )
             hints_created += 1
+        if solution is not None:
+            session.add(
+                PyReferenceSolution(assignment_id=assignment.id, source=solution)
+            )
+            solutions_created += 1
     await session.flush()
-    return {"assignments": created, "hints": hints_created}
+    return {
+        "assignments": created,
+        "hints": hints_created,
+        "solutions": solutions_created,
+    }

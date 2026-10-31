@@ -1,10 +1,12 @@
-"""ORM-модели реестра навыков (Design §10.1, §10.4); DDL — миграция 0003.
+"""ORM-модели когнитивного ядра (Design §10.1, §10.2, §10.4).
 
-`cognitive_skill_events` / `user_skill_scores` (EMA) — этап E-08…E-09.
+Реестр/связи — миграция 0003; события — 0006. EMA-скоры (user_skill_scores)
+— E-08.
 """
 
 import enum
 from datetime import datetime
+from decimal import Decimal
 
 import sqlalchemy as sa
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Identity, Numeric, String, func
@@ -69,4 +71,26 @@ class SkillLink(Base):
 
     __table_args__ = (
         sa.UniqueConstraint("from_skill_id", "to_skill_id", name="uq_skill_links_pair"),
+    )
+
+
+class SkillEvent(Base):
+    """Событие навыка (§10.2): сдача, подсказка (минус), матч, judge-сессия."""
+
+    __tablename__ = "cognitive_skill_events"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, Identity(always=True), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    skill_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False
+    )
+    domain: Mapped[SkillDomain] = mapped_column(_str_enum(SkillDomain, 8), nullable=False)
+    weight: Mapped[Decimal] = mapped_column(Numeric(6, 3), nullable=False)
+    meta: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )

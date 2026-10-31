@@ -5,7 +5,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
 from core.base import PageOut
 from domains.auth.deps import CurrentUser, DbSession, require_role
@@ -17,6 +17,10 @@ from domains.python_teacher.schemas import (
     AssignmentDetailOut,
     AssignmentOut,
     AssignmentUpdateIn,
+    FeedbackOut,
+    HintOut,
+    HintRequestIn,
+    SolutionOut,
     SubmissionOut,
     SubmitIn,
 )
@@ -128,10 +132,46 @@ async def update_assignment(
 
 @router.post("/assignments/{assignment_id}/submit", response_model=SubmissionOut)
 async def submit(
-    assignment_id: int, body: SubmitIn, user: CurrentUser, session: DbSession
+    assignment_id: int,
+    body: SubmitIn,
+    user: CurrentUser,
+    session: DbSession,
+    request: Request,
 ) -> SubmissionOut:
-    submission, _grade = await svc.submit(session, user, assignment_id, body.code)
-    return _submission_out(submission)
+    submission, _grade = await svc.submit(
+        session, request.app.state.redis, user, assignment_id, body.code
+    )
+    out = _submission_out(submission)
+    feedback = await svc.get_feedback(session, submission.id)
+    if feedback is not None:
+        out.feedback = FeedbackOut(
+            content=feedback.content,
+            model_used=feedback.model_used,
+            level=feedback.level,
+        )
+    return out
+
+
+@router.post("/assignments/{assignment_id}/hint", response_model=HintOut)
+async def get_hint(
+    assignment_id: int,
+    body: HintRequestIn,
+    user: CurrentUser,
+    session: DbSession,
+    request: Request,
+) -> HintOut:
+    hint = await svc.get_hint(
+        session, request.app.state.redis, user, assignment_id, body.hint_idx
+    )
+    return HintOut(**hint)
+
+
+@router.get("/assignments/{assignment_id}/solution", response_model=SolutionOut)
+async def get_solution(
+    assignment_id: int, user: CurrentUser, session: DbSession
+) -> SolutionOut:
+    data = await svc.get_solution(session, user, assignment_id)
+    return SolutionOut(**data)
 
 
 @router.get("/submissions/{submission_id}", response_model=SubmissionOut)
@@ -139,4 +179,12 @@ async def get_submission(
     submission_id: int, user: CurrentUser, session: DbSession
 ) -> SubmissionOut:
     submission = await svc.get_submission(session, submission_id, user)
-    return _submission_out(submission)
+    out = _submission_out(submission)
+    feedback = await svc.get_feedback(session, submission.id)
+    if feedback is not None:
+        out.feedback = FeedbackOut(
+            content=feedback.content,
+            model_used=feedback.model_used,
+            level=feedback.level,
+        )
+    return out

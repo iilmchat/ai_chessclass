@@ -133,3 +133,44 @@ class PySubmission(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class PyReferenceSolution(Base):
+    """Эталон решения (seed; для ladder/solution и plagiarism §9.2)."""
+
+    __tablename__ = "py_reference_solutions"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, Identity(always=True), primary_key=True
+    )
+    assignment_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("py_assignments.id", ondelete="CASCADE"), nullable=False
+    )
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class PyFeedback(Base):
+    """LLM-комментарий к сдаче (кто, какая модель, маршрут — Design §5.2)."""
+
+    __tablename__ = "py_feedback"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, Identity(always=True), primary_key=True
+    )
+    submission_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("py_submissions.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    route: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_used: Mapped[str] = mapped_column(String(64), nullable=False)
+    level: Mapped[str] = mapped_column(String(12), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

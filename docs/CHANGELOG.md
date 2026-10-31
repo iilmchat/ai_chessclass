@@ -8,6 +8,20 @@
 
 ### Добавлено
 
+#### S-09 — Подсказки, комментарии, low_effort (2026-11-01)
+- Миграция `0006_py_hints_cognitive`: `py_reference_solutions` (эталоны),
+  `py_feedback` (LLM-комментарий к сдаче), `anticheat_flags` (§9.4:
+  kind/domain/source_ref/confidence/evidence/status/review), `cognitive_skill_events`.
+- Лестница подсказок §5.4: `POST /py/assignments/{id}/hint` (seeded → LLM
+  `python_teacher.hint`), `GET /py/assignments/{id}/solution` (после 3 неудач
+  или учителю; `403 solution_locked`); открытия — события с минус-весами.
+- Комментарий к сдаче: submit возвращает `feedback` (маршрут comment,
+  L1/L2 по уровню ученика, echo в dev); хранится в `py_feedback`.
+- Античит-заготовка: low_effort (≤3 строк / неизменённый starter при повторе)
+  → флаг с confidence + evidence; не блокирует сдачу (ADR-005).
+- События навыков: submit passed +1.0 / failed +0.3; emит только student.
+- Seeds: +16 эталонных решений (backfill для существующих заданий).
+
 #### S-08 — Задания и сдача (2026-11-01)
 - Миграция `0005_py_domain`: `py_assignments` (slug uq, topic→навык, tests
   JSONB assert-стиль), `py_hints` (лестница: concept/strategy/pseudocode/code),

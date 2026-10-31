@@ -29,7 +29,7 @@
 | infra | `/readyz` (дублируется с корня `/`) | GET | ✅ S-03 | ревизия alembic vs head, версия приложения; `status: ready/not-ready` |
 | auth | `POST /auth/register`, `/auth/verify`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `GET /auth/me`, `POST /auth/password-reset`, `/auth/password-reset/confirm` | — | ✅ S-02 | Argon2id; JWT access 15м; refresh — opaque в БД, HttpOnly-cookie `cc_refresh` (path `/api/v1/auth`), ротация; login требует верифицированный email (Design §13.1) |
 | profile | `GET /profile/me`, `PATCH /profile/me`, `GET /profile/students`, `GET /profile/{id}`, `PATCH /profile/{id}/level` | — | ✅ S-03 | RBAC: свой профиль — все; список/чужой — teacher/admin; смена уровня — admin (Design §12.2); пагинация `page`+`pageSize` |
-| python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `GET /py/submissions/{id}` | — | ✅ S-08 | assert-тесты в песочнице; вердикты §3.3; тесты ученику не отдаём |
+| python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `POST /py/assignments/{id}/hint`, `GET /py/assignments/{id}/solution`, `GET /py/submissions/{id}` | — | ✅ S-08/S-09 | assert-тесты в песочнице; вердикты §3.3; ladder §3.4; флаги §8; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `/chess/positions/analyze`, `/chess/games/{id}/summary`, экспорт PGN/CSV | — | 🧱 S-06…S-07 | engine-контракт — Design §7, ADR-003/004 |
 | bots | `/bots` CRUD, `/bots/{id}/match/run` (SSE-прогресс), `/bots/{id}/reliability` | — | 🧱 S-08…S-09 | `choose_move(position)->str`, лестница Elo — Design §8, ADR-011/012 |
@@ -129,7 +129,53 @@ interface SubmissionDto {
 `stdout_digest` — вывод ученика (без маркеров), обрезан до 2000 символов.
 Slug задания — ключ идемпотентных сидов (сверх каталога §11.2); created_at/
 updated_at — аудит. Seeds: 16 заданий (§5.2: переменные → алгоритмы) +
-18 ступеней подсказок (задел лестницы S-09).
+18 ступеней подсказок + 16 эталонных решений.
+
+### 3.4. Лестница подсказок (S-09, §5.4)
+
+1. **Seeded ступени** (`py_hints`, kind concept/strategy/pseudocode/code) —
+   отдаются по `hintIdx` (POST, одна за разом).
+2. **LLM-подсказка** — когда seeded исчерпаны: маршрут `python_teacher.hint`
+   (L1; L2 для advanced), промпт через prompt_builder (правила уровня не
+   дают готовое решение). Ответ не хранится (журнал — llm_calls).
+3. **Решение** — `GET /py/assignments/{id}/solution`: student видит эталон
+   после **3 неудачных попыток** (`SOLUTION_LOCK_ATTEMPTS`), teacher/admin —
+   всегда; иначе `403 solution_locked`.
+
+Каждое открытие — событие навыка (§8, минус-веса). `SubmissionDto.feedback`
+— комментарий LLM к сдаче (route `python_teacher.comment`; echo в dev),
+хранится в `py_feedback` (уникален на сдачу); комментарий не ломает сдачу.
+
+## 8. Античит и когнитивные события (S-09)
+
+**Принцип ADR-005: только флаги, решает человек.** Флаги не блокируют
+ничего и не видны ученику (§9.6).
+
+**`anticheat_flags`** (§9.4): user_id, kind (engine_likeliness · low_effort ·
+trivial_bot · unexplained_code · plagiarism_suspected · profile_mismatch),
+domain (python/chess/bot/cross), source_ref (например `py_submission:ID`),
+confidence 0..1 Numeric(3,2), evidence JSONB, status (new → reviewed/
+false_positive/confirmed), reviewed_by/at, note.
+
+**low_effort (§9.2, эвристики)**: содержательных строк ≤ 3 (`tiny_code`,
+confidence 0.60) или неизменённый starter при повторной попытке
+(`starter_unchanged_repeat`, 0.80); порог строк — config `LOW_EFFORT_MAX_LINES=3`.
+
+**`cognitive_skill_events`** (§10.2): user_id, skill_id (реестр §10.1),
+domain, weight Numeric(6,3), meta JSONB, occurred_at. Базовые веса (таблица
+полная — здесь; EMA — E-08):
+
+| Событие | Вес |
+|---|---|
+| сдача passed | **+1.0** |
+| сдача failed (попытка) | +0.3 |
+| seeded-подсказка открыта | −0.5 |
+| LLM-подсказка | −1.0 |
+| открытие решения | **−2.0** |
+
+Эмитятся только для роли student; навык отсутствует → skip + warning.
+
+## 9. История ревизий контрактов
 
 ## 4. Канон ошибок
 
@@ -307,3 +353,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-10-31 | S-06: промпты ✅ — системные шаблоны по уровням, таблица параметров §6.5 | S-06 |
 | 2026-11-01 | S-07: песочница ✅ — executor (subprocess, таймаут/RLIMIT), матрица атак; контракты §7 | S-07 |
 | 2026-11-01 | S-08: py-домен ✅ — задания/сдача/вердикты, DTO §3.3, seeds 16 заданий | S-08 |
+| 2026-11-01 | S-09: ladder/комментарии/low_effort ✅ — §3.4, §8 (флаги, веса событий) | S-09 |

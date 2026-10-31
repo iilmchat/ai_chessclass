@@ -94,11 +94,12 @@
 - **DoD:** ученик решает задание и видит вердикт ✅
   (2026-11-01: pytest 90 passed + curl-демо passed 3/3; отчёт — docs/sprint-reports/S-08-2026-11-01.md)
 
-### S-09 🔬 Подсказки, комментарии, low_effort
-- [ ] hint ladder: seeded → LLM-подсказка → solution (открытие = событие с минус-весом)
-- [ ] маршруты python_teacher.comment/hint/explain_code (L1/L2 по уровню)
-- [ ] эвристика low_effort (копипаста/микро-попытки) → запись в anticheat_flags (заготовка)
-- **DoD:** сдача → комментарий от LLM по уровню; первый флаг low_effort
+### S-09 ✅ Подсказки, комментарии, low_effort
+- [x] hint ladder: seeded → LLM-подсказка → solution (открытие = событие с минус-весом)
+- [x] маршруты python_teacher.comment/hint/explain_code (L1/L2 по уровню)
+- [x] эвристика low_effort (копипаста/микро-попытки) → запись в anticheat_flags (заготовка)
+- **DoD:** сдача → комментарий от LLM по уровню; первый флаг low_effort ✅
+  (2026-11-01: pytest 96 passed; feedback echo + флаг 0.60 tiny_code; отчёт — docs/sprint-reports/S-09-2026-11-01.md)
 - **Порт из teacher:** llm policy матрица
 
 ---
