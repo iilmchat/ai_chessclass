@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -13,12 +14,26 @@ from core.errors import register_exception_handlers
 from core.logging import new_request_id, request_id_var, setup_logging
 from domains.auth.router import router as auth_router
 from domains.profile.router import router as profile_router
+from llm.router import router as llm_admin_router
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(settings.log_level)
     app.state.redis = redis_lib.from_url(settings.redis_url, decode_responses=True)
+    # бутстрап LLM: сверка слагов моделей с провайдером (Design §8.3, R-01);
+    # неуспех не роняет старт (S-05 добавит fallback-цепочку cloud→local→echo)
+    if settings.llm_base_url:
+        try:
+            from llm.bootstrap import validate_model_slags
+
+            await validate_model_slags()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("llm bootstrap failed: %s", exc)
+    else:
+        logger.warning("llm: LLM_BASE_URL не задан — LLM-маршруты недоступны")
     yield
     await app.state.redis.aclose()
     await engine.dispose()
@@ -71,6 +86,7 @@ app.include_router(readyz.router, prefix="/api/v1", include_in_schema=False)
 # домены API v1 (Design §12.2)
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(profile_router, prefix="/api/v1")
+app.include_router(llm_admin_router, prefix="/api/v1")
 
 
 def run() -> None:

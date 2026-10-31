@@ -50,11 +50,12 @@
 
 ## E-02 · LLM-шлюз (S-04…S-06)
 
-### S-04 🌐 Gateway core
-- [ ] OpenAI-совместимый клиент (httpx), RouterAI env, таймауты/ретраи
-- [ ] реестр маршрутов `<domain>.<op>`×level (Design §8.2) + карта моделей L1/L2/L3/judge
-- [ ] проверка слагов моделей на бутстрапе (`/models` роутер), цены ₽/1M (Numeric)
-- **DoD:** вызов по маршруту возвращает текст; слаги валидированы логом
+### S-04 ✅ Gateway core
+- [x] OpenAI-совместимый клиент (httpx), RouterAI env, таймауты/ретраи
+- [x] реестр маршрутов `<domain>.<op>`×level (Design §8.2) + карта моделей L1/L2/L3/judge
+- [x] проверка слагов моделей на бутстрапе (`/models` роутер), цены ₽/1M (Numeric)
+- **DoD:** вызов по маршруту возвращает текст; слаги валидированы логом ✅
+  (2026-10-31: pytest 34 passed (mock-транспорт); /admin/models демо; отчёт — docs/sprint-reports/S-04-2026-10-31.md)
 - **Порт из teacher:** llm base client, policy
 
 ### S-05 💰 Экономика: llm_calls, бюджеты, fallback

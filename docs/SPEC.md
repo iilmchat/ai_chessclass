@@ -135,12 +135,46 @@ interface ProfileOut {
 - Воркер arq публикует в Redis pubsub; формат сообщения — JSON `{event, data}`.
 - Контракт закрепляется в S-08; до этого не изобретаем поля.
 
-## 6. Промпт-таблицы и веса (S-04+)
+## 6. LLM-шлюз: маршруты и модели (S-04)
 
-- Раздел открывается в S-04 (LLM-шлюз RouterAI): слаги моделей, их роли
-  (L1/L2/L3/judge), античит «только флаги» (Design §6.5).
-- Формат: таблица `операция × уровень → версия промпта`; сами карточки промптов
-  живут в backend-коде, здесь — идентификатор и ссылка (один факт — один источник).
+Домены знают только маршрут `<domain>.<op>` и уровень (ADR-004); резолв тира —
+`llm/routes.py`, слаги/цены — env + `llm/models_registry.py` (слаги сверяются
+с провайдером на бутстрапе, R-01: несуществующий → warning + автопропуск).
+
+### 6.1. Маршруты v0.1 → тир по уровню
+
+| Маршрут | Назначение | novice/intermediate | advanced |
+|---|---|---|---|
+| `python_teacher.comment` | комментарий решения | L1 | L1 |
+| `python_teacher.hint` | подсказка | L1 | **L2** |
+| `python_teacher.explain_code` | разбор отправленного кода | L2 | L2 |
+| `chess_lab.insight` | инсайт позиции | L2 | **L3** |
+| `chess_lab.next_moves` | объяснение топ-3 ходов | L2 | L2 |
+| `chess_lab.blunder` | объяснение плохого хода | L2 | L2 |
+| `chess_lab.commentary` | комментарий/беседа | L1 | **L2** |
+| `bot_lab.coach` | советы по боту (вне матчей) | L2 | L2 |
+| `anticheat.judge_explain` | judge-сессия | **judge** | judge |
+| `reports.parent_summary` | абзацы PDF-отчёта | L1 | L1 |
+
+### 6.2. Модели и цены (₽/1M, Numeric(12,4))
+
+| Тир | Слаг (default, env `LLM_MODEL_*`) | in | out | Роль |
+|---|---|---|---|---|
+| L1 | `minimax-m3.1` | 7 | 25 | комментарии/подсказки (массовые) |
+| L2 | `deepseek-v4.1` | 26 | 100 | инсайты, разборы, бот-coach |
+| L3 | `beam-1.0-501b` | 26 | 104 | advanced, сложные разборы |
+| L3_alt | `claude-sonnet-5.5` | — | — | резерв/проверка качества (тариф RouterAI) |
+| judge | `decider-flash-v1.2` | — | — | античит-judge (заполнить env `LLM_COST_JUDGE_*`) |
+
+Параметры вызовов (temperature/max_tokens) — по маршрутам при переносе промптов
+доменов (S-05+); карточки промптов живут в коде, здесь — идентификаторы.
+
+### 6.3. API
+
+- `GET /api/v1/admin/models` (admin) — реестр моделей: `{providerConfigured,
+  currency, models[{tier, slug, display, role, configured, priceIn, priceOut}]}`;
+  цены — строки Numeric (JSON JS-safe).
+- Fallback-цепочка cloud → local → echo и `llm_calls`/`usage_daily` — S-05.
 
 ## 7. История ревизий контрактов
 
@@ -149,3 +183,4 @@ interface ProfileOut {
 | 2026-10-31 | S-01: базовые конвенции v1, `/healthz` ✅ | S-01 |
 | 2026-10-31 | S-02: auth-контракты ✅ — 8 эндпоинтов, DTO §3.1, 10 кодов ошибок | S-02 |
 | 2026-10-31 | S-03: profile-контракты ✅ — 5 эндпоинтов, DTO §3.2, `/readyz`, пагинация включена | S-03 |
+| 2026-10-31 | S-04: LLM-контракты ✅ — 10 маршрутов §6.1, реестр моделей §6.2, `GET /admin/models` | S-04 |

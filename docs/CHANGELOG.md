@@ -8,6 +8,19 @@
 
 ### Добавлено
 
+#### S-04 — LLM Gateway core (2026-10-31)
+- Пакет `backend/llm/`: `base.py` (порт контракта провайдера из teacher),
+  `client.py` (OpenAI-совместимый httpx: таймаут 40 с, 1 retry/2 с,
+  инъекция транспорта для тестов), `models_registry.py` (5 тиров, цены
+  ₽/1M Numeric из env), `routes.py` (10 маршрутов §8.2 с advanced-тирами),
+  `gateway.py` (generate по маршруту+уровню), `bootstrap.py` (сверка слагов
+  с провайдером, R-01), `router.py` (`GET /api/v1/admin/models`, admin-only).
+- Дефолтные слаги моделей (minimax-m3.1 / deepseek-v4.1 / beam-1.0-501b /
+  claude-sonnet-5.5 / decider-flash-v1.2) — переопределяются env.
+- Тесты: клиент (mock-транспорт: success/retry/unavailable/list_models),
+  маршруты (резолв по уровням), шлюз (route→tier→текст), бутстрап-валидация,
+  admin-эндпоинт (403 для student).
+
 #### S-03 — Профиль, уровни, RBAC + seeds (2026-10-31)
 - `user_profiles` (1:1 с users): display_name, level, billing_tier, prefs
   (миграция `0003_profile_skills`, backfill профилей легаси-юзерам).

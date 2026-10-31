@@ -1,0 +1,96 @@
+"""OpenAI-совместимый транспорт (RouterAI / LM Studio) на httpx.
+
+Ретрай: 1 повтор через LLM_RETRY_DELAY_S (Design §8.4); общий таймаут
+LLM_TIMEOUT_S. Транспорт инъекцируется (httpx.MockTransport) — для тестов.
+"""
+
+import asyncio
+import logging
+
+import httpx
+
+from core.config import settings
+from llm.base import LLMMessage, LLMProvider, LLMUnavailableError, LLMUsage
+
+logger = logging.getLogger(__name__)
+
+
+class OpenAICompatProvider(LLMProvider):
+    """Единый клиент к OpenAI-совместимому API (cloud или local)."""
+
+    def __init__(
+        self,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        self.base_url = (base_url or settings.llm_base_url).rstrip("/")
+        self.api_key = api_key if api_key is not None else settings.llm_api_key
+        self.name = "openai_compat"
+        self._client = httpx.AsyncClient(
+            base_url=self.base_url,
+            headers=(
+                {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+            ),
+            timeout=httpx.Timeout(settings.llm_timeout_s),
+            transport=transport,
+        )
+
+    def is_configured(self) -> bool:
+        return bool(self.base_url) and not self.base_url.startswith("change_me")
+
+    async def generate(
+        self,
+        model: str,
+        messages: list[LLMMessage],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> tuple[str, LLMUsage]:
+        if not self.is_configured():
+            raise LLMUnavailableError("LLM_BASE_URL не настроен")
+        if not model:
+            raise LLMUnavailableError("Слаг модели не задан (env LLM_MODEL_*)")
+
+        payload: dict = {
+            "model": model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+        }
+        if temperature is not None:
+            payload["temperature"] = temperature
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+
+        delay = settings.llm_retry_delay_s
+        last_error: Exception | None = None
+        for attempt in (1, 2):  # 1 retry (Design §8.4)
+            try:
+                response = await self._client.post("/chat/completions", json=payload)
+                response.raise_for_status()
+                data = response.json()
+                text = data["choices"][0]["message"]["content"]
+                usage_raw = data.get("usage") or {}
+                usage = LLMUsage(
+                    prompt_tokens=int(usage_raw.get("prompt_tokens", 0)),
+                    completion_tokens=int(usage_raw.get("completion_tokens", 0)),
+                )
+                return str(text), usage
+            except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+                last_error = exc
+                logger.warning(
+                    "llm: попытка %d к %s (%s) не удалась: %s", attempt, model, self.base_url, exc
+                )
+                if attempt == 1:
+                    await asyncio.sleep(delay)
+        raise LLMUnavailableError(f"LLM недоступен после ретрая: {last_error}") from last_error
+
+    async def list_models(self) -> list[str]:
+        if not self.is_configured():
+            raise LLMUnavailableError("LLM_BASE_URL не настроен")
+        response = await self._client.get("/models")
+        response.raise_for_status()
+        data = response.json()
+        return [str(item["id"]) for item in data.get("data", [])]
+
+    async def close(self) -> None:
+        await self._client.aclose()

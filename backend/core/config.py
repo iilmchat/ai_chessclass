@@ -1,3 +1,4 @@
+from decimal import Decimal
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -40,16 +41,31 @@ class Settings(BaseSettings):
     # --- rag (E-05)
     embedding_dim: int = 768
 
-    # --- llm gateway (S-04+); слаги моделей проверяются на бутстрапе
+    # --- llm gateway (S-04+); слаги моделей — ожидаемые имена (R-01),
+    # сверяются с провайдером на бутстрапе; несоответствие → warning + env
     llm_base_url: str = ""
     llm_api_key: str = ""
-    llm_model_l1: str = ""
-    llm_model_l2: str = ""
-    llm_model_l3: str = ""
-    llm_model_judge: str = ""
+    llm_model_l1: str = "minimax-m3.1"
+    llm_model_l2: str = "deepseek-v4.1"
+    llm_model_l3: str = "beam-1.0-501b"
+    llm_model_l3_alt: str = "claude-sonnet-5.5"
+    llm_model_judge: str = "decider-flash-v1.2"
+    llm_timeout_s: float = 40.0  # §8.4: максимум на клиентский запрос
+    llm_retry_delay_s: float = 2.0  # §8.4: 1 retry через 2 с
     llm_local_fallback: bool = False
     llm_local_base_url: str = "http://localhost:1234/v1"
     llm_cost_currency: str = "RUB"
+    # цены ₽/1M (Numeric(12,4)); judge/L3-alt Design не фиксирует — задать env'ом
+    llm_cost_l1_in: Decimal = Decimal("7.0")
+    llm_cost_l1_out: Decimal = Decimal("25.0")
+    llm_cost_l2_in: Decimal = Decimal("26.0")
+    llm_cost_l2_out: Decimal = Decimal("100.0")
+    llm_cost_l3_in: Decimal = Decimal("26.0")
+    llm_cost_l3_out: Decimal = Decimal("104.0")
+    llm_cost_l3_alt_in: Decimal | None = None
+    llm_cost_l3_alt_out: Decimal | None = None
+    llm_cost_judge_in: Decimal | None = None
+    llm_cost_judge_out: Decimal | None = None
     budget_free_tokens_day: int = 50_000
     budget_pro_tokens_day: int = 500_000
 
