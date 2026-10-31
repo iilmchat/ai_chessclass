@@ -1,24 +1,29 @@
-"""E2E шлюза (DoD S-04): generate по маршруту возвращает текст; уровень
-выбирает тир; бутстрап-валидация слагов по /models провайдера (R-01)."""
+"""Шлюз: generate по маршруту (route→tier→текст), fallback-цепочка (S-05),
+бутстрап-валидация слагов, admin-эндпоинт моделей."""
 
 import httpx
-import pytest
+import sqlalchemy as sa
 from conftest import API, login, register_verified
 
+from core.config import settings
+from core.db import session_factory
 from core.levels import Level
-from llm.base import LLMMessage, LLMUnavailableError
+from llm.base import LLMMessage
 from llm.bootstrap import validate_model_slags
 from llm.client import OpenAICompatProvider
-from llm.gateway import LLMGateway
+from llm.gateway import LLMCallContext, llm_generate
+from llm.models import LLMCall
 
 
 def _mock_provider(handler) -> OpenAICompatProvider:
     return OpenAICompatProvider(
-        base_url="http://llm.test/v1", api_key="k", transport=httpx.MockTransport(handler)
+        base_url="http://llm.test/v1",
+        api_key="k",
+        transport=httpx.MockTransport(handler),
     )
 
 
-def _chat_ok(model: str, content: str) -> httpx.Response:
+def _chat_ok(content: str) -> httpx.Response:
     return httpx.Response(
         200,
         json={
@@ -29,54 +34,97 @@ def _chat_ok(model: str, content: str) -> httpx.Response:
     )
 
 
-async def test_gateway_generate_by_route(monkeypatch):
-    seen_models: list[str] = []
-
+async def test_generate_by_route_intermediate_l2(redis_client):
     def handler(request: httpx.Request) -> httpx.Response:
-        body = request.read()
-        assert b'"deepseek-v4.1"' in body  # insight intermediate → L2
-        seen_models.append("L2")
-        return _chat_ok("deepseek-v4.1", "Позиция спокойная, у белых перевес.")
+        assert b'"deepseek-v4.1"' in request.read()  # insight intermediate → L2
+        return _chat_ok("Позиция спокойная, у белых перевес.")
 
-    gateway = LLMGateway(_mock_provider(handler))
-    result = await gateway.generate(
-        "chess_lab.insight",
-        Level.INTERMEDIATE,
-        [LLMMessage(role="user", content="FEN: rnbqkbnr/...")],
-        temperature=0.4,
-        max_tokens=500,
-    )
-    assert "перевес" in result.text
-    assert result.tier == "L2"
-    assert result.model_requested == "deepseek-v4.1"
-    assert result.usage.total_tokens == 15
-
-
-async def test_gateway_advanced_route_l3():
-    def handler(request: httpx.Request) -> httpx.Response:
-        body = request.read()
-        assert b'"beam-1.0-501b"' in body  # insight advanced → L3
-        return _chat_ok("beam-1.0-501b", "Глубокий разбор.")
-
-    gateway = LLMGateway(_mock_provider(handler))
-    result = await gateway.generate(
-        "chess_lab.insight",
-        Level.ADVANCED,
-        [LLMMessage(role="user", content="FEN")],
-    )
-    assert result.tier == "L3" and "разбор" in result.text
-
-
-async def test_gateway_unavailable_when_not_configured():
-    gateway = LLMGateway(OpenAICompatProvider(base_url="", api_key=""))
-    with pytest.raises(LLMUnavailableError):
-        await gateway.generate(
-            "python_teacher.comment", Level.NOVICE, [LLMMessage(role="user", content="x")]
+    provider = _mock_provider(handler)
+    async with session_factory() as session:
+        result = await llm_generate(
+            session,
+            redis_client,
+            route="chess_lab.insight",
+            level=Level.INTERMEDIATE,
+            messages=[LLMMessage(role="user", content="FEN: rnbqkbnr/...")],
+            ctx=LLMCallContext(),
+            provider=provider,
         )
+        assert "перевес" in result.text
+        assert result.tier == "L2"
+        assert result.model_requested == "deepseek-v4.1"
+        assert result.model_used == "deepseek-v4.1"
+        assert result.status == "ok" and result.fallback_from is None
+        # llm_calls: одна строка, статус ok, слаг L2
+        row = (
+            await session.execute(sa.select(LLMCall).order_by(LLMCall.id.desc()).limit(1))
+        ).scalar_one()
+        assert row.route == "chess_lab.insight" and row.status == "ok"
+        assert row.model_requested == settings.llm_model_l2
+        assert row.model_used == settings.llm_model_l2
+
+
+async def test_advanced_route_uses_l3(redis_client):
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert b'"beam-1.0-501b"' in request.read()  # insight advanced → L3
+        return _chat_ok("Глубокий разбор.")
+
+    provider = _mock_provider(handler)
+    async with session_factory() as session:
+        result = await llm_generate(
+            session,
+            redis_client,
+            route="chess_lab.insight",
+            level=Level.ADVANCED,
+            messages=[LLMMessage(role="user", content="FEN")],
+            ctx=LLMCallContext(),
+            provider=provider,
+        )
+        assert result.tier == "L3" and "разбор" in result.text
+
+
+async def test_fallback_to_echo_when_cloud_fails(redis_client):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, request=request)  # retry тоже 500
+
+    provider = _mock_provider(handler)
+    async with session_factory() as session:
+        result = await llm_generate(
+            session,
+            redis_client,
+            route="python_teacher.comment",
+            level=Level.NOVICE,
+            messages=[LLMMessage(role="user", content="Проверь код")],
+            ctx=LLMCallContext(),
+            provider=provider,
+        )
+        assert result.status == "echo" and result.model_used == "echo"
+        assert result.fallback_from == settings.llm_model_l1
+        assert "[echo]" in result.text
+        row = (
+            await session.execute(sa.select(LLMCall).order_by(LLMCall.id.desc()).limit(1))
+        ).scalar_one()
+        assert row.status == "echo" and row.model_used == "echo"
+        assert row.fallback_from == settings.llm_model_l1
+
+
+async def test_echo_when_cloud_not_configured(redis_client):
+    # settings.llm_base_url пуст (контейнер) → цепочка сразу echo
+    async with session_factory() as session:
+        result = await llm_generate(
+            session,
+            redis_client,
+            route="python_teacher.comment",
+            level=Level.NOVICE,
+            messages=[LLMMessage(role="user", content="x")],
+            ctx=LLMCallContext(),
+        )
+        assert result.status == "echo"
+        assert result.fallback_from == "cloud_not_configured"
 
 
 async def test_bootstrap_slags_validation():
-    known = {"minimax-m3.1", "deepseek-v4.1"}  # L3/judge слаги не заданы в env → skip
+    known = {"minimax-m3.1", "deepseek-v4.1"}  # L3/judge — нет у провайдера
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path.endswith("/models")
@@ -97,7 +145,6 @@ async def test_admin_models_endpoint(admin_client, make_client, unique_email):
     registered = await register_verified(client, unique_email)
     _c, student_access, _uid = await login(client, unique_email)
 
-    # admin видит реестр
     response = await admin_client.get(f"{API}/admin/models")
     assert response.status_code == 200
     body = response.json()
@@ -106,7 +153,6 @@ async def test_admin_models_endpoint(admin_client, make_client, unique_email):
     assert tiers == {"L1", "L2", "L3", "L3_alt", "judge"}
     assert body["models"][0]["priceIn"] == "7.0000"
 
-    # student → 403 (Design §12.2: модели/цены — admin readonly)
     response = await client.get(
         f"{API}/admin/models", headers={"Authorization": f"Bearer {student_access}"}
     )

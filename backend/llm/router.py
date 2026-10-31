@@ -3,11 +3,13 @@
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from core.base import CamelModel
+from core.config import settings
 from domains.auth.deps import DbSession, require_role
 from domains.auth.models import User, UserRole
+from llm import economy
 from llm.client import OpenAICompatProvider
 from llm.models_registry import MODELS
 
@@ -57,3 +59,41 @@ async def list_models(_guard: AdminOnly, session: DbSession) -> ModelsOut:
 
 def _fmt(value: Decimal | None) -> str | None:
     return None if value is None else f"{value:.4f}"
+
+
+class FinOpsDayOut(CamelModel):
+    day: str
+    users: int
+    tokensIn: int
+    tokensOut: int
+    costTotal: str
+
+
+class FinOpsOut(CamelModel):
+    currency: str
+    days: list[FinOpsDayOut]
+
+
+@router.get(
+    "/finops/usage",
+    summary="Расход по дням (Design §8.5/§12.2, admin)",
+)
+async def finops_usage(
+    _guard: AdminOnly,
+    session: DbSession,
+    days: int = Query(default=7, ge=1, le=90),
+) -> FinOpsOut:
+    rows = await economy.finops_daily(session, days)
+    return FinOpsOut(
+        currency=settings.llm_cost_currency,
+        days=[
+            FinOpsDayOut(
+                day=row[0].isoformat(),
+                users=int(row[1]),
+                tokensIn=int(row[2] or 0),
+                tokensOut=int(row[3] or 0),
+                costTotal=f"{Decimal(row[4] or 0):.4f}",
+            )
+            for row in rows
+        ],
+    )

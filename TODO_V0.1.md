@@ -58,11 +58,12 @@
   (2026-10-31: pytest 34 passed (mock-транспорт); /admin/models демо; отчёт — docs/sprint-reports/S-04-2026-10-31.md)
 - **Порт из teacher:** llm base client, policy
 
-### S-05 💰 Экономика: llm_calls, бюджеты, fallback
-- [ ] таблицы `llm_calls`, `usage_daily` (DDL → SPEC); запись tokens/₽/latency
-- [ ] квоты в Redis, бюджеты free 50k / pro 500k ток/день, graceful downgrade (L1 → echo)
-- [ ] fallback-цепочка cloud → local (LM Studio, флаг) → echo; retry 1×2с
-- **DoD:** FinOps-таблица: llm_calls заполняется; бюджет режет выдачу
+### S-05 ✅ Экономика: llm_calls, бюджеты, fallback
+- [x] таблицы `llm_calls`, `usage_daily` (DDL → SPEC); запись tokens/₽/latency
+- [x] квоты в Redis, бюджеты free 50k / pro 500k ток/день, graceful downgrade (L1 → echo)
+- [x] fallback-цепочка cloud → local (LM Studio, флаг) → echo; retry 1×2с
+- **DoD:** FinOps-таблица: llm_calls заполняется; бюджет режет выдачу ✅
+  (2026-10-31: pytest 41 passed; журнал в БД + /admin/finops/usage; отчёт — docs/sprint-reports/S-05-2026-10-31.md)
 - См. Design §8.4–8.5
 
 ### S-06 📝 Промпты уровня (prompt_builder)

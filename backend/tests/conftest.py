@@ -29,6 +29,13 @@ _seeds_done = False
 
 
 @pytest.fixture
+def redis_client():
+    """Клиент Redis для тестов экономики/квот (закрывается после теста)."""
+    client = redis_lib.from_url(settings.redis_url, decode_responses=True)
+    return client
+
+
+@pytest.fixture
 async def make_client():
     """Фабрика httpx-клиентов с общим транспортом (каждый — свежая cookie-jar)."""
     async with LifespanManager(app) as manager:
@@ -64,6 +71,7 @@ async def _cleanup():
         for ip in _CLEAN_IPS:
             keys += [f"auth:fail:{ip}", f"auth:lock:{ip}"]
         keys += await redis.keys("rl:*")
+        keys += await redis.keys("quota:*")
         if keys:
             await redis.delete(*keys)
     finally:

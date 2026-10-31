@@ -174,7 +174,33 @@ interface ProfileOut {
 - `GET /api/v1/admin/models` (admin) — реестр моделей: `{providerConfigured,
   currency, models[{tier, slug, display, role, configured, priceIn, priceOut}]}`;
   цены — строки Numeric (JSON JS-safe).
-- Fallback-цепочка cloud → local → echo и `llm_calls`/`usage_daily` — S-05.
+- `GET /api/v1/admin/finops/usage?days=7` (admin, 1–90) — агрегат по дням:
+  `{currency, days[{day, users, tokensIn, tokensOut, costTotal}]}` (§6.4).
+
+### 6.4. Экономика (S-05, зафиксировано)
+
+**Fallback-цепочка** (Design §8.4): cloud RouterAI → local LM Studio
+(флаг `LLM_LOCAL_FALLBACK`) → echo; в каждом шаге — 1 retry через
+`LLM_RETRY_DELAY_S`. Причина переключения — `fallback_from`:
+`cloud_not_configured` · слаг упавшей облачной модели · `lmstudio`-маркер ·
+`quota_exhausted` · `quota_downgrade:{tier}`.
+
+**llm_calls** (журнал, миграция 0004): `user_id` (nullable — system-вызовы),
+`route`, `level`, `model_requested`, `model_used` (слаг / `lmstudio` / `echo`),
+`fallback_from`, `tokens_in/out`, `cost_in/out` Numeric(12,4) (null, если цена
+не задана), `latency_ms`, `status` (`ok | echo | error`), `task_kind`
+(`sync | async`), `created_at`.
+
+**Квоты и бюджеты** (Design §8.5): Redis-ключ `quota:{user}:{YYYY-MM-DD}`
+(TTL 48 ч), бюджеты free 50 000 / pro 500 000 токенов/день
+(`BUDGET_*_TOKENS_DAY`). Проверка перед вызовом; исчерпание → echo
+(метка `quota_exhausted`); остаток меньше оценки входа и тир ≠ L1 →
+downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
+не расходует квоту (zero-квота); echo не инкрементирует счётчик и не пишет
+`usage_daily`. День — UTC.
+
+**usage_daily** (агрегат): PK `(user_id, day)`; `tokens_in/out`,
+`cost_total`, `updated_at`; upsert-инкремент на каждый ok-вызов.
 
 ## 7. История ревизий контрактов
 
@@ -184,3 +210,4 @@ interface ProfileOut {
 | 2026-10-31 | S-02: auth-контракты ✅ — 8 эндпоинтов, DTO §3.1, 10 кодов ошибок | S-02 |
 | 2026-10-31 | S-03: profile-контракты ✅ — 5 эндпоинтов, DTO §3.2, `/readyz`, пагинация включена | S-03 |
 | 2026-10-31 | S-04: LLM-контракты ✅ — 10 маршрутов §6.1, реестр моделей §6.2, `GET /admin/models` | S-04 |
+| 2026-10-31 | S-05: экономика ✅ — fallback-цепочка, llm_calls/usage_daily, квоты/бюджеты, FinOps API | S-05 |

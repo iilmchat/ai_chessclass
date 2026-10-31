@@ -35,6 +35,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.warning("llm: LLM_BASE_URL не задан — LLM-маршруты недоступны")
     yield
+    from llm.gateway import close_llm_providers
+
+    await close_llm_providers()
     await app.state.redis.aclose()
     await engine.dispose()
 
