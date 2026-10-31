@@ -5,9 +5,9 @@
 """
 
 import httpx
-from conftest import API, PASSWORD, fetch_email_token, register_verified
 
 from domains.auth.models import EmailTokenKind
+from tests.conftest import API, PASSWORD, fetch_email_token, register_verified
 
 
 def _cookie_value(response: httpx.Response, name: str) -> str:

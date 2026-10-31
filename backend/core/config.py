@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     bot_match_budget_s: int = 120
     bot_permove_timeout_s: float = 1.0
     bot_match_concurrency: int = 2
+    # --- песочница (S-07; Design §13.2)
+    sandbox_memory_limit_mb: int = 256
+    sandbox_max_output_chars: int = 65_536  # 64 КБ на stdout/stderr
+    sandbox_timeout_s: float = 5.0  # per-run для заданий; боты — bot_permove_timeout_s
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"

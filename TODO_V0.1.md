@@ -77,10 +77,12 @@
 
 ## E-03 · Python-домен (S-07…S-09)
 
-### S-07 🥲 Песочница (порт executor)
-- [ ] RestrictedPython 8.5 executor: белый список импортов, глобалы, лимиты времени/памяти
-- [ ] per-run timeout; обрезка stdout/stderr (64 КБ); запрет сети/файлов/потоков/os
-- [ ] тест-матрица атак (import os, eval, recursion, memory, threading) — `tests/sandbox/`
+### S-07 ✅ Песочница (порт executor)
+- [x] RestrictedPython 8.5 executor: белый список импортов, глобалы, лимиты времени/памяти
+- [x] per-run timeout; обрезка stdout/stderr (64 КБ); запрет сети/файлов/потоков/os
+- [x] тест-матрица атак (import os, eval, recursion, memory, threading) — `tests/sandbox/`
+- **DoD:** песочница отбивает тест-матрицу; живой smoke (sum + атака + timeout) ✅
+  (2026-11-01: pytest 79 passed; отчёт — docs/sprint-reports/S-07-2026-11-01.md)
 - **DoD:** 20+ эксплоитов — все блокируются; порт из teacher проверен
 - **Порт из teacher:** sandbox/executor (§20.1) — E-03, E-07
 

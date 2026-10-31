@@ -230,7 +230,38 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 полное решение с комментариями. Echo-режим — dev-заглушка тестов LLM
 (CI без ключа): prompt-пайплайн проверяется сквозь `llm_generate`.
 
-## 7. История ревизий контрактов
+## 7. Песочница (S-07)
+
+Единственная точка выполнения ученического кода — `sandbox/`
+(Design §13.2): API-процесс никогда не `exec`-ит код, каждый запуск —
+свежий дочерний интерпретатор.
+
+**Слои защиты:** статический AST-анализ (запрещённые импорты/вызовы/dunder) →
+`compile_restricted` (RestrictedPython 8.5) → ограниченные builtins + гварды
+доступа/записи → собственный `__import__` с белым списком → subprocess с
+лимитами (RLIMIT_AS/Job Object ставится внутри дочернего процесса).
+
+**Разрешённые модули:** math, random, datetime, collections, itertools,
+functools, string, re, statistics, decimal, fractions, json.
+**Запрещённые вызовы:** eval, exec, compile, open, __import__, globals, locals.
+`input()` разрешён — читает только переданный stdin.
+
+**Результат `run_restricted` / executor.run:** `{success, output, error,
+error_type, execution_time, violations[], memory_limit_enforced,
+output_truncated, limits_warning}`. Коды `error_type`: `SecurityError`
+(статика), `SyntaxError`, `RecursionError`, `MemoryError` (RLIMIT_AS),
+`TimeoutError` (per-run), `RestrictedFeatureError` (подсказка про
+f-строки вместо .format — RP 8.x), `SandboxCrash`.
+
+**Лимиты (config/env):** память `SANDBOX_MEMORY_LIMIT_MB=256`, обрезка вывода
+`SANDBOX_MAX_OUTPUT_CHARS=65536` (64 КБ + пометка), таймаут заданий
+`SANDBOX_TIMEOUT_S=5`, боты — `BOT_PERMOVE_TIMEOUT_S=1`.
+
+**Тест-матрица атак** (`tests/sandbox/`, обязательный набор §16.1): импорты
+(os/subprocess/socket/threading/ctypes), eval/exec/open/compile, dunder-атрибуты,
+recursion, memory spike, бесконечный цикл (timeout), обрезка вывода, stdin.
+
+## 8. История ревизий контрактов
 
 | Дата | Изменение | Спринт |
 |---|---|---|
@@ -240,3 +271,4 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 | 2026-10-31 | S-04: LLM-контракты ✅ — 10 маршрутов §6.1, реестр моделей §6.2, `GET /admin/models` | S-04 |
 | 2026-10-31 | S-05: экономика ✅ — fallback-цепочка, llm_calls/usage_daily, квоты/бюджеты, FinOps API | S-05 |
 | 2026-10-31 | S-06: промпты ✅ — системные шаблоны по уровням, таблица параметров §6.5 | S-06 |
+| 2026-11-01 | S-07: песочница ✅ — executor (subprocess, таймаут/RLIMIT), матрица атак; контракты §7 | S-07 |

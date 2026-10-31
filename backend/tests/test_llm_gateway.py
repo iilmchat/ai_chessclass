@@ -3,7 +3,6 @@
 
 import httpx
 import sqlalchemy as sa
-from conftest import API, login, register_verified
 
 from core.config import settings
 from core.db import session_factory
@@ -13,6 +12,7 @@ from llm.bootstrap import validate_model_slags
 from llm.client import OpenAICompatProvider
 from llm.gateway import LLMCallContext, llm_generate
 from llm.models import LLMCall
+from tests.conftest import API, login, register_verified
 
 
 def _mock_provider(handler) -> OpenAICompatProvider:

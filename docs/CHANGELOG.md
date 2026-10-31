@@ -8,6 +8,15 @@
 
 ### Добавлено
 
+#### S-07 — Песочница (2026-11-01)
+- `backend/sandbox/`: `runtime.py` (RestrictedPython 8.5: AST-анализ,
+  safe_builtins/гварды, белый список импортов, дружелюбный RestrictedFeatureError),
+  `limits.py` (RLIMIT_AS / Windows Job Object, обрезка вывода 64 КБ),
+  `executor.py` (subprocess-раннер с per-run timeout, async-обёртка).
+- Тест-матрица атак `tests/sandbox/`: os/subprocess/socket/threading/ctypes,
+  eval/exec/compile/open, dunder, recursion, memory spike, timeout, обрезка,
+  stdin. Dependency: RestrictedPython>=8.5. Config: SANDBOX_*.
+
 #### S-04 — LLM Gateway core (2026-10-31)
 - Пакет `backend/llm/`: `base.py` (порт контракта провайдера из teacher),
   `client.py` (OpenAI-совместимый httpx: таймаут 40 с, 1 retry/2 с,

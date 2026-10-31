@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 
 import httpx
 import sqlalchemy as sa
-from conftest import API, PASSWORD, login, register_verified
 
 from core.config import settings
 from core.db import session_factory
@@ -18,6 +17,7 @@ from llm.base import LLMMessage
 from llm.client import OpenAICompatProvider
 from llm.gateway import LLMCallContext, llm_generate
 from llm.models import LLMCall, UsageDaily
+from tests.conftest import API, PASSWORD, login, register_verified
 
 
 def _ok_provider(calls: list[str], content: str = "Готово.") -> OpenAICompatProvider:

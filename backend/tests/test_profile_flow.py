@@ -1,10 +1,9 @@
 """E2E профиль (DoD S-03): /profile/me, PATCH, RBAC (teacher видит учеников),
 смена уровня админом → уровень попадает в JWT, /readyz."""
 
-from conftest import API, login, make_direct_user, register_verified
-
 from core.security import decode_token
 from domains.auth.models import UserRole
+from tests.conftest import API, login, make_direct_user, register_verified
 
 
 async def _bearer_headers(access: str) -> dict[str, str]:
