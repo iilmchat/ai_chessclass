@@ -202,6 +202,34 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 **usage_daily** (агрегат): PK `(user_id, day)`; `tokens_in/out`,
 `cost_total`, `updated_at`; upsert-инкремент на каждый ok-вызов.
 
+### 6.5. Промпты и параметры генерации (S-06)
+
+`llm/prompts/` (порт prompt_builder/levels из teacher): системный промпт
+маршрута = роль (ROLE_BY_ROUTE) + правила уровня (§5.5) + формат
+(markdown, краткие факты отдельно, RU). Сообщения: system → история
+(последние 20, обрезка 4000 симв.) → user (запрос + блок фактов
+«проверенные данные, менять нельзя»). Изменение текста шаблона → коммит
+с поднятием `PROMPT_VERSIONS[route]` и тестом.
+
+| Маршрут | temperature | max_tokens | version |
+|---|---|---|---|
+| `python_teacher.comment` | 0.3 | 400 | 1 |
+| `python_teacher.hint` | 0.3 | 300 | 1 |
+| `python_teacher.explain_code` | 0.2 | 700 | 1 |
+| `chess_lab.insight` | 0.4 | 600 | 1 |
+| `chess_lab.next_moves` | 0.3 | 400 | 1 |
+| `chess_lab.blunder` | 0.3 | 400 | 1 |
+| `chess_lab.commentary` | 0.5 | 500 | 1 |
+| `bot_lab.coach` | 0.4 | 600 | 1 |
+| `anticheat.judge_explain` | 0.1 | 300 | 1 |
+| `reports.parent_summary` | 0.3 | 500 | 1 |
+
+Правила уровней: novice — без готового решения (наводящие вопросы, шаги,
+синтаксис на отвлечённом примере); intermediate — причины + фрагменты,
+мини-упражнение; advanced — терминология, сложность, альтернативы,
+полное решение с комментариями. Echo-режим — dev-заглушка тестов LLM
+(CI без ключа): prompt-пайплайн проверяется сквозь `llm_generate`.
+
 ## 7. История ревизий контрактов
 
 | Дата | Изменение | Спринт |
@@ -211,3 +239,4 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 | 2026-10-31 | S-03: profile-контракты ✅ — 5 эндпоинтов, DTO §3.2, `/readyz`, пагинация включена | S-03 |
 | 2026-10-31 | S-04: LLM-контракты ✅ — 10 маршрутов §6.1, реестр моделей §6.2, `GET /admin/models` | S-04 |
 | 2026-10-31 | S-05: экономика ✅ — fallback-цепочка, llm_calls/usage_daily, квоты/бюджеты, FinOps API | S-05 |
+| 2026-10-31 | S-06: промпты ✅ — системные шаблоны по уровням, таблица параметров §6.5 | S-06 |

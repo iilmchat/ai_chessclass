@@ -66,11 +66,12 @@
   (2026-10-31: pytest 41 passed; журнал в БД + /admin/finops/usage; отчёт — docs/sprint-reports/S-05-2026-10-31.md)
 - См. Design §8.4–8.5
 
-### S-06 📝 Промпты уровня (prompt_builder)
-- [ ] порт prompt_builder (системные промпты по уровню, RU)
-- [ ] шаблоны для маршрутов python_teacher/chess_lab (таблица параметров → SPEC)
-- [ ] echo-режим как dev-заглушка тестов LLM
-- **DoD:** маршрут comment/hint/insight выдают промпт по уровню
+### S-06 ✅ Промпты уровня (prompt_builder)
+- [x] порт prompt_builder (системные промпты по уровню, RU)
+- [x] шаблоны для маршрутов python_teacher/chess_lab (таблица параметров → SPEC)
+- [x] echo-режим как dev-заглушка тестов LLM
+- **DoD:** маршрут comment/hint/insight выдают промпт по уровню ✅
+  (2026-10-31: pytest 50 passed; отчёт — docs/sprint-reports/S-06-2026-10-31.md)
 
 ---
 
