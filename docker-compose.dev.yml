@@ -1,0 +1,119 @@
+# ChessClass — dev-стек. Контракт: Design.md §15.1; порты: ADR-013 (5438/6384).
+# Запуск: docker compose -f docker-compose.dev.yml up -d
+# KI-001: контейнеры ai_teacher_* не трогаем (5436/6383 заняты ими).
+
+name: chessclass
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: chessclass-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chess}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chess_dev_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-chessclass}
+    ports:
+      - "${POSTGRES_PORT:-5438}:5432"
+    volumes:
+      - chessclass_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chess} -d ${POSTGRES_DB:-chessclass}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [ccnet]
+
+  redis:
+    image: redis:7-alpine
+    container_name: chessclass-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6384}:6379"
+    volumes:
+      - chessclass_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [ccnet]
+
+  api:
+    build:
+      context: ./backend
+    image: chessclass/backend:dev
+    container_name: chessclass-api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8020 --reload
+    volumes:
+      - ./backend:/srv/backend
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-chess}:${POSTGRES_PASSWORD:-chess_dev_2026}@db:5432/${POSTGRES_DB:-chessclass}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "${API_PORT:-8020}:8020"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [ccnet]
+
+  worker:
+    build:
+      context: ./backend
+    image: chessclass/backend:dev
+    container_name: chessclass-worker
+    command: arq app.worker.WorkerSettings
+    volumes:
+      - ./backend:/srv/backend
+    environment: &backend_env
+      APP_ENV: dev
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-chess}:${POSTGRES_PASSWORD:-chess_dev_2026}@db:5432/${POSTGRES_DB:-chessclass}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [ccnet]
+
+  migrate:
+    build:
+      context: ./backend
+    image: chessclass/backend:dev
+    profiles: ["tools"]
+    container_name: chessclass-migrate
+    command: alembic upgrade head
+    volumes:
+      - ./backend:/srv/backend
+    environment: *backend_env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [ccnet]
+
+  web:
+    image: node:20-alpine
+    container_name: chessclass-web
+    working_dir: /srv/frontend
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3200"
+    volumes:
+      - ./frontend:/srv/frontend
+    environment:
+      API_PROXY: http://api:8020
+    ports:
+      - "${WEB_PORT:-3200}:3200"
+    depends_on:
+      - api
+    networks: [ccnet]
+
+volumes:
+  chessclass_pgdata:
+    name: chessclass_pgdata
+  chessclass_redisdata:
+    name: chessclass_redisdata
+
+networks:
+  ccnet:
+    name: chessclass-net
