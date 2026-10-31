@@ -31,6 +31,7 @@ from domains.auth.schemas import (
     VerifyIn,
     user_out,
 )
+from domains.profile import service as profile_svc
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +71,8 @@ def _send_email(email: str, *, kind: str, token: str) -> None:
     logger.info("[dev-email] to=%s kind=%s link=%s", email, kind, link)
 
 
-def _access_token(user_id: int, role: str) -> str:
-    return create_access_token(user_id, role)
+def _access_token(user_id: int, role: str, level: str | None = None) -> str:
+    return create_access_token(user_id, role, level)
 
 
 @router.post("/register", status_code=201, response_model=RegisterOut)
@@ -82,6 +83,7 @@ async def register(
         _redis(request), f"register:{_client_ip(request)}", limit=10, window_s=60
     )
     user = await svc.register_user(session, body.email.strip().lower(), body.password)
+    await profile_svc.ensure_profile(session, user.id)  # novice/free по умолчанию
     token = await svc.issue_email_token(session, user, EmailTokenKind.VERIFY)
     _send_email(user.email, kind="verify", token=token)
     return RegisterOut(
@@ -122,8 +124,9 @@ async def login(
         session, user, request.headers.get("user-agent")
     )
     _set_refresh_cookie(response, raw)
+    profile = await profile_svc.ensure_profile(session, user.id)
     return AuthOut(
-        accessToken=_access_token(user.id, user.role.value),
+        accessToken=_access_token(user.id, user.role.value, profile.level.value),
         user=user_out(user),
     )
 
@@ -139,7 +142,10 @@ async def refresh(
         session, raw, request.headers.get("user-agent")
     )
     _set_refresh_cookie(response, new_raw)
-    return TokenOut(accessToken=_access_token(user.id, user.role.value))
+    profile = await profile_svc.ensure_profile(session, user.id)
+    return TokenOut(
+        accessToken=_access_token(user.id, user.role.value, profile.level.value)
+    )
 
 
 @router.post("/logout", response_model=MessageOut)

@@ -6,12 +6,13 @@ import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import healthz
+from app.routers import healthz, readyz
 from core.config import settings
 from core.db import engine
 from core.errors import register_exception_handlers
 from core.logging import new_request_id, request_id_var, setup_logging
 from domains.auth.router import router as auth_router
+from domains.profile.router import router as profile_router
 
 
 @asynccontextmanager
@@ -64,9 +65,12 @@ register_exception_handlers(app)
 # healthz — и от корня (Design §15.3: GET /healthz), и под /api/v1 (для прокси фронтенда)
 app.include_router(healthz.router, tags=["health"])
 app.include_router(healthz.router, prefix="/api/v1", include_in_schema=False)
+app.include_router(readyz.router, tags=["health"])
+app.include_router(readyz.router, prefix="/api/v1", include_in_schema=False)
 
 # домены API v1 (Design §12.2)
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(profile_router, prefix="/api/v1")
 
 
 def run() -> None:

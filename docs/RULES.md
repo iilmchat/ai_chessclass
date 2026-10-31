@@ -57,10 +57,12 @@
 |---|---|
 | Compose | `docker compose -f docker-compose.dev.yml config -q` |
 | Backend статика | `ruff check . && mypy .` (в `backend/`) |
-| Backend тесты | `pytest` (с S-02; локальный venv `backend/.venv`) |
+| Backend тесты | `scripts/ci.ps1` — полный контур в контейнере (host-pip нестабилен); альтернатива: venv `backend/.venv` |
 | Frontend типы | `npx tsc --noEmit` (в `frontend/`) |
 | healthz | `curl http://localhost:8020/healthz` → `{"status":"ok","db":true,"redis":true}` |
+| readyz | `curl http://localhost:8020/readyz` → `status: ready`, `migrationsUpToDate: true` |
 | Фронтенд | `http://localhost:3200` — на дашборде «API/БД/Redis — ок» |
+| CI (GitHub) | `.github/workflows/ci.yml`: ruff → mypy → alembic → seeds → pytest (pg+redis services) |
 
 ## 7. Шаблон отчёта спринта
 

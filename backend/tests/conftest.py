@@ -1,9 +1,11 @@
-"""Фикстуры: in-process app (lifespan), уникальные email, очистка данных.
+"""Фикстуры и общие хелперы: in-process app (lifespan), уникальные email,
+очистка данных, прямое создание пользователей, seeds+admin-клиент.
 
 Тесты идут в реальный dev-стек (localhost:5438/6384, ADR-013) — RULES §6.
 """
 
 import uuid
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -14,10 +16,16 @@ from asgi_lifespan import LifespanManager
 from app.main import app
 from core.config import settings
 from core.db import engine, session_factory
+from core.levels import Level
+from core.security import hash_password
+from domains.auth.models import EmailToken, EmailTokenKind, User, UserRole
+from domains.profile.models import UserProfile
 
 API = "/api/v1"
+PASSWORD = "Passw0rd!123"
 
 _CLEAN_IPS = ("127.0.0.1", "testclient", "unknown")
+_seeds_done = False
 
 
 @pytest.fixture
@@ -63,3 +71,88 @@ async def _cleanup():
     # pytest-asyncio даёт каждому тесту новый event-loop; пул engine хранит
     # соединения asyncpg, привязанные к loop'у теста, — dispose перед следующим
     await engine.dispose()
+
+
+# --- общие хелперы (используются тестами нескольких доменов)
+
+async def fetch_email_token(email: str, kind: EmailTokenKind = EmailTokenKind.VERIFY) -> str:
+    """Неиспользованный email-токен из БД («консольный SMTP» пишет в логи)."""
+    stmt = (
+        sa.select(EmailToken)
+        .where(EmailToken.kind == kind, EmailToken.used_at.is_(None))
+        .join(User, EmailToken.user_id == User.id)
+        .where(User.email == email)
+    )
+    async with session_factory() as session:
+        row = (await session.execute(stmt)).scalar_one()
+        return str(row.token)
+
+
+async def register_verified(client: httpx.AsyncClient, email: str) -> dict:
+    """Регистрация + подтверждение email; возвращает тело register-ответа."""
+    response = await client.post(
+        f"{API}/auth/register", json={"email": email, "password": PASSWORD}
+    )
+    assert response.status_code == 201
+    body = dict(response.json())
+    token = await fetch_email_token(email)
+    response = await client.post(f"{API}/auth/verify", json={"token": token})
+    assert response.status_code == 200
+    return body
+
+
+async def make_direct_user(
+    email: str, role: UserRole = UserRole.STUDENT, level: Level = Level.NOVICE
+) -> int:
+    """Пользователь напрямую в БД (верифицирован) — для RBAC-сценариев."""
+    async with session_factory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password(PASSWORD),
+            role=role,
+            email_verified_at=datetime.now(UTC),
+        )
+        session.add(user)
+        await session.flush()
+        session.add(UserProfile(user_id=user.id, level=level))
+        await session.commit()
+        return int(user.id)
+
+
+async def login(client: httpx.AsyncClient, email: str) -> tuple[httpx.AsyncClient, str, int]:
+    """Логин; возвращает (client, accessToken, user_id)."""
+    response = await client.post(
+        f"{API}/auth/login", json={"email": email, "password": PASSWORD}
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    return client, str(body["accessToken"]), int(body["user"]["id"])
+
+
+async def ensure_seeds() -> None:
+    """Однократный прогон seeds (идемпотентен) — для admin-фикстуры."""
+    global _seeds_done
+    if _seeds_done:
+        return
+    from db.seeds import run as seeds_run
+
+    await seeds_run()
+    _seeds_done = True
+
+
+@pytest.fixture
+async def admin_client(make_client):
+    """Клиент, залогиненный сид-админом (email/password из core.config)."""
+    await ensure_seeds()
+    client = await make_client()
+    response = await client.post(
+        f"{API}/auth/login",
+        json={
+            "email": settings.seed_admin_email,
+            "password": settings.seed_admin_password,
+        },
+    )
+    assert response.status_code == 200, response.text
+    token = str(response.json()["accessToken"])
+    client.headers["Authorization"] = f"Bearer {token}"
+    return client

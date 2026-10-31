@@ -5,13 +5,9 @@
 """
 
 import httpx
-import sqlalchemy as sa
-from conftest import API
+from conftest import API, PASSWORD, fetch_email_token, register_verified
 
-from core.db import session_factory
-from domains.auth.models import EmailToken, EmailTokenKind, User
-
-PASSWORD = "Passw0rd!123"
+from domains.auth.models import EmailTokenKind
 
 
 def _cookie_value(response: httpx.Response, name: str) -> str:
@@ -21,28 +17,6 @@ def _cookie_value(response: httpx.Response, name: str) -> str:
         if part.startswith(f"{name}="):
             return part.split("=", 1)[1]
     raise AssertionError(f"cookie {name} не найден: {raw!r}")
-
-
-async def _get_email_token(email: str, kind: EmailTokenKind) -> str:
-    stmt = (
-        sa.select(EmailToken)
-        .where(EmailToken.kind == kind, EmailToken.used_at.is_(None))
-        .join(User, EmailToken.user_id == User.id)
-        .where(User.email == email)
-    )
-    async with session_factory() as session:
-        row = (await session.execute(stmt)).scalar_one()
-        return str(row.token)
-
-
-async def _register_verified(client: httpx.AsyncClient, email: str) -> None:
-    response = await client.post(
-        f"{API}/auth/register", json={"email": email, "password": PASSWORD}
-    )
-    assert response.status_code == 201
-    token = await _get_email_token(email, EmailTokenKind.VERIFY)
-    response = await client.post(f"{API}/auth/verify", json={"token": token})
-    assert response.status_code == 200
 
 
 async def test_full_auth_flow(make_client, unique_email):
@@ -68,7 +42,7 @@ async def test_full_auth_flow(make_client, unique_email):
     assert response.headers["content-type"].startswith("application/problem+json")
 
     # 3. верификация: токен одноразовый (консольный SMTP — в логах api)
-    token = await _get_email_token(unique_email, EmailTokenKind.VERIFY)
+    token = await fetch_email_token(unique_email, EmailTokenKind.VERIFY)
     response = await client.post(f"{API}/auth/verify", json={"token": token})
     assert response.status_code == 200 and response.json()["ok"] is True
     response = await client.post(f"{API}/auth/verify", json={"token": token})
@@ -146,7 +120,7 @@ async def test_register_duplicate_email(make_client, unique_email):
 
 async def test_login_lockout_after_five_failures(make_client, unique_email):
     client = await make_client()
-    await _register_verified(client, unique_email)
+    await register_verified(client, unique_email)
 
     bad = {"email": unique_email, "password": "wrong-password"}
     for _ in range(5):
@@ -163,7 +137,7 @@ async def test_login_lockout_after_five_failures(make_client, unique_email):
 
 async def test_password_reset_flow(make_client, unique_email):
     client = await make_client()
-    await _register_verified(client, unique_email)
+    await register_verified(client, unique_email)
 
     response = await client.post(
         f"{API}/auth/password-reset", json={"email": unique_email}
@@ -176,7 +150,7 @@ async def test_password_reset_flow(make_client, unique_email):
     )
     assert response.status_code == 202
 
-    token = await _get_email_token(unique_email, EmailTokenKind.RESET)
+    token = await fetch_email_token(unique_email, EmailTokenKind.RESET)
     response = await client.post(
         f"{API}/auth/password-reset/confirm",
         json={"token": token, "newPassword": "NewPassw0rd!456"},

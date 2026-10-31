@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     bot_permove_timeout_s: float = 1.0
     bot_match_concurrency: int = 2
 
+    # --- seeds (S-03)
+    seed_admin_email: str = "admin@chessclass.dev"
+    seed_admin_password: str = "dev-admin-2026"
+    seed_student_password: str = "dev-student-2026"
+
 
 @lru_cache
 def get_settings() -> Settings:

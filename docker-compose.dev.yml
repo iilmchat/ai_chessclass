@@ -93,6 +93,21 @@ services:
         condition: service_healthy
     networks: [ccnet]
 
+  seed:
+    build:
+      context: ./backend
+    image: chessclass/backend:dev
+    profiles: ["tools"]
+    container_name: chessclass-seed
+    command: python -m db.seeds
+    volumes:
+      - ./backend:/srv/backend
+    environment: *backend_env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [ccnet]
+
   web:
     image: node:20-alpine
     container_name: chessclass-web

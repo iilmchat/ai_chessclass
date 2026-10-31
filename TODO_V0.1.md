@@ -37,12 +37,13 @@
   (2026-10-31: pytest 9 passed + curl-демо; отчёт — docs/sprint-reports/S-02-2026-10-31.md)
 - **Порт из teacher:** security-модули
 
-### S-03 👤 Профиль, уровни, RBAC + seeds
-- [ ] `user_profiles` (level, billing_tier); роли student/teacher/admin + пермишен-зависимости
-- [ ] единый enum уровня + маппинг уровней (Design §4.2), override `level` на запрос
-- [ ] seeds: админ, запасные ученики, skills/skill_links (Design §10.1, §10.4)
-- [ ] `/readyz` детали; CI-продукция: ruff/mypy/pytest
-- **DoD:** профиль с ролью; teacher видит учеников; тесты CI зелёные
+### S-03 ✅ Профиль, уровни, RBAC + seeds
+- [x] `user_profiles` (level, billing_tier); роли student/teacher/admin + пермишен-зависимости
+- [x] единый enum уровня + маппинг уровней (Design §4.2), override `level` на запрос
+- [x] seeds: админ, запасные ученики, skills/skill_links (Design §10.1, §10.4)
+- [x] `/readyz` детали; CI-продукция: ruff/mypy/pytest
+- **DoD:** профиль с ролью; teacher видит учеников; тесты CI зелёные ✅
+  (2026-10-31: pytest 19 passed, ruff/mypy 0; отчёт — docs/sprint-reports/S-03-2026-10-31.md)
 - **Порт из teacher:** models/уровни (ADR-002, §20.1)
 
 ---

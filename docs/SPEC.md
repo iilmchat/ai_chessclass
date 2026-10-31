@@ -26,7 +26,9 @@
 | Домен | Route | Метод | Статус | Заметки |
 |---|---|---|---|---|
 | infra | `/healthz` (дублируется с корня `/`) | GET | ✅ S-01 | `HealthDto{status, db, redis}`; ping БД и Redis, сам никогда не 5xx |
+| infra | `/readyz` (дублируется с корня `/`) | GET | ✅ S-03 | ревизия alembic vs head, версия приложения; `status: ready/not-ready` |
 | auth | `POST /auth/register`, `/auth/verify`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `GET /auth/me`, `POST /auth/password-reset`, `/auth/password-reset/confirm` | — | ✅ S-02 | Argon2id; JWT access 15м; refresh — opaque в БД, HttpOnly-cookie `cc_refresh` (path `/api/v1/auth`), ротация; login требует верифицированный email (Design §13.1) |
+| profile | `GET /profile/me`, `PATCH /profile/me`, `GET /profile/students`, `GET /profile/{id}`, `PATCH /profile/{id}/level` | — | ✅ S-03 | RBAC: свой профиль — все; список/чужой — teacher/admin; смена уровня — admin (Design §12.2); пагинация `page`+`pageSize` |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `/chess/positions/analyze`, `/chess/games/{id}/summary`, экспорт PGN/CSV | — | 🧱 S-06…S-07 | engine-контракт — Design §7, ADR-003/004 |
 | bots | `/bots` CRUD, `/bots/{id}/match/run` (SSE-прогресс), `/bots/{id}/reliability` | — | 🧱 S-08…S-09 | `choose_move(position)->str`, лестница Elo — Design §8, ADR-011/012 |
@@ -71,6 +73,29 @@ interface MessageOut { ok: boolean }
 `email_tokens`/`refresh_sessions` получили `created_at` (аудит); refresh-cookie
 живёт с `path=/api/v1/auth`; повторное использование отозванного refresh
 отзывает все сессии пользователя.
+
+### 3.2. profile (S-03, зафиксировано)
+
+```ts
+// GET /api/v1/profile/me → 200
+interface ProfileOut {
+  id: string; email: string; role: string;
+  displayName: string | null;
+  level: "novice" | "intermediate" | "advanced" | null; // null — только легаси (до backfill 0003)
+  billingTier: "free" | "pro" | null;
+  emailVerified: boolean; isActive: boolean;
+  prefs: Record<string, unknown>; createdAt: string;
+}
+// PATCH /profile/me { displayName?, prefs? } → ProfileOut (level меняет только admin)
+// GET /profile/students?page&pageSize → { items: ProfileOut[], total, page, pageSize }
+// PATCH /profile/{id}/level { level } → ProfileOut (только admin)
+```
+
+Профиль создаётся при регистрации (level `novice`, tier `free`) и всегда
+существует у новых пользователей; миграция `0003` backfill-ом закрыла легаси.
+Уровень попадает в JWT-клейм `level` при login/refresh. Данные `skills` /
+`skill_links` пока без API (модели + seeds; таблицы — Design §11.2,
+миграция `0003`) — API реестра появится вместе с дашбордом (E-08).
 
 ## 4. Канон ошибок
 
@@ -123,3 +148,4 @@ interface MessageOut { ok: boolean }
 |---|---|---|
 | 2026-10-31 | S-01: базовые конвенции v1, `/healthz` ✅ | S-01 |
 | 2026-10-31 | S-02: auth-контракты ✅ — 8 эндпоинтов, DTO §3.1, 10 кодов ошибок | S-02 |
+| 2026-10-31 | S-03: profile-контракты ✅ — 5 эндпоинтов, DTO §3.2, `/readyz`, пагинация включена | S-03 |
