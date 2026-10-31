@@ -189,6 +189,137 @@ body {
   color: var(--accent);
 }
 
+.retry-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* --- python_teacher: задания (S-08) --- */
+.logout {
+  margin-left: 12px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 320px;
+}
+
+.field {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.assignment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.assignment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.assignment-item:hover {
+  border-color: var(--accent);
+}
+
+.assignment-item.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.level-tag {
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.statement {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.editor {
+  width: 100%;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  resize: vertical;
+}
+
+.submit-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.verdict {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.verdict-passed {
+  border-color: var(--ok);
+  background: var(--accent-soft);
+}
+
+.verdict-failed,
+.verdict-restricted,
+.verdict-error {
+  border-color: var(--danger);
+}
+
+.verdict-timeout {
+  border-color: var(--muted);
+}
+
+.verdict pre.stdout {
+  margin: 10px 0 0;
+  padding: 10px;
+  background: var(--bg);
+  border-radius: 6px;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.failed-note {
+  color: var(--danger);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171f;

@@ -8,6 +8,18 @@
 
 ### Добавлено
 
+#### S-08 — Задания и сдача (2026-11-01)
+- Миграция `0005_py_domain`: `py_assignments` (slug uq, topic→навык, tests
+  JSONB assert-стиль), `py_hints` (лестница: concept/strategy/pseudocode/code),
+  `py_submissions` (verdict CHECK: passed/failed/timeout/restricted/error).
+- `domains/python_teacher/`: grader (батч-прогон «решение + assert-тесты»
+  в песочнице, маркеры с per-run солью — подделка PASS невозможна), сервис
+  (CRUD admin, сдача, приватность сдач), роутер `/api/v1/py`.
+- Seeds: 16 заданий по темам §5.2 + 18 ступеней подсказок.
+- Фронтенд: экран Python-курса — вход (dev), список заданий, редактор кода,
+  кнопка «Проверить», вердикт-панель; token-логика в `shared/api.ts`.
+- `PageOut` (пагинация) перенесён в `core/base` (общий контракт).
+
 #### S-07 — Песочница (2026-11-01)
 - `backend/sandbox/`: `runtime.py` (RestrictedPython 8.5: AST-анализ,
   safe_builtins/гварды, белый список импортов, дружелюбный RestrictedFeatureError),

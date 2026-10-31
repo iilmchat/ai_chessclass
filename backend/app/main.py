@@ -14,6 +14,7 @@ from core.errors import register_exception_handlers
 from core.logging import new_request_id, request_id_var, setup_logging
 from domains.auth.router import router as auth_router
 from domains.profile.router import router as profile_router
+from domains.python_teacher.router import router as py_router
 from llm.router import router as llm_admin_router
 
 logger = logging.getLogger(__name__)
@@ -89,6 +90,7 @@ app.include_router(readyz.router, prefix="/api/v1", include_in_schema=False)
 # домены API v1 (Design §12.2)
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(profile_router, prefix="/api/v1")
+app.include_router(py_router, prefix="/api/v1")
 app.include_router(llm_admin_router, prefix="/api/v1")
 
 

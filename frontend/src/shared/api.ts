@@ -1,4 +1,21 @@
 const BASE = '/api/v1';
+const TOKEN_KEY = 'cc_access_token';
+
+let accessToken: string | null = localStorage.getItem(TOKEN_KEY);
+
+/** Access-JWT в памяти браузера (S-08: лёгкий dev-логин). */
+export function setToken(token: string | null): void {
+  accessToken = token;
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export function getToken(): string | null {
+  return accessToken;
+}
 
 /** Контракт ошибок — RFC 7807 (Design §12.1): code/detail/status. */
 export interface ProblemDetails {
@@ -23,18 +40,23 @@ export class ApiError extends Error {
 
 /**
  * Общий REST-запрос к API v1. JSON — camelCase (Design §12.1),
- * cookies включаем (refresh — HttpOnly cookie, S-02).
+ * cookies включаем (refresh — HttpOnly cookie, S-02), Bearer — access-JWT.
  */
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((init.headers as Record<string, string>) ?? {}),
+  };
+  if (accessToken && !headers.Authorization) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
   let response: Response;
   try {
     response = await fetch(`${BASE}${path}`, {
       ...init,
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init.headers ?? {}),
-      },
+      headers,
     });
   } catch {
     throw new ApiError(0, 'network_error', 'Сеть недоступна: API не отвечает');
@@ -63,3 +85,71 @@ export interface HealthDto {
 }
 
 export const fetchHealth = (): Promise<HealthDto> => apiFetch<HealthDto>('/healthz');
+
+export interface AuthOut {
+  accessToken: string;
+  tokenType: string;
+  user: {
+    id: string;
+    email: string;
+    role: string;
+    emailVerified: boolean;
+  };
+}
+
+export async function login(email: string, password: string): Promise<AuthOut> {
+  const data = await apiFetch<AuthOut>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  setToken(data.accessToken);
+  return data;
+}
+
+export function logout(): void {
+  setToken(null);
+}
+
+// --- python_teacher (S-08)
+
+export interface AssignmentDto {
+  id: string;
+  slug: string;
+  title: string;
+  level: 'novice' | 'intermediate' | 'advanced';
+  topic: string;
+  testsCount: number;
+}
+
+export interface AssignmentDetailDto extends AssignmentDto {
+  statement: string;
+  starterCode: string;
+  tests: string[] | null;
+}
+
+export interface SubmissionDto {
+  id: string;
+  assignmentId: string;
+  verdict: 'passed' | 'failed' | 'timeout' | 'restricted' | 'error';
+  passedTests: number;
+  totalTests: number;
+  failedTest: number | null;
+  stdoutDigest: string | null;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+export function fetchAssignments(): Promise<{ items: AssignmentDto[]; total: number }> {
+  return apiFetch('/py/assignments?pageSize=100');
+}
+
+export function fetchAssignmentDetail(id: string): Promise<AssignmentDetailDto> {
+  return apiFetch(`/py/assignments/${id}`);
+}
+
+export function submitSolution(id: string, code: string): Promise<SubmissionDto> {
+  return apiFetch(`/py/assignments/${id}/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}

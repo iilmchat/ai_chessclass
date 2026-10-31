@@ -61,8 +61,12 @@ def unique_email() -> str:
 async def _cleanup():
     yield
     async with session_factory() as session:
+        # e2e-юзеры; задания тестов (slug test-*) — каскадом submissions/hints
         await session.execute(
             sa.text("DELETE FROM users WHERE email LIKE '%@e2e.chessclass'")
+        )
+        await session.execute(
+            sa.text("DELETE FROM py_assignments WHERE slug LIKE 'test-%'")
         )
         await session.commit()
     redis = redis_lib.from_url(settings.redis_url, decode_responses=True)

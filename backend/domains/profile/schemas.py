@@ -36,10 +36,5 @@ class LevelUpdateIn(CamelModel):
     level: Level
 
 
-class PageOut(CamelModel):
-    """Пагинация (Design §12.1 — с S-03): items + total."""
-
-    items: list
-    total: int
-    page: int
-    page_size: int
+# пагинация — общий контракт: PageOut живёт в core.base (SPEC §1)
+from core.base import PageOut as PageOut  # noqa: E402, F401

@@ -86,12 +86,13 @@
 - **DoD:** 20+ эксплоитов — все блокируются; порт из teacher проверен
 - **Порт из teacher:** sandbox/executor (§20.1) — E-03, E-07
 
-### S-08 📘 Задания и сдача
-- [ ] `py_assignments`/`py_submissions`/`py_hints` (DDL → SPEC); Pydantic-роутеры
-- [ ] тесты assert-стиль (исполняются в executor); вердикт passed/failed/timeout/restricted
-- [ ] UI экран задания: условие + редактор + тесты (порт виджета, §20.3)
-- [ ] seed 15–20 заданий (темы Design §5.2: переменные…алгоритмы)
-- **DoD:** ученик решает задание и видит вердикт
+### S-08 ✅ Задания и сдача
+- [x] `py_assignments`/`py_submissions`/`py_hints` (DDL → SPEC); Pydantic-роутеры
+- [x] тесты assert-стиль (исполняются в executor); вердикт passed/failed/timeout/restricted
+- [x] UI экран задания: условие + редактор + тесты (порт виджета, §20.3)
+- [x] seed 15–20 заданий (темы Design §5.2: переменные…алгоритмы)
+- **DoD:** ученик решает задание и видит вердикт ✅
+  (2026-11-01: pytest 90 passed + curl-демо passed 3/3; отчёт — docs/sprint-reports/S-08-2026-11-01.md)
 
 ### S-09 🔬 Подсказки, комментарии, low_effort
 - [ ] hint ladder: seeded → LLM-подсказка → solution (открытие = событие с минус-весом)

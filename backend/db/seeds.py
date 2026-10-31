@@ -140,6 +140,11 @@ async def run() -> dict[str, int]:
         for step in (seed_users, seed_skills, seed_skill_links):
             stats.update(await step(session))
         await session.commit()
+    from db.seeds_tasks import seed_tasks
+
+    async with session_factory() as session:
+        stats.update(await seed_tasks(session))
+        await session.commit()
     return stats
 
 

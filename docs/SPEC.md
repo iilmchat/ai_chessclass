@@ -29,6 +29,7 @@
 | infra | `/readyz` (дублируется с корня `/`) | GET | ✅ S-03 | ревизия alembic vs head, версия приложения; `status: ready/not-ready` |
 | auth | `POST /auth/register`, `/auth/verify`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `GET /auth/me`, `POST /auth/password-reset`, `/auth/password-reset/confirm` | — | ✅ S-02 | Argon2id; JWT access 15м; refresh — opaque в БД, HttpOnly-cookie `cc_refresh` (path `/api/v1/auth`), ротация; login требует верифицированный email (Design §13.1) |
 | profile | `GET /profile/me`, `PATCH /profile/me`, `GET /profile/students`, `GET /profile/{id}`, `PATCH /profile/{id}/level` | — | ✅ S-03 | RBAC: свой профиль — все; список/чужой — teacher/admin; смена уровня — admin (Design §12.2); пагинация `page`+`pageSize` |
+| python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `GET /py/submissions/{id}` | — | ✅ S-08 | assert-тесты в песочнице; вердикты §3.3; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `/chess/positions/analyze`, `/chess/games/{id}/summary`, экспорт PGN/CSV | — | 🧱 S-06…S-07 | engine-контракт — Design §7, ADR-003/004 |
 | bots | `/bots` CRUD, `/bots/{id}/match/run` (SSE-прогресс), `/bots/{id}/reliability` | — | 🧱 S-08…S-09 | `choose_move(position)->str`, лестница Elo — Design §8, ADR-011/012 |
@@ -96,6 +97,39 @@ interface ProfileOut {
 Уровень попадает в JWT-клейм `level` при login/refresh. Данные `skills` /
 `skill_links` пока без API (модели + seeds; таблицы — Design §11.2,
 миграция `0003`) — API реестра появится вместе с дашбордом (E-08).
+
+### 3.3. python_teacher (S-08, зафиксировано)
+
+```ts
+// GET /py/assignments → { items, total, page, pageSize }
+interface AssignmentDto {
+  id: string; slug: string; title: string;
+  level: "novice" | "intermediate" | "advanced";
+  topic: string;       // slug навыка реестра (§10.1)
+  testsCount: number;
+}
+// GET /py/assignments/{id} — student: tests=null; admin: тесты видны
+interface AssignmentDetailDto extends AssignmentDto {
+  statement: string; starterCode: string;
+  tests: string[] | null; checkpoints: unknown[] | null; isActive: boolean | null;
+}
+// POST /py/assignments/{id}/submit { code } → вердикт (Design §5.3)
+interface SubmissionDto {
+  id: string; assignmentId: string;
+  verdict: "passed" | "failed" | "timeout" | "restricted" | "error";
+  passedTests: number; totalTests: number; failedTest: number | null;
+  stdoutDigest: string | null; durationMs: number | null; createdAt: string;
+}
+```
+
+Тесты — assert-стиль (однострочные строки в JSONB), исполняются в песочнице
+вместе с решением: маркеры результата солятся per-run (подделка PASS невозможна).
+`verdict` → `restricted` (Security/RestrictedFeature), `timeout` (per-run),
+`error` (runtime-ошибка решения), `passed/failed` по числу пройденных тестов.
+`stdout_digest` — вывод ученика (без маркеров), обрезан до 2000 символов.
+Slug задания — ключ идемпотентных сидов (сверх каталога §11.2); created_at/
+updated_at — аудит. Seeds: 16 заданий (§5.2: переменные → алгоритмы) +
+18 ступеней подсказок (задел лестницы S-09).
 
 ## 4. Канон ошибок
 
@@ -272,3 +306,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-10-31 | S-05: экономика ✅ — fallback-цепочка, llm_calls/usage_daily, квоты/бюджеты, FinOps API | S-05 |
 | 2026-10-31 | S-06: промпты ✅ — системные шаблоны по уровням, таблица параметров §6.5 | S-06 |
 | 2026-11-01 | S-07: песочница ✅ — executor (subprocess, таймаут/RLIMIT), матрица атак; контракты §7 | S-07 |
+| 2026-11-01 | S-08: py-домен ✅ — задания/сдача/вердикты, DTO §3.3, seeds 16 заданий | S-08 |

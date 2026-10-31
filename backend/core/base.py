@@ -10,3 +10,12 @@ class CamelModel(BaseModel):
         populate_by_name=True,
         from_attributes=True,
     )
+
+
+class PageOut(CamelModel):
+    """Пагинация (Design §12.1, с S-03): items + total + page/pageSize."""
+
+    items: list
+    total: int
+    page: int
+    page_size: int
