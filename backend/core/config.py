@@ -69,12 +69,17 @@ class Settings(BaseSettings):
     budget_free_tokens_day: int = 50_000
     budget_pro_tokens_day: int = 500_000
 
-    # --- engine / sandbox (E-03+, E-07+)
-    stockfish_path: str = "/usr/games/stockfish"
+    # --- engine / sandbox (E-03+, E-04+)
+    stockfish_path: str = "/usr/local/bin/stockfish"
+    sf_threads: int = 1
+    sf_hash_mb: int = 16
+    sf_interactive_movetime_ms: int = 1000  # интерактивные вызовы ≤ 1.0 c (S-10)
     max_plies: int = 60
     bot_match_budget_s: int = 120
     bot_permove_timeout_s: float = 1.0
     bot_match_concurrency: int = 2
+    # роль процесса: api | worker — Stockfish разрешён только воркеру (§15.3)
+    app_role: str = "api"
     # --- песочница (S-07; Design §13.2)
     sandbox_memory_limit_mb: int = 256
     sandbox_max_output_chars: int = 65_536  # 64 КБ на stdout/stderr

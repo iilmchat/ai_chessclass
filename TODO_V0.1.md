@@ -106,10 +106,12 @@
 
 ## E-04 · Шахматный домен (S-10…S-12)
 
-### S-10 ♟️ Engine wrapper (порт)
-- [ ] Stockfish 17 UCI-обёртка: bestmove/eval/PV/multipv; UCI_Elo; threads/movetime из env
-- [ ] бюджет вызовов: интерактив movetime ≤ 1.0 c; «SF — только worker» правило
-- [ ] интеграционные тесты против реального SF (короткий бюджет)
+### S-10 ✅ Engine wrapper (порт)
+- [x] Stockfish 17 UCI-обёртка: bestmove/eval/PV/multipv; UCI_Elo; threads/movetime из env
+- [x] бюджет вызовов: интерактив movetime ≤ 1.0 c; «SF — только worker» правило
+- [x] интеграционные тесты против реального SF (короткий бюджет)
+- **DoD:** SF 17.1 в образе; e2e4 (+37cp, d18), Re8# (mate 1), UCI_Elo 1400 ✅
+  (2026-11-01: pytest 104 passed (+8 engine); отчёт — docs/sprint-reports/S-10-2026-11-01.md)
 - **Порт из annotator:** engine/ (§20.2) — почти verbatim
 
 ### S-11 🧩 Инсайт позиции

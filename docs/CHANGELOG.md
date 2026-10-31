@@ -8,6 +8,18 @@
 
 ### Добавлено
 
+#### S-10 — Engine wrapper (2026-11-01)
+- `backend/engine/` (порт app/engine annotator, почти verbatim): собственный
+  async UCI-клиент (MultiPV-линии, таймауты uciok/readyok/search+4с,
+  перезапуск зависшего процесса), профили beginner/club/gm
+  (depth 12/18/28, movetime 200/1000/5000), интерактивный clamp ≤1000 мс,
+  UCI_Elo (UCI_LimitStrength, 1320..3190), гвард «SF — только worker»
+  (APP_ROLE=worker). Модель EngineLine (мат = ±(10000−100·N)).
+- Dockerfile: Stockfish 17.1 (ubuntu avx2) ставится в образ на build.
+- Deps: chess>=1.10. Config: SF_THREADS/SF_HASH_MB/
+  SF_INTERACTIVE_MOVETIME_MS/APP_ROLE.
+- Интеграционные тесты против реального SF (skip, если бинарника нет).
+
 #### S-09 — Подсказки, комментарии, low_effort (2026-11-01)
 - Миграция `0006_py_hints_cognitive`: `py_reference_solutions` (эталоны),
   `py_feedback` (LLM-комментарий к сдаче), `anticheat_flags` (§9.4:
@@ -19,7 +31,7 @@
   L1/L2 по уровню ученика, echo в dev); хранится в `py_feedback`.
 - Античит-заготовка: low_effort (≤3 строк / неизменённый starter при повторе)
   → флаг с confidence + evidence; не блокирует сдачу (ADR-005).
-- События навыков: submit passed +1.0 / failed +0.3; emит только student.
+- События навыков: submit passed +1.0 / failed +0.3; записываются только student'у.
 - Seeds: +16 эталонных решений (backfill для существующих заданий).
 
 #### S-08 — Задания и сдача (2026-11-01)

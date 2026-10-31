@@ -69,6 +69,7 @@ services:
       - ./backend:/srv/backend
     environment: &backend_env
       APP_ENV: dev
+      APP_ROLE: worker
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-chess}:${POSTGRES_PASSWORD:-chess_dev_2026}@db:5432/${POSTGRES_DB:-chessclass}
       REDIS_URL: redis://redis:6379/0
     depends_on:

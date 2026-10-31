@@ -175,7 +175,35 @@ domain, weight Numeric(6,3), meta JSONB, occurred_at. Базовые веса (�
 
 Эмитятся только для роли student; навык отсутствует → skip + warning.
 
-## 9. История ревизий контрактов
+## 9. Engine Stockfish (S-10)
+
+`backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
+(PV/multipv, жёсткие таймауты + перезапуск при зависании, неблокирующий loop).
+
+**Профили по шахматному уровню** (§4.2 маппинг):
+
+| Уровень | depth | multipv | movetime |
+|---|---|---|---|
+| beginner (novice) | 12 | 1 | 200 мс |
+| club (intermediate) | 18 | 3 | 1000 мс |
+| gm (advanced) | 28 | 5 | 5000 мс |
+
+**Бюджеты и правила:**
+- интерактивные вызовы: movetime ≤ `SF_INTERACTIVE_MOVETIME_MS=1000`
+  (тяжёлые профили — только через воркер-очередь);
+- **«SF — только worker»** (§15.3): гвард `APP_ROLE=worker` в
+  `EngineService` (api-процесс получить движок не может);
+- UCI_Elo (матчи ботов, §8): `UCI_LimitStrength`, диапазон SF 17 —
+  1320..3190; лестница использует 1400–1800;
+- таймауты: uciok 15 с, readyok 5 с, поиск movetime + 4 с чтения;
+  зависший процесс убивается и поднимается заново;
+- модель `EngineLine`: multipv/depth/score_cp/mate/move_uci/pv;
+  мат — `±(10000 − 100·N)` (мат в 1 → 9900).
+
+Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfile);
+путь — `STOCKFISH_PATH=/usr/local/bin/stockfish`.
+
+## 10. История ревизий контрактов
 
 ## 4. Канон ошибок
 
@@ -354,3 +382,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-07: песочница ✅ — executor (subprocess, таймаут/RLIMIT), матрица атак; контракты §7 | S-07 |
 | 2026-11-01 | S-08: py-домен ✅ — задания/сдача/вердикты, DTO §3.3, seeds 16 заданий | S-08 |
 | 2026-11-01 | S-09: ladder/комментарии/low_effort ✅ — §3.4, §8 (флаги, веса событий) | S-09 |
+| 2026-11-01 | S-10: Engine ✅ — профили §9, UCI_Elo, SF только worker; SF 17.1 в образе | S-10 |
