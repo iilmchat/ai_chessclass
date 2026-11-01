@@ -31,7 +31,7 @@
 | profile | `GET /profile/me`, `PATCH /profile/me`, `GET /profile/students`, `GET /profile/{id}`, `PATCH /profile/{id}/level` | — | ✅ S-03 | RBAC: свой профиль — все; список/чужой — teacher/admin; смена уровня — admin (Design §12.2); пагинация `page`+`pageSize` |
 | python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `POST /py/assignments/{id}/hint`, `GET /py/assignments/{id}/solution`, `GET /py/submissions/{id}` | — | ✅ S-08/S-09 | assert-тесты в песочнице; вердикты §3.3; ladder §3.4; флаги §8; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
-| chess | `POST /chess/insight`, `GET /chess/positions` (+ S-12: upload PGN, analyses, blunders) | — | ✅ S-11 | факты SF + LLM-объяснение §3.5; SF только воркером; S-12: партии/блюндеры |
+| chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
 | bots | `/bots` CRUD, `/bots/{id}/match/run` (SSE-прогресс), `/bots/{id}/reliability` | — | 🧱 S-08…S-09 | `choose_move(position)->str`, лестница Elo — Design §8, ADR-011/012 |
 | skills | `/skills/snapshot`, `/skills/scores/{user}`, PDF родителям | — | 🧱 E-08…E-09 | EMA-скоры, fpdf2 + TTF — Design §9 |
 | rag | `/rag/query`, инжест книжек | — | 🧱 S-10 | embeddings 768, pgvector — Design §10 |
@@ -156,6 +156,33 @@ interface EngineLineDto {
   `task_busy` 409). Уровень → шахматный через маппинг §4.2.
 - Хранение: `chess_positions` upsert по `(user_id, fen)` — одна запись,
   meta обновляется (facts/factsText/explanation/level).
+
+### 3.6. chess_lab: партии и блюндеры (S-12, §6.2)
+
+```ts
+// POST /chess/games/upload { pgn } → 202 { gameId, status: "pending" }
+// GET /chess/games/{id} → { gameId, status, blunderCount, summary }
+// GET /chess/games/{id}/blunders →
+interface BlunderDto {
+  ply: number; fenBefore: string;
+  playedSan: string; playedUci: string;
+  bestSan: string; bestUci: string;
+  deltaCp: number; classification: string;
+  explanation: string | null;   // из LLM-блока, если объяснён
+}
+// POST /chess/games/{id}/blunders/explain { ply } → { ply, explanation, modelUsed }
+// GET /chess/games/{id}/events → SSE (event: status|progress; done/failed — конец)
+```
+
+- PGN ≤ 2 МБ (`pgn_too_large` 422), читается первая партия mainline
+  (`invalid_pgn` 422). Анализ — arq `analyze_game`: пошаговые eval'ы
+  профилем `analysis` (depth 10/multipv 1/150 мс), терминальные позиции
+  (мат/ничья) движком не анализируются — оценка из исхода
+  (мат = ±9900, ничья 0).
+- Классификация ходов по Δeval (config `CH_BLUNDER_CP=300`):
+  best · good <50 · inaccuracy <100 · mistake <300 · blunder ≥300.
+- Прогресс — Redis pubsub `chess:progress:{game_id}` → SSE. Приватность
+  как у py_submissions (свои/teacher-admin — 404 чужому).
 
 ### 3.4. Лестница подсказок (S-09, §5.4)
 
@@ -410,3 +437,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-09: ladder/комментарии/low_effort ✅ — §3.4, §8 (флаги, веса событий) | S-09 |
 | 2026-11-01 | S-10: Engine ✅ — профили §9, UCI_Elo, SF только worker; SF 17.1 в образе | S-10 |
 | 2026-11-01 | S-11: инсайт ✅ — §3.5 (facts+LLM), arq-путь api→worker, chess_positions | S-11 |
+| 2026-11-01 | S-12: партии/блюндеры ✅ — §3.6 (upload/arq/SSE/explain), классификация Δeval | S-12 |

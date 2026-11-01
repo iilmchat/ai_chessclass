@@ -121,11 +121,12 @@
 - **DoD:** ученик получил инсайт с фактами SF + объяснением по уровню ✅
   (2026-11-01: pytest 108 passed; демо Re8# через api→arq→worker; отчёт — docs/sprint-reports/S-11-2026-11-01.md)
 
-### S-12 📄 PGN-анализ и блюндеры
-- [ ] upload PGN (≤ 2 МБ) → arq задача analyze: пошаговые eval'ы, детект Δeval ≥ порога
-- [ ] маршруты chess_lab.blunder / commentary; итоговая сводка партии
-- [ ] `chess_games`, `chess_analyses` (DDL → SPEC); SSE прогресс разбора
-- **DoD:** партия разбирается фоново; blunders в списке с объяснениями
+### S-12 ✅ PGN-анализ и блюндеры
+- [x] upload PGN (≤ 2 МБ) → arq задача analyze: пошаговые eval'ы, детект Δeval ≥ порога
+- [x] маршруты chess_lab.blunder / commentary; итоговая сводка партии
+- [x] `chess_games`, `chess_analyses` (DDL → SPEC); SSE прогресс разбора
+- **DoD:** партия разбирается фоново; blunders в списке с объяснениями ✅
+  (2026-11-01: pytest 113 passed; демо Scholar's mate → blunder Nf6 Δ9932; отчёт — docs/sprint-reports/S-12-2026-11-01.md)
 
 ---
 

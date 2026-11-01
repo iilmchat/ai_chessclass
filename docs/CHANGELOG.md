@@ -8,6 +8,20 @@
 
 ### Добавлено
 
+#### S-12 — PGN-анализ и блюндеры (2026-11-01)
+- Миграция `0008_chess_games`: `chess_games` (pgn/source), `chess_analyses`
+  (status pending→running→done|failed, sf JSONB, llm JSONB).
+- `domains/chess_lab`: `ingestion.py` (порт parser'а: PGN → партия,
+  валидация), `classifier.py` (Δeval: good/inaccuracy/mistake/blunder,
+  порог config CH_BLUNDER_CP=300).
+- API: `POST /chess/games/upload` (202, ≤2 МБ), `GET /games/{id}` (статус+
+  сводка), `GET /games/{id}/blunders` (с explanation), `POST
+  /games/{id}/blunders/explain` (маршрут chess_lab.blunder), `GET
+  /games/{id}/events` (SSE прогресс через Redis pubsub).
+- arq `analyze_game`: пошаговые eval'ы (профиль analysis: depth 10/150 мс),
+  терминальные позиции — из исхода (±9900/0), blunder-детект, pubsub-прогресс.
+- Тесты: parse_pgn, валидация/лимиты/приватность.
+
 #### S-11 — Инсайт позиции (2026-11-01)
 - Миграция `0007_chess_positions` (upsert по user+fen, meta: facts/factsText/
   explanation/level).

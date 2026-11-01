@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     sandbox_memory_limit_mb: int = 256
     sandbox_max_output_chars: int = 65_536  # 64 КБ на stdout/stderr
     sandbox_timeout_s: float = 5.0  # per-run для заданий; боты — bot_permove_timeout_s
+    # --- chess_lab (E-04)
+    chess_blunder_cp: int = 300  # Δeval ≥ порога → blunder (§6.2, config не hardcoded)
+    chess_pgn_max_bytes: int = 2_000_000  # §13.4
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"

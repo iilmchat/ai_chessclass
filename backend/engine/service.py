@@ -65,6 +65,8 @@ ENGINE_PROFILES: Final[dict[str, EngineProfile]] = {
     "beginner": EngineProfile(depth=12, multipv=1, movetime_ms=200),
     "club": EngineProfile(depth=18, multipv=3, movetime_ms=1000),
     "gm": EngineProfile(depth=28, multipv=5, movetime_ms=5000),
+    #: пошаговый анализ партии (S-12): короткий movetime × N позиций
+    "analysis": EngineProfile(depth=10, multipv=1, movetime_ms=150),
 }
 
 
