@@ -64,6 +64,8 @@
 | Фронтенд | `http://localhost:3200` — на дашборде «API/БД/Redis — ок» |
 | CI (GitHub) | `.github/workflows/ci.yml`: backend ruff → mypy → alembic → seeds → pytest (pg+redis); frontend npm test → npm run build (Node 22); e2e Playwright (API 8021 + worker + pg/redis) |
 | E2E-стенд | `.\scripts\e2e.ps1 test` — отдельные db 5439/redis 6385, API 8021, web 3201, reset/cleanup |
+| Бэкап / restore | `.\scripts\backup.ps1`; `.\scripts\restore-test.ps1` — sha256, temp DB, проверка users/alembic |
+| Edge TLS | `deploy/nginx/edge.conf` + `deploy/certs`; self-signed — `.\scripts\gen-self-signed-cert.ps1`; smoke — `smoke-prod.ps1 -EdgeBase https://localhost` |
 
 ## 7. Шаблон отчёта спринта
 

@@ -83,9 +83,8 @@ npm run test:e2e            # Playwright против dev api+worker
 .\scripts\e2e.ps1 test      # reset -> up -> Playwright -> down -v
 ```
 
-**Prod:** каркас — `docker-compose.prod.yml`; доведение стека (web-образ,
-healthchecks, миграции, TLS, бэкапы) — спринты S-30 ✅/S-38 в
-[TODO_V0.2.md](TODO_V0.2.md).
+**Prod:** `docker-compose.prod.yml` (web-образ, healthchecks, миграции,
+edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_V0.2.md).
 
 > **Порты.** ADR-013: pg 5438, redis 6384 — изоляция от соседних проектов
 > (KI-001: перед docker-действиями — `docker ps`, чужие контейнеры не трогаем).
@@ -105,7 +104,7 @@ healthchecks, миграции, TLS, бэкапы) — спринты S-30 ✅/S
 | Миграции | Alembic head **0014_reports** (14) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 3 пользователя + 11 навыков + 5 skill_links + 16 заданий |
-| Следующий этап | **v0.2.0** — S-30…S-37 ✅, далее S-38…S-45 ([план](TODO_V0.2.md)) |
+| Следующий этап | **v0.2.0** — S-30…S-38 ✅, далее S-39…S-45 ([план](TODO_V0.2.md)) |
 
 ---
 

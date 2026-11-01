@@ -22,7 +22,7 @@ x-backend-env: &backend-env
   REPORTS_DIR: /srv/reports
 
 x-env-file: &env-file
-  - path: .env
+  - path: ${ENV_FILE:-.env}
     required: false
 
 services:
@@ -234,6 +234,32 @@ services:
     networks: [ccnet]
     restart: unless-stopped
 
+  edge:
+    image: nginx:1.27-alpine
+    container_name: chessclass-prod-edge
+    volumes:
+      - ./deploy/nginx/edge.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${CERTS_DIR:-./deploy/certs}:/etc/nginx/certs:ro
+      - chessclass_certbot:/var/www/certbot:ro
+    ports:
+      - "${EDGE_HTTP_PORT:-80}:80"
+      - "${EDGE_HTTPS_PORT:-443}:443"
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    healthcheck:
+      test:
+        ["CMD-SHELL",
+         "wget -q --no-check-certificate -O /dev/null https://127.0.0.1/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 10
+    networks: [ccnet]
+    restart: unless-stopped
+
   # Ручные операции: docker compose -f docker-compose.prod.yml run --rm seed
   seed:
     build:
@@ -259,6 +285,8 @@ volumes:
     name: chessclass_prod_redisdata
   chessclass_reports:
     name: chessclass_prod_reports
+  chessclass_certbot:
+    name: chessclass_prod_certbot
 
 networks:
   ccnet:

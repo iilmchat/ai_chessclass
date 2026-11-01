@@ -9,7 +9,7 @@
 > Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md` (шаблон — `docs/RULES.md` §7).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 8/16 (S-30…S-37 ✅).** Сначала
+**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 9/16 (S-30…S-38 ✅).** Сначала
 закрываем технические хвосты v0.1.0 (E-11…E-13), затем — возможности v0.2
 из Design §2.2 (E-14…E-16). Формула этапа: **сначала надёжность, потом
 класс и вовлечение**.
@@ -134,12 +134,18 @@
   Backend 159 passed; e2e 7 passed (27.6 с).
 - **Отчёт:** `docs/sprint-reports/S-37-2026-11-02.md`.
 
-### S-38 ☐ Бэкапы, TLS и runbook
-- [ ] nightly `pg_dump` (cron/контейнер, retention 14 дней), sha256
-- [ ] restore-скрипт + учебное восстановление на копии
-- [ ] nginx edge: TLS (сертификаты/Let's Encrypt), security headers, HSTS
-- [ ] runbook: деплой, откат, ротация секретов, инциденты
+### S-38 ✅ Бэкапы, TLS и runbook
+- [x] nightly `pg_dump` (cron/контейнер, retention 14 дней), sha256
+- [x] restore-скрипт + учебное восстановление на копии
+- [x] nginx edge: TLS (сертификаты/Let's Encrypt), security headers, HSTS
+- [x] runbook: деплой, откат, ротация секретов, инциденты
 - **DoD:** бэкап создаётся по расписанию; restore проверен; HTTPS-вход.
+- **Факт:** `backup.sh`/`backup.ps1` (sha256, lock, retention 14),
+  `restore-test.ps1` (temp DB, users/alembic), `install-backup-task.ps1`
+  + cron; edge nginx 80→443, TLS/HSTS/security headers, self-signed + LE
+  runbook; smoke prod HTTPS OK, restore prod-дампа users=3 alembic=0014.
+- **Отчёт:** `docs/sprint-reports/S-38-2026-11-02.md`; runbook —
+  `docs/runbooks/operations.md`.
 
 ---
 

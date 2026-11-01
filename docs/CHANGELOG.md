@@ -105,6 +105,17 @@
   — 5/5 finished за 21.5 с, метрики сняты.
 - Тесты: queue mapping/limits, 6-й матч 429, admin metrics; backend 159.
 
+#### S-38 — Бэкапы, TLS и runbook (2026-11-02)
+- `backend/scripts/backup.sh`: pg_dump→gzip, sha256, lock, retention 14;
+  `scripts/backup.ps1` (custom dump) + `install-backup-task.ps1` + cron.
+- `scripts/restore-test.ps1`: sha256, restore в `chessclass_restore`,
+  проверка users/alembic, drop; prod-дамп проверен (users=3, 0014).
+- `deploy/nginx/edge.conf`: 80→443, TLS 1.2/1.3, HSTS, security headers,
+  API/SSE proxy; `gen-self-signed-cert.ps1`; Let's Encrypt — runbook.
+- prod compose: `edge` + certbot volume + `ENV_FILE`/`CERTS_DIR`/edge ports;
+  smoke-prod проверяет HTTPS/HSTS.
+- `docs/runbooks/operations.md`: бэкапы, restore, TLS, секреты, инциденты.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —
