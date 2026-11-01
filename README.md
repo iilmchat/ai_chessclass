@@ -71,6 +71,10 @@ docker compose -f docker-compose.dev.yml run --rm seed    # админ, учен
 
 ```powershell
 .\scripts\ci.ps1            # migrate + seeds + ruff + mypy + pytest
+
+cd frontend
+npm test                    # Vitest: SSE-парсер/поток/reconnect
+npm run test:e2e            # Playwright: 7 сценариев (нужен dev api+worker)
 ```
 
 **Prod:** каркас — `docker-compose.prod.yml`; доведение стека (web-образ,

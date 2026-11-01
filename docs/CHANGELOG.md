@@ -80,6 +80,7 @@
   Playwright chromium; артефакты trace/video при падении.
 - CI backend job: Stockfish + DejaVu + `REPORTS_DIR` — иначе падали
   S-27-тесты на GitHub runner.
+- CI run `41357215595`: e2e/backend/frontend зелёные (1m34s/2m32s/12s).
 - `npm run test:e2e` — 7 passed (56 с).
 
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
