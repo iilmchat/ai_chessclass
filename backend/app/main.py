@@ -13,6 +13,7 @@ from core.db import engine
 from core.errors import register_exception_handlers
 from core.logging import new_request_id, request_id_var, setup_logging
 from domains.anticheat.router import router as anticheat_router
+from domains.audit.router import router as audit_router
 from domains.auth.router import router as auth_router
 from domains.bot_lab.router import admin_router as bot_admin_router
 from domains.bot_lab.router import router as bots_router
@@ -105,6 +106,7 @@ app.include_router(skills_router, prefix="/api/v1")
 app.include_router(bots_router, prefix="/api/v1")
 app.include_router(bot_admin_router, prefix="/api/v1")
 app.include_router(anticheat_router, prefix="/api/v1")
+app.include_router(audit_router, prefix="/api/v1")
 app.include_router(llm_admin_router, prefix="/api/v1")
 app.include_router(rag_admin_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")

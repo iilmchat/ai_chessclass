@@ -139,6 +139,18 @@
 - Тесты: create/join/dashboard, чужой teacher 403, add/remove/rotate;
   backend 164, frontend 5, build OK.
 
+#### S-41 — Роль auditor и журнал аудита (2026-11-02)
+- Миграция `0016_audit`: `users.role` + `auditor`; `audit_logs`
+  (actor snapshot, action, target, source, meta, request_id, created_at).
+- `domains/audit`: запись в транзакции действия; `GET /admin/audit/logs`
+  (фильтры actor/action/target/source/date, пагинация) и
+  `GET /admin/audit/export.csv` (UTF-8 BOM, лимит 10 000).
+- Auditor read-only: флаги/вердикты/PDF и журнал; review/PDF/классы — 403.
+- Логируются действия классов, review флага/вердикта judge, генерация/скачивание
+  PDF, экспорт аудита; seed `auditor@chessclass.dev`.
+- Фикс `reports_pdfs.requested_by` → nullable (FK SET NULL) — миграция 0017.
+- Тесты: auditor read/write, фильтры, CSV, запись действий; backend 165.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

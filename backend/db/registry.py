@@ -5,6 +5,7 @@
 
 from db.base import Base
 from domains.anticheat import models as _anticheat_models  # noqa: F401
+from domains.audit import models as _audit_models  # noqa: F401
 from domains.auth import models as _auth_models  # noqa: F401
 from domains.bot_lab import models as _bot_models  # noqa: F401
 from domains.chess_lab import models as _chess_models  # noqa: F401

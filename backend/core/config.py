@@ -108,6 +108,7 @@ class Settings(BaseSettings):
     seed_admin_email: str = "admin@chessclass.dev"
     seed_admin_password: str = "dev-admin-2026"
     seed_teacher_password: str = "dev-teacher-2026"
+    seed_auditor_password: str = "dev-auditor-2026"
     seed_student_password: str = "dev-student-2026"
 
 

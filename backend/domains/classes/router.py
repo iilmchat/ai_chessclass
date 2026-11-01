@@ -8,10 +8,11 @@ RBAC: создание/управление — teacher/admin (admin — люб�
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import EmailStr, Field
 
 from core.base import CamelModel
+from domains.audit import service as audit_svc
 from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
 from domains.classes import service as svc
@@ -126,18 +127,38 @@ async def list_classes(user: CurrentUser, session: DbSession) -> list[ClassOut]:
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=ClassOut)
 async def create_class(
-    body: ClassCreateIn, teacher: TeacherOrAdmin, session: DbSession
+    body: ClassCreateIn,
+    teacher: TeacherOrAdmin,
+    session: DbSession,
+    request: Request,
 ) -> ClassOut:
     classroom = await svc.create_class(session, teacher, body.name)
+    await audit_svc.record(
+        session,
+        teacher,
+        "classes.create",
+        target_type="class",
+        target_id=classroom.id,
+        meta={"name": classroom.name},
+        request=request,
+    )
     await session.commit()
     return _class_out(classroom, 0, include_invite=True)
 
 
 @router.post("/join", response_model=ClassOut)
 async def join_class(
-    body: ClassJoinIn, user: CurrentUser, session: DbSession
+    body: ClassJoinIn, user: CurrentUser, session: DbSession, request: Request
 ) -> ClassOut:
     classroom = await svc.join_by_code(session, user, body.invite_code)
+    await audit_svc.record(
+        session,
+        user,
+        "classes.join",
+        target_type="class",
+        target_id=classroom.id,
+        request=request,
+    )
     await session.commit()
     _classroom, _members, count = await svc.get_class_detail(
         session, user, classroom.id
@@ -161,9 +182,17 @@ async def get_class(
 
 @router.post("/{class_id}/invite", response_model=ClassOut)
 async def rotate_invite(
-    class_id: int, teacher: TeacherOrAdmin, session: DbSession
+    class_id: int, teacher: TeacherOrAdmin, session: DbSession, request: Request
 ) -> ClassOut:
     classroom = await svc.rotate_invite(session, teacher, class_id)
+    await audit_svc.record(
+        session,
+        teacher,
+        "classes.invite.rotate",
+        target_type="class",
+        target_id=class_id,
+        request=request,
+    )
     await session.commit()
     _classroom, _members, count = await svc.get_class_detail(
         session, teacher, class_id
@@ -189,9 +218,19 @@ async def add_member(
     body: ClassMemberAddIn,
     teacher: TeacherOrAdmin,
     session: DbSession,
+    request: Request,
 ) -> ClassMemberOut:
     student, joined_at = await svc.add_member_by_email(
         session, teacher, class_id, body.email
+    )
+    await audit_svc.record(
+        session,
+        teacher,
+        "classes.member.add",
+        target_type="user",
+        target_id=student.id,
+        meta={"classId": str(class_id), "email": student.email},
+        request=request,
     )
     await session.commit()
     profile = await session.get(UserProfile, student.id)
@@ -200,7 +239,20 @@ async def add_member(
 
 @router.delete("/{class_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_member(
-    class_id: int, user_id: int, teacher: TeacherOrAdmin, session: DbSession
+    class_id: int,
+    user_id: int,
+    teacher: TeacherOrAdmin,
+    session: DbSession,
+    request: Request,
 ) -> None:
     await svc.remove_member(session, teacher, class_id, user_id)
+    await audit_svc.record(
+        session,
+        teacher,
+        "classes.member.remove",
+        target_type="user",
+        target_id=user_id,
+        meta={"classId": str(class_id)},
+        request=request,
+    )
     await session.commit()

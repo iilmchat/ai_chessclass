@@ -35,6 +35,7 @@
 | bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `GET /bots/stats`, `POST /bots/{id}/test`, `POST /bots/{id}/match/run` (202/429 `match_limit`; random/greedy/minimax2/SF-1400/1600/1800), `GET /bots/{id}/matches`, `GET /admin/matches/metrics` (admin) | — | ✅ S-17…S-19/S-37 | choose_move §3.9; per-queue матчи 2/1/1/1; Elo K=32 clamp ±40; sf_sample |
 | skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
 | classes | `GET/POST /classes`, `POST /classes/join`, `GET /classes/{id}`, `POST /classes/{id}/invite`, `GET /classes/{id}/dashboard`, `POST/DELETE /classes/{id}/members[/{userId}]` | — | ✅ S-40 | teacher/admin — создание/управление; student — join/свои классы; чужой teacher — 403 (SPEC §3.11) |
+| audit | `GET /admin/audit/logs`, `GET /admin/audit/export.csv` | — | ✅ S-41 | read-only журнал: teacher/admin/auditor; CSV + фильтры (SPEC §3.12) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -386,6 +387,37 @@ interface ClassDashboardOut {
 - Дашборд агрегирует `user_skill_scores` (11 навыков), `anticheat_flags`
   (всего/новые), `bot_stats` (матчи/победы/поражения/ничьи/Elo).
 
+### 3.12. audit: журнал и роль auditor (S-41)
+
+```ts
+// GET /admin/audit/logs?actorId&action&targetType&source&dateFrom&dateTo&page&pageSize
+//   → { items: AuditLogOut[], total, page, pageSize }
+// GET /admin/audit/export.csv?... → text/csv (UTF-8 BOM, attachment)
+interface AuditLogOut {
+  id: string;
+  actorId: string | null;
+  actorEmail: string | null;
+  actorRole: string | null;
+  action: string;              // classes.create, anticheat.flag.review, ...
+  targetType: string | null;
+  targetId: string | null;
+  source: string;              // api | system
+  meta: Record<string, unknown>;
+  requestId: string | null;
+  createdAt: string;
+}
+```
+
+- Роль `auditor` — read-only: читает флаги/вердикты/PDF и журнал; любые
+  мутации → 403 `auth_forbidden`.
+- Записываются: `classes.create/join/invite.rotate/member.add/remove`,
+  `anticheat.flag.review`, `anticheat.judge.verdict`,
+  `reports.pdf.generate/download`, `audit.export`.
+- DDL: `audit_logs(id, actor_id FK users SET NULL, actor_email/role — снимок,
+  action, target_type/id, source, meta jsonb, request_id, created_at)`;
+  индексы actor/created/action. Запись — в той же транзакции, что действие.
+- CSV: фильтры те же, лимит 10 000 строк; экспорт сам логируется.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -644,3 +676,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-38: backups/TLS ✅ - sha256/retention, restore-test, edge HTTPS/HSTS, runbook | S-38 |
 | 2026-11-02 | S-39: chess knowledge ✅ - 13 seed-док, FEN/phase/rerank, knowledge в insight/blunder, eval 13/13 | S-39 |
 | 2026-11-02 | S-40: classes ✅ - classes/class_members, invites, teacher dashboard, RBAC; UI кабинета | S-40 |
+| 2026-11-02 | S-41: audit ✅ - роль auditor (read-only), audit_logs, CSV/фильтры, логирование действий | S-41 |

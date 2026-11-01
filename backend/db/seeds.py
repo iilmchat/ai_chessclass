@@ -93,7 +93,14 @@ async def seed_users(session) -> dict[str, int]:
         session, "teacher@chessclass.dev", settings.seed_teacher_password,
         UserRole.TEACHER, Level.INTERMEDIATE, "Учитель ChessClass",
     )
-    for name, level in (("student1", Level.NOVICE), ("student2", Level.INTERMEDIATE)):
+    created += await _ensure_user(
+        session, "auditor@chessclass.dev", settings.seed_auditor_password,
+        UserRole.AUDITOR, Level.NOVICE, "Аудитор ChessClass",
+    )
+    for name, level in (
+        ("student1", Level.NOVICE),
+        ("student2", Level.INTERMEDIATE),
+    ):
         created += await _ensure_user(
             session, f"{name}@chessclass.dev", settings.seed_student_password,
             UserRole.STUDENT, level, f"Ученик {name[-1]}",

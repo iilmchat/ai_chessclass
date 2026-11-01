@@ -64,7 +64,8 @@ docker compose -f docker-compose.dev.yml run --rm seed    # админ, учен
   <http://localhost:8020/api/v1/readyz> · Swagger: <http://localhost:8020/docs>
 
 **Демо-аккаунты (только dev):** админ `admin@chessclass.dev` / `dev-admin-2026`,
-учитель `teacher@chessclass.dev` / `dev-teacher-2026`, ученики
+учитель `teacher@chessclass.dev` / `dev-teacher-2026`, аудитор
+`auditor@chessclass.dev` / `dev-auditor-2026`, ученики
 `student1@chessclass.dev` / `student2@chessclass.dev` — пароль
 `dev-student-2026` (см. `.env.example`, `SEED_*`).
 
@@ -105,7 +106,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Миграции | Alembic head **0014_reports** (14) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 3 пользователя + 11 навыков + 5 skill_links + 16 заданий |
-| Следующий этап | **v0.2.0** — S-30…S-40 ✅, далее S-41…S-45 ([план](TODO_V0.2.md)) |
+| Следующий этап | **v0.2.0** — S-30…S-41 ✅, далее S-42…S-45 ([план](TODO_V0.2.md)) |
 
 ---
 

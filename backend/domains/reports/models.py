@@ -26,8 +26,8 @@ class ReportPdf(Base):
     student_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    requested_by: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=False
+    requested_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     kind: Mapped[ReportKind] = mapped_column(
         String(16), nullable=False, server_default="parent"

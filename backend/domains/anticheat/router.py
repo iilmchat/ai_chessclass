@@ -7,12 +7,17 @@ from pydantic import Field
 
 from core.base import CamelModel
 from domains.anticheat.models import AnticheatFlag
+from domains.audit import service as audit_svc
 from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
 
 router = APIRouter(prefix="/admin/anticheat", tags=["anticheat"])
 
 TeacherOrAdmin = Annotated[User, Depends(require_role(UserRole.TEACHER, UserRole.ADMIN))]
+AuditorOrTeacher = Annotated[
+    User,
+    Depends(require_role(UserRole.TEACHER, UserRole.ADMIN, UserRole.AUDITOR)),
+]
 
 
 class FlagOut(CamelModel):
@@ -34,7 +39,7 @@ class FlagReviewIn(CamelModel):
 
 @router.get("/flags", response_model=list[FlagOut])
 async def list_flags(
-    _guard: TeacherOrAdmin,
+    _guard: AuditorOrTeacher,
     session: DbSession,
     status: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
@@ -69,6 +74,7 @@ async def review_flag(
     body: FlagReviewIn,
     reviewer: TeacherOrAdmin,
     session: DbSession,
+    request: Request,
 ) -> FlagOut:
     from datetime import UTC, datetime
 
@@ -84,6 +90,15 @@ async def review_flag(
     flag.reviewed_at = datetime.now(UTC)
     flag.note = body.note
     await session.flush()
+    await audit_svc.record(
+        session,
+        reviewer,
+        "anticheat.flag.review",
+        target_type="flag",
+        target_id=flag.id,
+        meta={"status": body.status, "note": body.note},
+        request=request,
+    )
     return FlagOut(
         id=str(flag.id),
         userId=str(flag.user_id),
@@ -142,7 +157,7 @@ async def start_judge(
 
 @router.get("/judge", response_model=list[dict])
 async def list_judge_sessions(
-    _guard: TeacherOrAdmin,
+    _guard: AuditorOrTeacher,
     session: DbSession,
     user_id: int | None = Query(default=None, alias="userId"),
 ) -> list[dict]:
@@ -169,10 +184,20 @@ async def review_judge_session(
     body: JudgeReviewIn,
     _guard: TeacherOrAdmin,
     session: DbSession,
+    request: Request,
 ) -> JudgeSessionOut:
     from domains.anticheat.judge import review_session
 
     judge_session = await review_session(session, _guard, session_id, body.verdict)
+    await audit_svc.record(
+        session,
+        _guard,
+        "anticheat.judge.verdict",
+        target_type="judge_session",
+        target_id=session_id,
+        meta={"verdict": body.verdict[:500]},
+        request=request,
+    )
     return JudgeSessionOut(
         id=str(judge_session.id),
         question=judge_session.question,
@@ -190,7 +215,7 @@ class StudentCardOut(CamelModel):
 
 @router.get("/students/{user_id}/card", response_model=StudentCardOut)
 async def student_card(
-    user_id: int, _guard: TeacherOrAdmin, session: DbSession
+    user_id: int, _guard: AuditorOrTeacher, session: DbSession
 ) -> StudentCardOut:
     """Карточка ученика: лента флагов + judge-сессии (кабинет учителя, S-24)."""
     from sqlalchemy import select

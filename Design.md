@@ -302,8 +302,9 @@ ai_chessclass/
 
 - `users` — PK `id BIGINT GENERATED ALWAYS AS IDENTITY` (единый стандарт для
   всех таблиц; ADR-007).
-- Роли: `student` | `teacher` | `admin` (роль `auditor` — backlog, v0.2).
+- Роли: `student` | `teacher` | `admin` | `auditor` (S-41).
   - student видит только себя; teacher — учеников и дашборды/PDF/флаги;
+    auditor — read-only флаги/вердикты/PDF/журнал аудита;
     admin — всё + админ-инструменты (задания, эталоны, модели, тарифы).
 - Аутентификация: email + пароль **Argon2id**; access JWT (короткий TTL),
   refresh в **HttpOnly-cookie**; email-верификация (одноразовый токен, 24 ч);
@@ -341,15 +342,18 @@ ai_chessclass/
 
 ### 4.4. Роли → доступы (краткая матрица)
 
-| Действие | student | teacher | admin |
-|---|---|---|---|
-| Решать задания, боты, анализ | ✅ | ✅ | ✅ |
-| Дашборд себя | ✅ | ✅ | ✅ |
-| Дашборд любого ученика | — | ✅ | ✅ |
-| PDF родителям | — | ✅ | ✅ |
-| Флаги античита | — | ✅ | ✅ |
-| Назначать задания/эталоны (админка) | — | — | ✅ |
-| Управление моделями/бюджетами | — | — | ✅ |
+| Действие | student | teacher | admin | auditor |
+|---|---|---|---|---|
+| Решать задания, боты, анализ | ✅ | ✅ | ✅ | — |
+| Дашборд себя | ✅ | ✅ | ✅ | — |
+| Дашборд любого ученика | — | ✅ | ✅ | — |
+| PDF родителям (генерация) | — | ✅ | ✅ | — |
+| PDF (просмотр) | — | ✅ | ✅ | ✅ |
+| Флаги античита (просмотр) | — | ✅ | ✅ | ✅ |
+| Флаги/вердикты (изменение) | — | ✅ | ✅ | — |
+| Журнал аудита (просмотр/CSV) | — | ✅ | ✅ | ✅ |
+| Назначать задания/эталоны (админка) | — | — | ✅ | — |
+| Управление моделями/бюджетами | — | — | ✅ | — |
 
 Детализация прав — в `docs/SPEC.md` (пермишен-модель), здесь — намерения.
 
@@ -809,6 +813,8 @@ refresh_sessions(id, user_id, token_hash, user_agent, expires_at, revoked_at)
 user_profiles(user_id pk→users, display_name, level, billing_tier, prefs jsonb)
 classes(id, name, teacher_id→users, invite_code uq, created_at)  # S-40
 class_members(class_id→classes, user_id→users, joined_at, pk(class_id,user_id))
+audit_logs(id, actor_id→users SET NULL, actor_email, actor_role, action,
+           target_type, target_id, source, meta jsonb, request_id, created_at)  # S-41
 ```
 
 **Python-домен (py_*)**
@@ -989,7 +995,9 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | Шахматы | `/chess/position`, `/chess/games`, `/chess/game/:id` | доска (react-chessboard), инсайт, анализ | все |
 | Боты | `/bots`, `/bots/:id`, `/bots/:id/match/:matchId` | редактор, лестница, реплей матчей | все |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
+| Классы | `/classes` | классы, инвайты, групповой дашборд | teacher/admin (join — student) |
 | Кабинет учителя | `/teacher/students`, `/teacher/flags`, `/teacher/reports` | ученики, флаги, PDF | teacher/admin |
+| Аудит | `/admin/audit/logs`, `/admin/audit/export.csv` | журнал действий, CSV | teacher/admin/auditor |
 | Админ | `/admin/assignments`, `/admin/finops`, `/admin/rag` | контент, FinOps, RAG | admin |
 
 ### 14.3. Ключевые экраны (v0.1)

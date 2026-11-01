@@ -17,6 +17,7 @@ class UserRole(enum.StrEnum):
     STUDENT = "student"
     TEACHER = "teacher"
     ADMIN = "admin"
+    AUDITOR = "auditor"
 
 
 class EmailTokenKind(enum.StrEnum):
