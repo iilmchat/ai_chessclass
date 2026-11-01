@@ -47,6 +47,7 @@ async def test_insight_full_flow(admin_client, make_client, unique_email, worker
     assert any(f.startswith("Материал") for f in body["factsText"])
     # «LLM не правит факты»: объяснение — отдельное поле
     assert isinstance(body["explanation"], str) and body["explanation"]
+    assert isinstance(body["knowledge"], list)  # S-39 RAG-блок
     assert body["level"] == "novice"  # уровень профиля (не advanced)
 
     # позиция сохранена (upsert) и видна в списке пользователя

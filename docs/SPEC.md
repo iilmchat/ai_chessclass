@@ -142,6 +142,7 @@ interface InsightOut {
   factsText: string[];      // человекочитаемые факты (панель + блок промпта)
   explanation: string;      // текст LLM (маршрут chess_lab.insight, L2/L3)
   modelUsed: string;
+  knowledge: string[];      // RAG-фрагменты (domain=chess, S-39)
 }
 interface EngineLineDto {
   multipv: number; depth: number; scoreCp: number | null;
@@ -156,7 +157,11 @@ interface EngineLineDto {
   (`analyze_position`) и ждёт результат (30 с; `task_timeout` 408,
   `task_busy` 409). Уровень → шахматный через маппинг §4.2.
 - Хранение: `chess_positions` upsert по `(user_id, fen)` — одна запись,
-  meta обновляется (facts/factsText/explanation/level).
+  meta обновляется (facts/factsText/explanation/level/knowledge).
+- **Knowledge (S-39):** `rag/chess.py` строит запрос по FEN (фаза
+  opening/middlegame/endgame + тема), top-3 `domain=chess` передаются в
+  `build_messages(..., knowledge=...)`; возвращаются в `knowledge[]`.
+  Ошибка RAG не ломает insight (warning + пустой блок).
 
 ### 3.6. chess_lab: партии и блюндеры (S-12, §6.2)
 
@@ -171,7 +176,7 @@ interface BlunderDto {
   deltaCp: number; classification: string;
   explanation: string | null;   // из LLM-блока, если объяснён
 }
-// POST /chess/games/{id}/blunders/explain { ply } → { ply, explanation, modelUsed }
+// POST /chess/games/{id}/blunders/explain { ply } → { ply, explanation, modelUsed, knowledge[] }
 // GET /chess/games/{id}/events → SSE (event: status|progress; done/failed — конец)
 ```
 
@@ -587,4 +592,6 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-27: e2e ✅ — полный journey §3.4 (регистрация→...→PDF) в тест-наборе | S-27 |
 | 2026-11-01 | S-31: LLM live ✅ — RouterAI-слаги/цены, `/admin/llm/health`, smoke 4/4, FinOps | S-31 |
 | 2026-11-02 | S-33: SSE UI ✅ — `useEventStream`, PGN-прогресс/blunders, матч-прогресс, polling fallback | S-33 |
-| 2026-11-02 | S-37: match queues ✅ — per-queue workers, max 5 active, metrics/load | S-37 |
+| 2026-11-02 | S-37: match queues ✅ - per-queue workers, max 5 active, metrics/load | S-37 |
+| 2026-11-02 | S-38: backups/TLS ✅ - sha256/retention, restore-test, edge HTTPS/HSTS, runbook | S-38 |
+| 2026-11-02 | S-39: chess knowledge ✅ - 13 seed-док, FEN/phase/rerank, knowledge в insight/blunder, eval 13/13 | S-39 |

@@ -37,6 +37,7 @@ class InsightOut(CamelModel):
     factsText: list[str]
     explanation: str
     modelUsed: str
+    knowledge: list[str]
 
 
 class PositionOut(CamelModel):
@@ -88,6 +89,7 @@ class BlunderExplainOut(CamelModel):
     ply: int
     explanation: str
     modelUsed: str
+    knowledge: list[str]
 
 
 @router.post("/insight", response_model=InsightOut)
@@ -108,6 +110,7 @@ async def insight(
         factsText=data["factsText"],
         explanation=data["explanation"],
         modelUsed=data["modelUsed"],
+        knowledge=data.get("knowledge") or [],
     )
 
 
@@ -181,6 +184,7 @@ async def explain_blunder(
         ply=data["ply"],
         explanation=data["explanation"],
         modelUsed=data["model_used"],
+        knowledge=data.get("knowledge") or [],
     )
 
 

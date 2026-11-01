@@ -116,6 +116,18 @@
   smoke-prod проверяет HTTPS/HSTS.
 - `docs/runbooks/operations.md`: бэкапы, restore, TLS, секреты, инциденты.
 
+#### S-39 — INSIGHT knowledge для шахмат (2026-11-02)
+- `rag/chess.py`: фаза opening/middlegame/endgame по FEN, запрос по
+  фазе/теме, лексический rerank поверх hash/embedding-поиска,
+  `search_chess_knowledge` (ошибка RAG не ломает insight).
+- `db/seeds_rag.py`: +10 chess-документов (дебют, миттельшпиль, эндшпиль,
+  король, пешки, расчёт, зевки, оценка, тактика, атака) — 13 всего.
+- `chess_lab.insight`/`blunder`: knowledge в промпт и ответ
+  (`knowledge[]`), meta позиции; frontend показывает блок «Полезные знания».
+- `scripts/chess_rag_eval.py`: 10 текстовых + 3 FEN-проверки — 13/13 OK.
+- `LLM_EMBED_MODEL` пуст по умолчанию → hash-фолбэк без сетевых вызовов.
+- Тесты: фаза/запрос/поиск + knowledge в insight; backend 162, frontend 5.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

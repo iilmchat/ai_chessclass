@@ -173,6 +173,7 @@ export interface InsightOut {
   factsText: string[];
   explanation: string;
   modelUsed: string;
+  knowledge: string[];
 }
 
 export function insightPosition(fen: string, level?: string): Promise<InsightOut> {
@@ -226,6 +227,7 @@ export interface BlunderExplainOut {
   ply: number;
   explanation: string;
   modelUsed: string;
+  knowledge: string[];
 }
 
 export function uploadGame(pgn: string): Promise<GameUploadOut> {

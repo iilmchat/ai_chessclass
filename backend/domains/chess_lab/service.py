@@ -32,6 +32,7 @@ from domains.profile.models import UserProfile
 from engine.models import EngineLine
 from llm.gateway import LLMCallContext, llm_generate
 from llm.prompts.builder import build_messages
+from rag.chess import search_chess_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +69,18 @@ def facts_to_lines(lines: list[EngineLine], fen: str) -> list[str]:
 
 
 def build_meta(
-    lines: list[EngineLine], fen: str, explanation: str, level: Level
+    lines: list[EngineLine],
+    fen: str,
+    explanation: str,
+    level: Level,
+    knowledge: list[str] | None = None,
 ) -> dict:
     return {
         "facts": [line.model_dump() for line in lines],
         "factsText": facts_to_lines(lines, fen),
         "explanation": explanation,
         "level": level.value,
+        "knowledge": knowledge or [],
     }
 
 
@@ -137,6 +143,8 @@ async def insight(
 
     lines = [EngineLine(**item) for item in lines_raw]
     facts_text = facts_to_lines(lines, fen)
+    knowledge_hits = await search_chess_knowledge(session, fen, k=3)
+    knowledge = [hit["text"] for hit in knowledge_hits]
 
     # маршрут chess_lab.insight: L2 по умолчанию, L3 для advanced (§8.2);
     # правила уровня в промпте: «факты движка менять нельзя»
@@ -145,6 +153,7 @@ async def insight(
         level,
         request="Объясни позицию ученику простым языком.",
         facts=facts_text,
+        knowledge=knowledge,
     )
     result = await llm_generate(
         session,
@@ -155,7 +164,7 @@ async def insight(
         ctx=LLMCallContext(user_id=user.id, billing_tier=_tier(profile)),
     )
 
-    meta = build_meta(lines, fen, result.text, level)
+    meta = build_meta(lines, fen, result.text, level, knowledge)
     await _upsert_position(session, user.id, fen, meta)
 
     return {
@@ -165,6 +174,7 @@ async def insight(
         "factsText": facts_text,
         "explanation": result.text,
         "modelUsed": result.model_used,
+        "knowledge": knowledge,
     }
 
 
@@ -282,6 +292,13 @@ async def explain_blunder(
 
     profile = await session.get(UserProfile, user.id)
     level = profile.level if profile is not None else Level.NOVICE
+    knowledge_hits = await search_chess_knowledge(
+        session,
+        blunder["fenBefore"],
+        topic="блюндер зевок проверка угроз",
+        k=3,
+    )
+    knowledge = [hit["text"] for hit in knowledge_hits]
     messages = build_messages(
         "chess_lab.blunder",
         level,
@@ -294,6 +311,7 @@ async def explain_blunder(
             f"Лучше было: {blunder['bestSan']} ({blunder['bestUci']})",
             f"Потеря: {blunder['deltaCp']} сантипешек",
         ],
+        knowledge=knowledge,
     )
     result = await llm_generate(
         session,
@@ -314,6 +332,7 @@ async def explain_blunder(
         "ply": ply,
         "explanation": result.text,
         "model_used": result.model_used,
+        "knowledge": knowledge,
     }
 
 

@@ -61,6 +61,9 @@ export function ChessPage() {
   );
   const [blunders, setBlunders] = useState<BlunderDto[]>([]);
   const [explanations, setExplanations] = useState<Record<number, string>>({});
+  const [blunderKnowledge, setBlunderKnowledge] = useState<
+    Record<number, string[]>
+  >({});
   const [explaining, setExplaining] = useState<number | null>(null);
   const [analysisBusy, setAnalysisBusy] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
@@ -454,6 +457,7 @@ export function ChessPage() {
     setAnalysisError('');
     setBlunders([]);
     setExplanations({});
+    setBlunderKnowledge({});
     setProgress(null);
     setGameId(null);
     setGameStatus(null);
@@ -486,6 +490,10 @@ export function ChessPage() {
       try {
         const result = await explainBlunder(gameId, ply);
         setExplanations((prev) => ({ ...prev, [ply]: result.explanation }));
+        setBlunderKnowledge((prev) => ({
+          ...prev,
+          [ply]: result.knowledge ?? [],
+        }));
       } catch (err) {
         setAnalysisError(
           err instanceof ApiError ? err.message : 'Ошибка объяснения',
@@ -699,6 +707,16 @@ export function ChessPage() {
                 <span className="level-tag">{insight.modelUsed}</span>
               </h3>
               <p className="statement">{insight.explanation}</p>
+              {(insight.knowledge?.length ?? 0) > 0 && (
+                <>
+                  <h3>Полезные знания</h3>
+                  <ul className="facts-list">
+                    {insight.knowledge.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </>
           )}
 
@@ -788,6 +806,13 @@ export function ChessPage() {
                     </button>
                     {explanation && (
                       <p className="statement">{explanation}</p>
+                    )}
+                    {(blunderKnowledge[blunder.ply]?.length ?? 0) > 0 && (
+                      <ul className="facts-list">
+                        {blunderKnowledge[blunder.ply].map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
                     )}
                   </li>
                 );
