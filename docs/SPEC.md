@@ -33,7 +33,7 @@
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
 | bots | `/bots` CRUD, `/bots/{id}/match/run` (SSE-прогресс), `/bots/{id}/reliability` | — | 🧱 S-08…S-09 | `choose_move(position)->str`, лестница Elo — Design §8, ADR-011/012 |
-| skills | `/skills/snapshot`, `/skills/scores/{user}`, PDF родителям | — | 🧱 E-08…E-09 | EMA-скоры, fpdf2 + TTF — Design §9 |
+| skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 
 ## 3. Формат фиксации DTO
@@ -264,6 +264,12 @@ domain, weight Numeric(6,3), meta JSONB, occurred_at. Базовые веса (�
 
 Эмитятся только для роли student; навык отсутствует → skip + warning.
 
+**EMA-скоры** (§10.3, S-16): `user_skill_scores` PK (user_id, skill_id),
+week `YYYY-Www` (ISO), score 0..100. Формула: raw = clamp(50 + Σвесов×10,
+0..100) за неделю; score = α·raw + (1−α)·prev, α = `SKILL_EMA_ALPHA=0.3`.
+Ночных пересчёт — arq cron `scores:recalc` (03:40 UTC); ручной —
+`POST /skills/{id}/recalc` (teacher/admin). Нейтральный скор = 50.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -477,3 +483,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-13: RAG ✅ — §3.7 (pgvector 768/HNSW, ingest/search, hash-фолбэк) | S-13 |
 | 2026-11-01 | S-14: ассистент E2E ✅ — knowledge-блок (RAG) в промптах, сценарии A/B/D | S-14 |
 | 2026-11-01 | S-15: emits ✅ — chess-блюндеры → tactics_hanging (−1.0); таблица весов §8 полная | S-15 |
+| 2026-11-01 | S-16: EMA/дашборд ✅ — user_skill_scores, /skills API (§8), cron nightly, spider-UI | S-16 |

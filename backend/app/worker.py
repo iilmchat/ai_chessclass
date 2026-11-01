@@ -2,6 +2,7 @@
 
 import logging
 
+import arq
 from arq.connections import RedisSettings
 
 from core.config import settings
@@ -33,8 +34,31 @@ async def analyze_game(ctx: dict, game_id: int) -> dict:
     return await chess_svc.analyze_game_job(game_id, ctx["redis"])
 
 
+async def scores_recalc(ctx: dict) -> dict:
+    """Nightly: пересчёт недельных EMA по всем пользователям (S-16)."""
+    from sqlalchemy import select
+
+    from core.db import session_factory
+    from domains.auth.models import User
+    from domains.cognitive import service as cognitive_svc
+
+    logger.info("worker: scores_recalc (nightly)")
+    async with session_factory() as session:
+        user_ids = (
+            await session.execute(select(User.id).where(User.is_active.is_(True)))
+        ).scalars().all()
+    updated = 0
+    for user_id in user_ids:
+        async with session_factory() as session:
+            updated += await cognitive_svc.recalc_user_scores(session, user_id)
+            await session.commit()
+    return {"users": len(user_ids), "updatedRows": updated}
+
+
 class WorkerSettings:
-    functions = [heartbeat, analyze_position, analyze_game]
+    functions = [heartbeat, analyze_position, analyze_game, scores_recalc]
+    #: nightly-пересчёт EMA (§10.3) — 03:40 UTC
+    cron_jobs = [arq.cron("scores_recalc", hour=3, minute=40, run_at_startup=False)]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     # arq default create_pool пишет в "arq:queue"; разделение на analyze/
     # matches/pdf — при росте нагрузок (Design §11.1)

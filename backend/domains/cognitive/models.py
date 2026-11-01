@@ -94,3 +94,24 @@ class SkillEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class UserSkillScore(Base):
+    """Недельный EMA-скор навыка (§10.3): score 0..100, PK user+skill."""
+
+    __tablename__ = "user_skill_scores"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    skill_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("skills.id", ondelete="CASCADE"), primary_key=True
+    )
+    week: Mapped[str] = mapped_column(String(8), nullable=False)  # 2026-W44
+    score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )

@@ -382,6 +382,20 @@ body {
   }
 }
 
+/* --- skills: дашборд (S-16) --- */
+.skills-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .skills-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171f;

@@ -158,10 +158,11 @@
   (2026-11-01: pytest 122 passed; таблицы/emit сделаны в S-03/S-09, доподтянуты
   chess-блюндеры; judge — E-07; отчёт — docs/sprint-reports/S-15-2026-11-01.md)
 
-### S-16 📊 EMA и дашборд ученика
-- [ ] `user_skill_scores`: недельные EMA (α в config), задача arq `scores:recalc` (nightly)
-- [ ] UI `/skills`: spider-график ~11 навыков, тренды, рекомендации по skill_links
-- **DoD:** ученик видит прогресс; учителю — срез по ученику
+### S-16 ✅ EMA и дашборд ученика
+- [x] `user_skill_scores`: недельные EMA (α в config), задача arq `scores:recalc` (nightly)
+- [x] UI `/skills`: spider-график ~11 навыков, тренды, рекомендации по skill_links
+- **DoD:** ученик видит прогресс; учителю — срез по ученику ✅
+  (2026-11-01: pytest 126 passed; демо /skills/me 11 навыков; отчёт — docs/sprint-reports/S-16-2026-11-01.md)
 
 ---
 

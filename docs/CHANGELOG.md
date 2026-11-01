@@ -8,6 +8,17 @@
 
 ### Добавлено
 
+#### S-16 — EMA и дашборд навыков (2026-11-01)
+- Миграция `0010_skill_scores`: `user_skill_scores` (PK user+skill,
+  week ISO, score 0..100).
+- `domains/cognitive/service.py`: recalc_user_scores (EMA α=0.3
+  (`SKILL_EMA_ALPHA`), raw = 50 + Σвесов×10, clamp 0..100), scores_snapshot
+  (срез 11 навыков), recommendations (skill_links: слабый <40 → связанный
+  навык).
+- API `/skills`: me / legend / {user_id} (teacher/admin) / recalc.
+- arq cron `scores_recalc` nightly (03:40 UTC).
+- UI SkillsPage: SVG spider-график 11 навыков, срез, рекомендации.
+
 #### S-15 — Реестр навыков и emits (2026-11-01)
 - chess-блюндеры → события навыков (`tactics_hanging`, −1.0, meta gameId/ply)
   в `analyze_game_job`; таблица весов SPEC §8 дополнена.

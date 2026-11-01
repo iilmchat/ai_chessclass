@@ -93,6 +93,9 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = 100
     rag_top_k: int = 5
 
+    # --- cognitive (S-16; §10.3 EMA)
+    skill_ema_alpha: float = 0.3
+
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"
     seed_admin_password: str = "dev-admin-2026"
