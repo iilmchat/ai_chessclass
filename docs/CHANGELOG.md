@@ -36,6 +36,18 @@
   ошибка записи FinOps не повторяет оплаченный вызов; embeddings без модели
   сразу используют hash-фолбэк.
 
+#### S-32 — CodeMirror в редакторах (2026-11-02)
+- Deps: `codemirror` 6, `@codemirror/lang-python`, `theme-one-dark`, `state`,
+  `view`, `language`.
+- `shared/CodeEditor.tsx`: Python-подсветка, номера строк, история, поиск,
+  автозакрытие скобок, отступ 4, light/dark (`prefers-color-scheme`), aria-label.
+- `shared/LazyCodeEditor.tsx`: CodeMirror в отдельном chunk'е; до загрузки —
+  рабочий textarea-fallback.
+- Интеграция в PythonPage и BotsPage; черновики в localStorage
+  (`cc_draft:python:<id>`, `cc_draft:bots`).
+- `npm run build`: tsc 0; main 355.57 kB (gzip 111.93, +1.81 kB), CodeEditor
+  lazy-chunk 467.97 kB (gzip 157.16).
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

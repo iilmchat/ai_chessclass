@@ -276,6 +276,21 @@ body {
   resize: vertical;
 }
 
+/* S-32: CodeMirror 6 — размеры и фокус; цвета задаёт EditorView.theme */
+.code-editor {
+  width: 100%;
+}
+
+.code-editor .cm-editor {
+  min-height: var(--code-editor-min-height, 220px);
+}
+
+.code-editor .cm-scroller {
+  min-height: var(--code-editor-min-height, 220px);
+  max-height: 480px;
+  overflow: auto;
+}
+
 .submit-row {
   display: flex;
   align-items: center;

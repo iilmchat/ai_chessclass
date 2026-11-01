@@ -9,6 +9,8 @@ import {
   submitSolution,
 } from '../shared/api';
 import { LoginGate } from '../shared/LoginGate';
+import { LazyCodeEditor } from '../shared/LazyCodeEditor';
+import { draftKey, readDraft, writeDraft } from '../shared/draft';
 
 const VERDICT_LABELS: Record<SubmissionDto['verdict'], string> = {
   passed: 'Пройдено',
@@ -46,11 +48,17 @@ export function PythonPage() {
     try {
       const detail = await fetchAssignmentDetail(id);
       setSelected(detail);
-      setCode(detail.starterCode);
+      setCode(readDraft(draftKey('python', id)) ?? detail.starterCode);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Ошибка загрузки');
     }
   }, []);
+
+  useEffect(() => {
+    if (selected) {
+      writeDraft(draftKey('python', selected.id), code);
+    }
+  }, [selected, code]);
 
   const submit = useCallback(async () => {
     if (!selected) {
@@ -120,12 +128,11 @@ export function PythonPage() {
         <div className="panel">
           <h2>{selected.title}</h2>
           <p className="statement">{selected.statement}</p>
-          <textarea
-            className="editor"
-            spellCheck={false}
+          <LazyCodeEditor
             value={code}
-            onChange={(e) => setCode(e.target.value)}
-            rows={12}
+            onChange={setCode}
+            minHeight={260}
+            ariaLabel="Решение на Python"
           />
           <div className="submit-row">
             <button className="retry-button" type="button" disabled={busy} onClick={submit}>

@@ -6,6 +6,8 @@ import {
   logout,
 } from '../shared/api';
 import { LoginGate } from '../shared/LoginGate';
+import { LazyCodeEditor } from '../shared/LazyCodeEditor';
+import { draftKey, readDraft, writeDraft } from '../shared/draft';
 
 interface BotDto {
   id: string;
@@ -49,7 +51,7 @@ export function BotsPage() {
   const [authed, setAuthed] = useState<boolean>(Boolean(getToken()));
   const [bots, setBots] = useState<BotDto[]>([]);
   const [stats, setStats] = useState<{ elo: number; wins: number; losses: number; draws: number } | null>(null);
-  const [code, setCode] = useState(DEFAULT_BOT_CODE);
+  const [code, setCode] = useState(() => readDraft(draftKey('bots')) ?? DEFAULT_BOT_CODE);
   const [testInfo, setTestInfo] = useState('');
   const [matches, setMatches] = useState<MatchDto[]>([]);
   const [replay, setReplay] = useState<ReplayDto | null>(null);
@@ -66,6 +68,10 @@ export function BotsPage() {
   useEffect(() => {
     if (authed) loadAll();
   }, [authed, loadAll]);
+
+  useEffect(() => {
+    writeDraft(draftKey('bots'), code);
+  }, [code]);
 
   const act = useCallback(
     async (fn: () => Promise<void>) => {
@@ -157,12 +163,11 @@ export function BotsPage() {
 
       <div className="panel">
         <h2>Код бота (версия {bots[0]?.versionNo !== undefined ? `след. №${bots[0].versionNo + 1}` : '№1'})</h2>
-        <textarea
-          className="editor"
-          spellCheck={false}
-          rows={10}
+        <LazyCodeEditor
           value={code}
-          onChange={(e) => setCode(e.target.value)}
+          onChange={setCode}
+          minHeight={220}
+          ariaLabel="Код бота на Python"
         />
         <div className="submit-row">
           <button className="retry-button" type="button" disabled={busy !== ''} onClick={create}>
