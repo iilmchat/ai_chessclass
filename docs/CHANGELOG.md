@@ -8,6 +8,14 @@
 
 ### Добавлено
 
+#### S-19 — Лестница-часть 2: Stockfish UCI_Elo (2026-11-01)
+- SF-оппоненты: stockfish-1400/1600/1800 (UCI_LimitStrength + UCI_Elo,
+  threads=1, movetime 300 мс, движок-инстанс на матч через EngineService).
+- Семплирование ходов ученика 10 % → `bot_match_moves.sf_sample`
+  (данные для флага engine_likeliness, E-08).
+- `MatchRunIn.pattern` расширен на SF-оппонентов; интеграционные тесты
+  против реального SF-1400.
+
 #### S-18 — Матчи и Elo (2026-11-01)
 - Миграция `0012_bot_matches`: `bot_stats` (elo/wins/losses/draws),
   `bot_matches` (result CHECK, elo_delta), `bot_match_moves` (реплей).

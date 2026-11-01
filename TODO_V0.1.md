@@ -183,10 +183,11 @@
 - **DoD:** матч против random/greedy/minimax2 играется до конца за ≤ 120 c ✅
   (2026-11-01: pytest 135 passed; random-бот vs random — матч до конца, Elo K=32; отчёт — docs/sprint-reports/S-18-2026-11-01.md)
 
-### S-19 🏆 Лестница-часть 2: Stockfish UCI_Elo
-- [ ] оппоненты SF UCI_Elo 1400/1600/1800 (threads=1); по инстансу на arq-процесс
-- [ ] concurrency 2; семплирование ходов (10 %) в `bot_match_moves`
-- **DoD:** матч против SF-1400; записи ходов для флага engine_likeliness
+### S-19 ✅ Лестница-часть 2: Stockfish UCI_Elo
+- [x] оппоненты SF UCI_Elo 1400/1600/1800 (threads=1); по инстансу на arq-процесс
+- [x] concurrency 2; семплирование ходов (10 %) в `bot_match_moves`
+- **DoD:** матч против SF-1400; записи ходов для флага engine_likeliness ✅
+  (2026-11-01: pytest 137 passed; random vs SF-1400 + sf_sample 10 %; отчёт — docs/sprint-reports/S-19-2026-11-01.md)
 
 ### S-20 📈 Elo и матчи UX
 - [ ] Elo: старт 1000, K=32, clamp ±40 (ADR-008); `bot_matches`, `bot_stats`

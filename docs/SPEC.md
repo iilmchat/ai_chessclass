@@ -32,7 +32,7 @@
 | python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `POST /py/assignments/{id}/hint`, `GET /py/assignments/{id}/solution`, `GET /py/submissions/{id}` | — | ✅ S-08/S-09 | assert-тесты в песочнице; вердикты §3.3; ladder §3.4; флаги §8; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
-| bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `GET /bots/stats`, `POST /bots/{id}/test`, `POST /bots/{id}/match/run` (202), `GET /bots/{id}/matches` | — | ✅ S-17/S-18 | choose_move-контракт §3.9; матчи arq (random/greedy/minimax2), Elo K=32 clamp ±40; SF-лестница — S-19 |
+| bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `GET /bots/stats`, `POST /bots/{id}/test`, `POST /bots/{id}/match/run` (202; random/greedy/minimax2/SF-1400/1600/1800), `GET /bots/{id}/matches` | — | ✅ S-17…S-19 | choose_move-контракт §3.9; матчи arq; Elo K=32 clamp ±40; семплирование 10 % ходов (sf_sample) |
 | skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 
@@ -299,7 +299,12 @@ interface BotTestOut {
 
 - Оппоненты (trusted-модули на воркере, python-chess вне песочницы):
   random ≈400 · greedy ≈800 (материал-дельта) · minimax2 ≈1100
-  (negamax глубина 2 + alpha-beta). LLM в матчах — ноль (§7.3).
+  (negamax глубина 2 + alpha-beta) · **stockfish-1400/1600/1800**
+  (SF 17, UCI_LimitStrength + UCI_Elo, threads=1, movetime 300 мс,
+  движок — инстанс на матч). LLM в матчах — ноль (§7.3).
+- **Семплирование ходов ученика** (S-19): 10 % ходов помечается
+  `sf_sample=true` в `bot_match_moves` — данные для флага
+  `engine_likeliness` (античит 2.0, E-08).
 - Матч: MAX_PLIES=60, бюджет `BOT_MATCH_BUDGET_S=120`; ученик — белыми
   (v0.1); нарушение/ошибка/таймаут ученика = немедленное поражение.
 - Elo (ADR-008): старт 1000, K=32, clamp ±40 за матч; `bot_stats` —
@@ -529,3 +534,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-16: EMA/дашборд ✅ — user_skill_scores, /skills API (§8), cron nightly, spider-UI | S-16 |
 | 2026-11-01 | S-17: боты-контракт ✅ — §3.9 (SafePosition, choose_move), bot_versions, chess в запретах | S-17 |
 | 2026-11-01 | S-18: матчи/Elo ✅ — §3.10 (random/greedy/minimax2, arq-луп, K=32 clamp ±40) | S-18 |
+| 2026-11-01 | S-19: SF-лестница ✅ — UCI_Elo 1400/1600/1800, семплирование 10 % (sf_sample) | S-19 |

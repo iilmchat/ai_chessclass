@@ -38,7 +38,10 @@ class BotTestOut(CamelModel):
 
 
 class MatchRunIn(CamelModel):
-    opponent: str = Field(default="random", pattern=r"^(random|greedy|minimax2)$")
+    opponent: str = Field(
+        default="random",
+        pattern=r"^(random|greedy|minimax2|stockfish-1400|stockfish-1600|stockfish-1800)$",
+    )
 
 
 class MatchRunOut(CamelModel):
