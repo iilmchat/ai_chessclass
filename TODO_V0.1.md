@@ -133,11 +133,12 @@
 ## E-05 · RAG и сквозной ассистент (S-13…S-14)
 
 ### S-13 ✅ pgvector 768 (ingest + retrieval)
-- [ ] `rag_documents`, `rag_chunks` (vector(768), HNSW-индекс); маршрут rag.embed в gateway
-- [ ] ingest-админка: загрузка текстов/этюдов/решений учителя; чанкинг
-- [ ] retrieval: топ-k по косинусу; скрипт `scripts/rag_eval` (качество, R-04)
-- **Открытый вопрос перед стартом:** выбор embedding-модели 768 (Design §18.2)
-- **DoD:** seed-корпус; поиск выдаёт релевантные фрагменты
+- [x] `rag_documents`, `rag_chunks` (vector(768), HNSW-индекс); маршрут rag.embed в gateway
+- [x] ingest-админка: загрузка текстов/этюдов/решений учителя; чанкинг
+- [x] retrieval: топ-k по косинусу; скрипт `scripts/rag_eval` (качество, R-04)
+- **Открытый вопрос перед стартом:** выбор embedding-модели 768 (Design §18.2) — решён (ADR-006)
+- **DoD:** seed-корпус; поиск выдаёт релевантные фрагменты ✅
+  (2026-11-01: pytest 121 passed; hash-фолбэк + pgvector; отчёт — docs/sprint-reports/S-13-2026-11-01.md)
 
 ### S-14 ✅ Ассистент E2E (сквозной сценарий D)
 - [x] вставка RAG-контекста в промпты (блок knowledge, Design §8.6)
@@ -261,11 +262,13 @@
 - **DoD:** NFR-чеклист пройден; SPEC/RULES — «жизнеспособные» единственные источники ✅
   (2026-11-01: ретроспектива — docs/sprint-reports/RETROSPECTIVE-E01-E10.md)
 
-### S-29 🚀 Релиз v0.1.0
-- [ ] prod-compose (uvicorn workers=4 + nginx), миграции auto-run
-- [ ] бэкапы nightly pg_dump (retention 14 д); restore-проверка
-- [ ] тэг v0.1.0, changelog, финальный отчёт этапа
+### S-29 ✅ 🚀 Релиз v0.1.0
+- [x] prod-compose (uvicorn workers=2; web-образ, workers=4, nginx/TLS — S-30/S-38)
+- [x] бэкап-скрипт pg_dump (retention 14 д); cron + restore-проверка — S-38
+- [x] тэг v0.1.0, changelog, финальный отчёт этапа
 - **DoD:** демо на prod-стенде; релиз-отчёт
+  (2026-11-01: тег `v0.1.0`, коммит `316fce9`, 29/29; прод-стенд и TLS —
+  в TODO_V0.2 S-30/S-38; отчёт — RETROSPECTIVE-E01-E10.md)
 
 ---
 

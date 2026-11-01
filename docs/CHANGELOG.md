@@ -1,15 +1,31 @@
 # CHANGELOG — ChessClass
 
 Формат — по мотивам [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/);
-версии соответствуют этапам дорожной карты (TODO_V0.1.md). Детали спринтов —
-в `docs/sprint-reports/`.
+версии соответствуют этапам дорожной карты (`TODO_V0.1.md` — архив,
+`TODO_V0.2.md` — активный план). Детали спринтов — в `docs/sprint-reports/`.
+
+## [Unreleased] — v0.2.0 (план)
+
+План и DoD — `TODO_V0.2.md` (S-30…S-45). Ниже — история v0.1.0.
+
+### Добавлено
+
+#### S-30 — Prod-стек и правда релиза (2026-11-01)
+- README / docs/README / CHANGELOG / TODO_V0.1 приведены к факту v0.1.0;
+  версии пакетов подняты с `0.1.0.dev0` до `0.1.0`.
+- `TODO_V0.2.md` — roadmap S-30…S-45 (E-11…E-16), RULES/README переключены.
+- `frontend/Dockerfile` (node 22 → nginx 1.27) + `nginx.conf` (SPA fallback,
+  proxy `/api/` и SSE, gzip, cache, security headers), `.dockerignore`.
+- `docker-compose.prod.yml`: migrate-гейт, api workers=4 + healthcheck +
+  loopback, worker с volume отчётов, web-образ, seed в профиле tools.
+- `.env.prod.example`, `scripts/smoke-prod.ps1`; Design §15.1/§15.3 обновлён.
+- Фикс worker: `arq.cron("app.worker.scores_recalc")` (был рестарт-луп с S-16);
+  регресс-тест `tests/test_worker_settings.py`; prod smoke + heartbeat OK.
 
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
-Релиз с тегом `v0.1.0` на GitHub. Все возможности описаны в блоке
-[Unreleased] ниже и в README.md.
-
-## [Unreleased] — следующая версия (v0.2)
+Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —
+в README.md.
 
 ### Добавлено
 
@@ -276,4 +292,5 @@
 
 ## Статусы версий
 
-- **v0.1.0.dev0** — активная разработка (этап E-01 «Фундамент» завершается).
+- **v0.1.0** — выпущен 2026-11-01 (тег `v0.1.0`, 29/29 спринтов).
+- **v0.2.0** — планируется; активный план — `TODO_V0.2.md`.

@@ -1,8 +1,29 @@
-# ChessClass — prod-стек (S-29). Контракт: Design.md §15.1.
-# Запуск: docker compose -f docker-compose.prod.yml up -d
-# TLS: nginx-каркас (terminates при готовности сертификатов).
+# ChessClass — prod-стек (S-30). Справочник: Design.md §15.1.
+# Запуск: cp .env.prod.example .env && docker compose -f docker-compose.prod.yml up -d --build
+# Миграции выполняются сервисом migrate до старта API/worker.
+# TLS/edge-nginx и бэкапы по расписанию — S-38.
 
 name: chessclass-prod
+
+x-backend-env: &backend-env
+  APP_ENV: prod
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?set in .env}:${POSTGRES_PASSWORD:?set in .env}@db:5432/${POSTGRES_DB:-chessclass}
+  REDIS_URL: redis://redis:6379/0
+  JWT_SECRET: ${JWT_SECRET:?set in .env}
+  LLM_BASE_URL: ${LLM_BASE_URL:-}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_MODEL_L1: ${LLM_MODEL_L1:-minimax-m3.1}
+  LLM_MODEL_L2: ${LLM_MODEL_L2:-deepseek-v4.1}
+  LLM_MODEL_L3: ${LLM_MODEL_L3:-beam-1.0-501b}
+  LLM_MODEL_L3_ALT: ${LLM_MODEL_L3_ALT:-claude-sonnet-5.5}
+  LLM_MODEL_JUDGE: ${LLM_MODEL_JUDGE:-decider-flash-v1.2}
+  LLM_EMBED_MODEL: ${LLM_EMBED_MODEL:-nomic-embed-text-v1.5}
+  WEB_BASE_URL: ${WEB_BASE_URL:-http://localhost:3200}
+  REPORTS_DIR: /srv/reports
+
+x-env-file: &env-file
+  - path: .env
+    required: false
 
 services:
   db:
@@ -15,7 +36,7 @@ services:
     volumes:
       - chessclass_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-chessclass}"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -36,27 +57,51 @@ services:
     networks: [ccnet]
     restart: unless-stopped
 
+  migrate:
+    build:
+      context: ./backend
+    image: chessclass/backend:prod
+    container_name: chessclass-prod-migrate
+    command: alembic upgrade head
+    env_file: *env-file
+    environment: *backend-env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [ccnet]
+    restart: "no"
+
   api:
     build:
       context: ./backend
     image: chessclass/backend:prod
     container_name: chessclass-prod-api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8020 --workers 2
+    command:
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020",
+       "--workers", "${API_WORKERS:-4}"]
+    env_file: *env-file
     environment:
-      APP_ENV: prod
+      <<: *backend-env
       APP_ROLE: api
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-chessclass}
-      REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:?set in .env}
-      LLM_BASE_URL: ${LLM_BASE_URL:-}
-      LLM_API_KEY: ${LLM_API_KEY:-}
     ports:
-      - "${API_PORT:-8020}:8020"
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8020}:8020"
+    volumes:
+      - chessclass_reports:/srv/reports
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        ["CMD", "python", "-c",
+         "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8020/healthz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
     networks: [ccnet]
     restart: unless-stopped
 
@@ -66,18 +111,20 @@ services:
     image: chessclass/backend:prod
     container_name: chessclass-prod-worker
     command: arq app.worker.WorkerSettings
+    env_file: *env-file
     environment:
-      APP_ENV: prod
+      <<: *backend-env
       APP_ROLE: worker
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-chessclass}
-      REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:?set in .env}
-      STOCKFISH_PATH: /usr/local/bin/stockfish
+    volumes:
+      - chessclass_reports:/srv/reports
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
     networks: [ccnet]
     restart: unless-stopped
 
@@ -90,15 +137,36 @@ services:
     ports:
       - "${WEB_PORT:-3200}:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks: [ccnet]
     restart: unless-stopped
+
+  # Ручные операции: docker compose -f docker-compose.prod.yml run --rm seed
+  seed:
+    build:
+      context: ./backend
+    image: chessclass/backend:prod
+    profiles: ["tools"]
+    container_name: chessclass-prod-seed
+    command: python -m db.seeds
+    env_file: *env-file
+    environment: *backend-env
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [ccnet]
+    restart: "no"
 
 volumes:
   chessclass_pgdata:
     name: chessclass_prod_pgdata
   chessclass_redisdata:
     name: chessclass_prod_redisdata
+  chessclass_reports:
+    name: chessclass_prod_reports
 
 networks:
   ccnet:

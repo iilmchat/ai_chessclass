@@ -1008,8 +1008,10 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 - Engine-бюджеты (movetime/multipv): один Stockfish binary в worker; по одному
   инстансу на arq-процесс (матчи concurrency 2 → 2 инстанса); сила — UCI_Elo.
 - `docker-compose.dev.yml` (bind mounts, hot reload), `.prod.yml`
-  (uvicorn workers=4, nginx), `.observability.yml` (promtail/loki по
-  возможности; v0.1 — stdout + ротация, `pg_dump` ежесуточно, scripts).
+  (S-30: migrate-гейт → api workers=4 + healthcheck → worker/web; web — nginx
+  со SPA и proxy `/api/`; API — loopback; edge-nginx/TLS — S-38).
+  `.observability.yml` (promtail/loki по возможности; v0.1 — stdout + ротация,
+  `pg_dump` ежесуточно, scripts).
 
 ### 15.2. Конфигурация (env-контракт, важные переменные)
 
@@ -1040,14 +1042,16 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 
 ### 15.3. Эксплуатация
 
-- Миграции: `alembic upgrade head` на старте API (auto-run, guarded).
-- Seeds: `scripts/bootstrap.py`: админ-пользователь, демо-задания, реестр
+- Миграции: prod — сервис `migrate` (`alembic upgrade head`) до старта API/
+  worker (S-30); dev — вручную `docker compose run --rm migrate`.
+- Seeds: `python -m db.seeds`: админ-пользователь, демо-задания, реестр
   навыков/skill_links, ladder-оппоненты, цены моделей. **Проверка слагов
   LLM-моделей при бутстрапе** (роутер `/models`; несуществующий слаг →
   warning + автопропуск).
-- Health: `GET /healthz` (DB+Redis+SF+LLM ping).
-  Полные детали — в `/readyz`.
-- Бэкапы: nightly pg_dump → volume/`backups/` (cron/beat), ретеншен 14 дн.
+- Health: `GET /healthz` — DB+Redis (liveness); `GET /readyz` — ревизия
+  миграций, версия, детали. SF/LLM-проверки — S-31.
+- Бэкапы: скрипт `backend/scripts/backup.sh` (pg_dump, retention 14 дн);
+  cron/restore-проверка — S-38.
 - KI-001: не запускать команды `docker stop/delete` на чужих контейнерах;
   перед любым действием — сначала `docker ps`, сверяя имена контейнеров.
 

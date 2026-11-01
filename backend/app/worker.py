@@ -66,7 +66,7 @@ async def run_match(ctx: dict, bot_version_id: int, opponent: str) -> dict:
 class WorkerSettings:
     functions = [heartbeat, analyze_position, analyze_game, scores_recalc, run_match]
     #: nightly-пересчёт EMA (§10.3) — 03:40 UTC
-    cron_jobs = [arq.cron("scores_recalc", hour=3, minute=40, run_at_startup=False)]
+    cron_jobs = [arq.cron("app.worker.scores_recalc", hour=3, minute=40, run_at_startup=False)]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     # arq default create_pool пишет в "arq:queue"; разделение на analyze/
     # matches/pdf — при росте нагрузок (Design §11.1)
