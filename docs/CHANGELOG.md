@@ -61,6 +61,14 @@
 - `npm test`: 5 passed; `npm run build`: tsc 0; backend 156 passed.
 - CI: job `frontend` (Node 22) — `npm ci` → `npm test` → `npm run build`.
 
+#### S-34 — Доска: drag-and-drop и мобильный UX (2026-11-02)
+- Deps: `chess.js` — легальность ходов, FEN, история, undo/redo на клиенте.
+- ChessPage: drag-and-drop и click-to-move, подсветка легальных ходов,
+  последнего хода и шаха, кнопки undo/redo/сброс/переворот.
+- Ввод SAN/UCI (Enter), FEN-apply с валидацией; ошибки хода/FEN.
+- Адаптивная вёрстка `.board-controls`, light/dark цвета доски.
+- `npm test` 5 passed; `npm run build` tsc 0; main 404.37 kB (gzip 128.44).
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

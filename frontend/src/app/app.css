@@ -367,6 +367,41 @@ body {
   font-size: 12px;
 }
 
+.board-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.board-controls .field {
+  flex: 1 1 220px;
+  margin-top: 0;
+}
+
+.board-controls .fen-input {
+  margin-top: 0;
+}
+
+.board-controls .retry-button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 600px) {
+  .board-wrap {
+    max-width: 100%;
+  }
+
+  .board-controls .field {
+    flex-basis: 100%;
+  }
+
+  .board-controls .retry-button {
+    flex: 1 1 auto;
+  }
+}
+
 .chess-panel h3 {
   margin: 18px 0 8px;
   font-size: 14px;

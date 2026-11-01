@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { basicSetup } from 'codemirror';
 import { indentUnit } from '@codemirror/language';
@@ -6,6 +6,7 @@ import { python } from '@codemirror/lang-python';
 import { Compartment, EditorState } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView } from '@codemirror/view';
+import { usePrefersDark } from './usePrefersDark';
 
 export interface CodeEditorProps {
   value: string;
@@ -47,27 +48,6 @@ const appTheme = EditorView.theme({
     zIndex: '30',
   },
 });
-
-function usePrefersDark(): boolean {
-  const [dark, setDark] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches,
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return;
-    }
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (event: MediaQueryListEvent) => setDark(event.matches);
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, []);
-
-  return dark;
-}
 
 /** S-32: общий Python-редактор на CodeMirror 6 (лениво грузится из LazyCodeEditor). */
 export default function CodeEditor({

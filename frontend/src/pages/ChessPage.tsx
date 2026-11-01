@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { Chess } from 'chess.js';
+import type { Move, Square } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
+import type {
+  PieceDropHandlerArgs,
+  PieceHandlerArgs,
+  SquareHandlerArgs,
+} from 'react-chessboard';
 import type { BlunderDto, GameStatusOut, InsightOut } from '../shared/api';
 import {
   API_BASE,
@@ -16,6 +24,7 @@ import {
 import { LoginGate } from '../shared/LoginGate';
 import type { EventStreamEvent } from '../shared/useEventStream';
 import { useEventStream } from '../shared/useEventStream';
+import { usePrefersDark } from '../shared/usePrefersDark';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -57,6 +66,24 @@ export function ChessPage() {
   const [analysisError, setAnalysisError] = useState('');
   const finishedGameRef = useRef<string | null>(null);
 
+  // S-34: локальная партия для drag-and-drop, undo/redo и подсветки.
+  const gameRef = useRef<Chess | null>(null);
+  if (gameRef.current === null) {
+    gameRef.current = new Chess(START_FEN);
+  }
+  const redoRef = useRef<Move[]>([]);
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(
+    null,
+  );
+  const [moveInput, setMoveInput] = useState('');
+  const [boardError, setBoardError] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
+  const [canRedo, setCanRedo] = useState(false);
+  const [orientation, setOrientation] = useState<'white' | 'black'>('white');
+  const prefersDark = usePrefersDark();
+
   const loadPositions = useCallback(() => {
     fetchPositions()
       .then((page) => setPositions(page.items))
@@ -68,6 +95,231 @@ export function ChessPage() {
       loadPositions();
     }
   }, [authed, loadPositions]);
+
+  const syncBoard = useCallback(
+    (game: Chess, move?: { from: string; to: string }) => {
+      setBoardFen(game.fen());
+      setFen(game.fen());
+      setHistory(game.history());
+      setSelectedSquare(null);
+      setLegalMoves([]);
+      setLastMove(move ?? null);
+      setBoardError('');
+    },
+    [],
+  );
+
+  const applyFen = useCallback((value: string): boolean => {
+    try {
+      const next = new Chess(value.trim());
+      gameRef.current = next;
+      redoRef.current = [];
+      setCanRedo(false);
+      setBoardFen(next.fen());
+      setFen(next.fen());
+      setHistory([]);
+      setSelectedSquare(null);
+      setLegalMoves([]);
+      setLastMove(null);
+      setBoardError('');
+      return true;
+    } catch {
+      setBoardError('Некорректный FEN');
+      return false;
+    }
+  }, []);
+
+  const applyMove = useCallback(
+    (from: string, to: string): boolean => {
+      const game = gameRef.current;
+      if (!game) {
+        return false;
+      }
+      try {
+        const piece = game.get(from as Square);
+        const promotion =
+          piece?.type === 'p' && (to[1] === '8' || to[1] === '1')
+            ? 'q'
+            : undefined;
+        const move = game.move({
+          from,
+          to,
+          ...(promotion ? { promotion } : {}),
+        });
+        redoRef.current = [];
+        setCanRedo(false);
+        syncBoard(game, { from: move.from, to: move.to });
+        setMoveInput('');
+        return true;
+      } catch {
+        setBoardError('Недопустимый ход');
+        return false;
+      }
+    },
+    [syncBoard],
+  );
+
+  const undoMove = useCallback(() => {
+    const game = gameRef.current;
+    if (!game) {
+      return;
+    }
+    const move = game.undo();
+    if (!move) {
+      return;
+    }
+    redoRef.current.push(move);
+    setCanRedo(true);
+    syncBoard(game);
+  }, [syncBoard]);
+
+  const redoMove = useCallback(() => {
+    const game = gameRef.current;
+    if (!game) {
+      return;
+    }
+    const move = redoRef.current.pop();
+    if (!move) {
+      return;
+    }
+    try {
+      const result = game.move(move.san);
+      setCanRedo(redoRef.current.length > 0);
+      syncBoard(game, { from: result.from, to: result.to });
+    } catch {
+      setBoardError('Не удалось повторить ход');
+    }
+  }, [syncBoard]);
+
+  const resetBoard = useCallback(() => {
+    applyFen(START_FEN);
+    setMoveInput('');
+  }, [applyFen]);
+
+  const submitMove = useCallback(() => {
+    const text = moveInput.trim();
+    const game = gameRef.current;
+    if (!text || !game) {
+      return;
+    }
+    try {
+      const uci = text.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+      let move: Move;
+      if (uci) {
+        const from = uci[1].toLowerCase();
+        const to = uci[2].toLowerCase();
+        const piece = game.get(from as Square);
+        const promotion =
+          piece?.type === 'p' && (to[1] === '8' || to[1] === '1')
+            ? (uci[3]?.toLowerCase() ?? 'q')
+            : undefined;
+        move = game.move({
+          from,
+          to,
+          ...(promotion ? { promotion } : {}),
+        });
+      } else {
+        move = game.move(text);
+      }
+      redoRef.current = [];
+      setCanRedo(false);
+      syncBoard(game, { from: move.from, to: move.to });
+      setMoveInput('');
+    } catch {
+      setBoardError('Ход не распознан: нужен SAN (e4) или UCI (e2e4)');
+    }
+  }, [moveInput, syncBoard]);
+
+  const handleSquareClick = useCallback(
+    ({ piece, square }: SquareHandlerArgs) => {
+      const game = gameRef.current;
+      if (!game) {
+        return;
+      }
+      if (selectedSquare) {
+        if (selectedSquare === square) {
+          setSelectedSquare(null);
+          setLegalMoves([]);
+          return;
+        }
+        if (applyMove(selectedSquare, square)) {
+          return;
+        }
+        if (piece && piece.pieceType.startsWith(game.turn())) {
+          const moves = game.moves({
+            square: square as Square,
+            verbose: true,
+          });
+          setSelectedSquare(square as Square);
+          setLegalMoves(moves.map((move) => move.to));
+          setBoardError('');
+          return;
+        }
+        setSelectedSquare(null);
+        setLegalMoves([]);
+        return;
+      }
+      if (piece && piece.pieceType.startsWith(game.turn())) {
+        const moves = game.moves({ square: square as Square, verbose: true });
+        setSelectedSquare(square as Square);
+        setLegalMoves(moves.map((move) => move.to));
+        setBoardError('');
+      }
+    },
+    [applyMove, selectedSquare],
+  );
+
+  const handlePieceDrop = useCallback(
+    ({ sourceSquare, targetSquare }: PieceDropHandlerArgs) => {
+      if (!targetSquare) {
+        return false;
+      }
+      return applyMove(sourceSquare, targetSquare);
+    },
+    [applyMove],
+  );
+
+  const canDragPiece = useCallback(({ piece }: PieceHandlerArgs) => {
+    const game = gameRef.current;
+    return Boolean(
+      game && !game.isGameOver() && piece.pieceType.startsWith(game.turn()),
+    );
+  }, []);
+
+  const squareStyles = useMemo(() => {
+    const styles: Record<string, CSSProperties> = {};
+    if (selectedSquare) {
+      styles[selectedSquare] = { backgroundColor: 'rgba(99, 184, 146, 0.35)' };
+    }
+    for (const target of legalMoves) {
+      const occupied = gameRef.current?.get(target as Square);
+      styles[target] = occupied
+        ? { boxShadow: 'inset 0 0 0 3px rgba(99, 184, 146, 0.7)' }
+        : {
+            background:
+              'radial-gradient(circle, rgba(99, 184, 146, 0.55) 0 18%, transparent 19%)',
+          };
+    }
+    if (lastMove) {
+      for (const square of [lastMove.from, lastMove.to]) {
+        styles[square] = {
+          ...(styles[square] ?? {}),
+          backgroundColor: 'rgba(255, 193, 7, 0.25)',
+        };
+      }
+    }
+    const game = gameRef.current;
+    if (game?.isCheck()) {
+      const king = game.findPiece({ type: 'k', color: game.turn() })[0];
+      if (king) {
+        styles[king] = {
+          ...(styles[king] ?? {}),
+          backgroundColor: 'rgba(220, 53, 69, 0.35)',
+        };
+      }
+    }
+    return styles;
+  }, [selectedSquare, legalMoves, lastMove, boardFen]);
 
   const finishGame = useCallback(async (id: string) => {
     if (finishedGameRef.current === id) {
@@ -174,11 +426,14 @@ export function ChessPage() {
   }, [finishGame, gameId, gameStatus?.status]);
 
   const ask = useCallback(async () => {
+    const currentFen = fen.trim();
+    if (!applyFen(currentFen)) {
+      return;
+    }
     setBusy(true);
     setError('');
     try {
-      setBoardFen(fen.trim());
-      const data = await insightPosition(fen.trim(), level || undefined);
+      const data = await insightPosition(currentFen, level || undefined);
       setInsight(data);
       loadPositions();
     } catch (err) {
@@ -187,7 +442,7 @@ export function ChessPage() {
     } finally {
       setBusy(false);
     }
-  }, [fen, level, loadPositions]);
+  }, [applyFen, fen, level, loadPositions]);
 
   const analyzePgn = useCallback(async () => {
     const text = pgn.trim();
@@ -294,14 +549,116 @@ export function ChessPage() {
       <div className="panel chess-grid">
         <div>
           <div className="board-wrap">
-            <Chessboard options={{ position: boardFen }} />
+            <Chessboard
+              options={{
+                position: boardFen,
+                boardOrientation: orientation,
+                boardStyle: { borderRadius: '10px', overflow: 'hidden' },
+                darkSquareStyle: {
+                  backgroundColor: prefersDark ? '#2f3542' : '#b8c2cf',
+                },
+                lightSquareStyle: {
+                  backgroundColor: prefersDark ? '#465064' : '#eef2f7',
+                },
+                squareStyles,
+                dropSquareStyle: {
+                  boxShadow: 'inset 0 0 0 3px rgba(99, 184, 146, 0.8)',
+                },
+                canDragPiece,
+                onPieceDrop: handlePieceDrop,
+                onSquareClick: handleSquareClick,
+                showNotation: true,
+                animationDurationInMs: 150,
+              }}
+            />
           </div>
-          <input
-            className="field fen-input"
-            value={fen}
-            onChange={(e) => setFen(e.target.value)}
-            placeholder="FEN"
-          />
+
+          <div className="board-controls">
+            <input
+              className="field fen-input"
+              value={fen}
+              onChange={(event) => setFen(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  applyFen(fen);
+                }
+              }}
+              placeholder="FEN"
+              aria-label="FEN позиции"
+            />
+            <button
+              className="retry-button"
+              type="button"
+              onClick={() => applyFen(fen)}
+            >
+              Применить FEN
+            </button>
+          </div>
+
+          <div className="board-controls">
+            <input
+              className="field"
+              value={moveInput}
+              onChange={(event) => setMoveInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  submitMove();
+                }
+              }}
+              placeholder="Ход: e4 или e2e4"
+              aria-label="Ход в SAN или UCI"
+            />
+            <button
+              className="retry-button"
+              type="button"
+              onClick={submitMove}
+            >
+              Сделать ход
+            </button>
+          </div>
+
+          <div className="board-controls">
+            <button
+              className="retry-button"
+              type="button"
+              onClick={undoMove}
+              disabled={history.length === 0}
+            >
+              ← Отменить
+            </button>
+            <button
+              className="retry-button"
+              type="button"
+              onClick={redoMove}
+              disabled={!canRedo}
+            >
+              Повторить →
+            </button>
+            <button className="retry-button" type="button" onClick={resetBoard}>
+              Сброс
+            </button>
+            <button
+              className="retry-button"
+              type="button"
+              onClick={() =>
+                setOrientation((current) =>
+                  current === 'white' ? 'black' : 'white',
+                )
+              }
+            >
+              Перевернуть
+            </button>
+          </div>
+
+          {boardError && <p className="verdict failed-note">{boardError}</p>}
+          {history.length > 0 && (
+            <p className="link-hint">
+              Ходы: {history.slice(-12).join(' ')}
+            </p>
+          )}
+          <p className="link-hint">
+            Перетащите фигуру или выберите её кликом; превращение — ферзь.
+          </p>
         </div>
 
         <div className="chess-panel">
@@ -354,10 +711,7 @@ export function ChessPage() {
                     <button
                       type="button"
                       className="link-button"
-                      onClick={() => {
-                        setFen(p.fen);
-                        setBoardFen(p.fen);
-                      }}
+                      onClick={() => applyFen(p.fen)}
                     >
                       {p.fen.length > 42 ? `${p.fen.slice(0, 42)}…` : p.fen}
                     </button>
