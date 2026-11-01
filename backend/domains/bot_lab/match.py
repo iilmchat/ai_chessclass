@@ -74,6 +74,8 @@ async def run_match(bot_version_id: int, opponent: str, redis) -> dict:
         ply = 0
         deadline = started + settings.bot_match_budget_s
         failure: MatchResult | None = None
+        sampled_count = 0
+        last_student_move = None
 
         sf_engine = None
         if is_sf:
@@ -132,17 +134,22 @@ async def run_match(bot_version_id: int, opponent: str, redis) -> dict:
                     sampled = False
 
                 board.push(chess.Move.from_uci(move_uci))
-                session.add(
-                    BotMatchMove(
-                        match_id=match.id, ply=ply + 1, fen=board.fen(),
-                        uci=move_uci, agent=agent, think_ms=think_ms,
-                        sf_sample=sampled,
-                    )
+                move_row = BotMatchMove(
+                    match_id=match.id, ply=ply + 1, fen=board.fen(),
+                    uci=move_uci, agent=agent, think_ms=think_ms,
+                    sf_sample=sampled,
                 )
+                session.add(move_row)
+                if agent == "student":
+                    last_student_move = move_row
+                    if sampled:
+                        sampled_count += 1
                 ply += 1
 
             if failure is not None:
                 result_final = failure
+            elif last_student_move is not None and sampled_count == 0:
+                last_student_move.sf_sample = True  # хотя бы один семпл за матч
             elif board.is_game_over():
                 outcome = board.outcome()
                 if outcome is None or outcome.winner is None:

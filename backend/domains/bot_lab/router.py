@@ -1,6 +1,9 @@
 """Роутер /api/v1/bots (Design §12.2): версии ботов, тест хода, матчи."""
 
-from fastapi import APIRouter, Request
+import json
+
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import Field
 
 from core.base import CamelModel
@@ -181,3 +184,55 @@ async def bot_matches(
         )
         for m in rows
     ]
+
+
+@router.get("/{bot_id}/matches/{match_id}/replay")
+async def match_replay(
+    bot_id: int, match_id: int, user: CurrentUser, session: DbSession
+) -> dict:
+    """Реплей матча пошагово (S-20)."""
+    from domains.bot_lab.replay import get_replay
+
+    return await get_replay(session, user, bot_id, match_id)
+
+
+@router.get("/leaderboard")
+async def leaderboard(
+    user: CurrentUser, session: DbSession,
+    limit: int = Query(default=10, ge=1, le=50),
+) -> list[dict]:
+    """Лидерборд по Elo (§7.6; v0.1 — открытым списком)."""
+    from domains.bot_lab.replay import leaderboard as lb
+
+    return await lb(session, limit)
+
+
+@router.get("/{bot_id}/matches/{match_id}/events", summary="SSE прогресс матча")
+async def match_events(
+    bot_id: int, match_id: int, user: CurrentUser, session: DbSession, request: Request
+) -> StreamingResponse:
+    from domains.bot_lab.replay import match_progress_payload
+
+    await svc.get_bot(session, user, bot_id)
+    channel = f"bots:match:{match_id}"
+
+    async def stream():
+        pubsub = request.app.state.redis.pubsub()
+        await pubsub.subscribe(channel)
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                message = await pubsub.get_message(
+                    ignore_subscribe_messages=True, timeout=5.0
+                )
+                if message and message.get("data"):
+                    payload = match_progress_payload(message["data"])
+                    yield f"event: progress\ndata: {json.dumps(payload)}\n\n"
+                    if payload.get("status") == "done":
+                        break
+        finally:
+            await pubsub.unsubscribe(channel)
+            await pubsub.aclose()
+
+    return StreamingResponse(stream(), media_type="text/event-stream")

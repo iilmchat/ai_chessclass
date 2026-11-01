@@ -189,11 +189,12 @@
 - **DoD:** матч против SF-1400; записи ходов для флага engine_likeliness ✅
   (2026-11-01: pytest 137 passed; random vs SF-1400 + sf_sample 10 %; отчёт — docs/sprint-reports/S-19-2026-11-01.md)
 
-### S-20 📈 Elo и матчи UX
-- [ ] Elo: старт 1000, K=32, clamp ±40 (ADR-008); `bot_matches`, `bot_stats`
-- [ ] SSE-прогресс и реплей матча (пошагово); история Elo-график
-- [ ] UI `/bots`: редактор (CodeMirror), тест-прогон, матч, лидерборд
-- **DoD:** матч → итог → Elo обновлён → реплей смотрится
+### S-20 ✅ Elo и матчи UX
+- [x] Elo: старт 1000, K=32, clamp ±40 (ADR-008); `bot_matches`, `bot_stats`
+- [x] SSE-прогресс и реплей матча (пошагово); история Elo-график
+- [x] UI `/bots`: редактор (CodeMirror), тест-прогон, матч, лидерборд
+- **DoD:** матч → итог → Elo обновлён → реплей смотрится ✅
+  (2026-11-01: pytest 137 passed; replay/leaderboard/SSE API + BotsPage; отчёт — docs/sprint-reports/S-20-2026-11-01.md)
 
 ### S-21 🚩 trivial_bot
 - [ ] детект: длина кода < порога; ходы «из кармана»; повторяющийся паттерн против random

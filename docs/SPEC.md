@@ -310,7 +310,12 @@ interface BotTestOut {
 - Elo (ADR-008): старт 1000, K=32, clamp ±40 за матч; `bot_stats` —
   elo/wins/losses/draws; `bot_matches` — result/moves_count/duration_ms/
   elo_delta; `bot_match_moves` — реплей (семплирование SF — S-19).
-- Прогресс — Redis pubsub `bots:match:{id}`.
+- Прогресс — Redis pubsub `bots:match:{id}` → SSE
+  `GET /bots/{id}/matches/{mid}/events`.
+- **Реплей**: `GET /bots/{id}/matches/{mid}/replay` — метаданные + ходы
+  (ply/fen/uci/agent/thinkMs); приватность как у матчей (404 чужому).
+- **Лидерборд**: `GET /bots/leaderboard?limit` — top по Elo (v0.1 открытым
+  списком; §18.5 UX-вопрос).
 
 **EMA-скоры** (§10.3, S-16): `user_skill_scores` PK (user_id, skill_id),
 week `YYYY-Www` (ISO), score 0..100. Формула: raw = clamp(50 + Σвесов×10,
@@ -535,3 +540,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-17: боты-контракт ✅ — §3.9 (SafePosition, choose_move), bot_versions, chess в запретах | S-17 |
 | 2026-11-01 | S-18: матчи/Elo ✅ — §3.10 (random/greedy/minimax2, arq-луп, K=32 clamp ±40) | S-18 |
 | 2026-11-01 | S-19: SF-лестница ✅ — UCI_Elo 1400/1600/1800, семплирование 10 % (sf_sample) | S-19 |
+| 2026-11-01 | S-20: матчи-UX ✅ — replay/leaderboard/SSE, BotsPage (редактор/матч/реплей) | S-20 |

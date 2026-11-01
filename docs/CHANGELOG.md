@@ -8,6 +8,14 @@
 
 ### Добавлено
 
+#### S-20 — Elo и матчи UX (2026-11-01)
+- `backend/bot_lab/replay.py`: реплей матча (метаданные + ходы) и
+  leaderboard (top-10 по Elo, открытым списком — §7.6).
+- API: `GET /bots/{id}/matches/{mid}/replay`, `GET /bots/leaderboard`,
+  `GET /bots/{id}/matches/{mid}/events` (SSE через pubsub `bots:match:{id}`).
+- UI BotsPage: редактор кода бота, тест-ход, матч vs random (polling
+  результата), реплей, лидерборд, свой рейтинг.
+
 #### S-19 — Лестница-часть 2: Stockfish UCI_Elo (2026-11-01)
 - SF-оппоненты: stockfish-1400/1600/1800 (UCI_LimitStrength + UCI_Elo,
   threads=1, movetime 300 мс, движок-инстанс на матч через EngineService).
