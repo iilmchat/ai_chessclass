@@ -98,6 +98,9 @@ class Settings(BaseSettings):
     # --- anticheat (S-21/S-22; §9.2 пороги — config)
     bot_trivial_min_lines: int = 5
     engine_likeliness_top1_threshold: float = 0.9
+    # --- reports (S-25; §20.2 порт: системный TTF с кириллицей)
+    reports_font_path: str = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    reports_dir: str = "/srv/reports"
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"

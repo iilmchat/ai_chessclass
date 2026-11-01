@@ -19,6 +19,7 @@ from domains.chess_lab.router import router as chess_router
 from domains.cognitive.router import router as skills_router
 from domains.profile.router import router as profile_router
 from domains.python_teacher.router import router as py_router
+from domains.reports.router import router as reports_router
 from llm.router import router as llm_admin_router
 from rag.router import router as rag_admin_router
 
@@ -102,6 +103,7 @@ app.include_router(bots_router, prefix="/api/v1")
 app.include_router(anticheat_router, prefix="/api/v1")
 app.include_router(llm_admin_router, prefix="/api/v1")
 app.include_router(rag_admin_router, prefix="/api/v1")
+app.include_router(reports_router, prefix="/api/v1")
 
 
 def run() -> None:

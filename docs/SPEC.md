@@ -546,3 +546,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-22: флаги-движок ✅ — engine_likeliness (top1Rate ≥ 0.9 → флаг), review-статус-машина | S-22 |
 | 2026-11-01 | S-23: judge ✅ — anticheat.judge-сессии (транскрипт, вердикт учителя) | S-23 |
 | 2026-11-01 | S-24: плагиат/сверка ✅ — similarity ≥0.95 → флаг, profile_mismatch, карточка ученика | S-24 |
+| 2026-11-01 | S-25: PDF-отчёты ✅ — fpdf2+DejaVuSans (кириллица), reports_pdfs, GET/POST /reports/pdf | S-25 |

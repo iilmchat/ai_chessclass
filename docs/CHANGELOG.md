@@ -8,6 +8,15 @@
 
 ### Добавлено
 
+#### S-25 — PDF-отчёты родителям (2026-11-01)
+- Deps: fpdf2>=2.8; DejaVuSans в образе (fonts-dejavu-core) для кириллицы.
+- Миграция `0014_reports`: `reports_pdfs` (student/requested_by/kind/path/
+  size_bytes).
+- `domains/reports/`: build_pdf (навыки + Elo бота), generate_for_student
+  (volume + запись), роутер `POST /reports/pdf/{student_id}` (teacher) и
+  `GET /reports/pdf/{id}` (скачивание).
+- Тесты: сборка с кириллицей, генерация+скачивание, RBAC 403.
+
 #### S-24 — Плагиат и профиль-сверка (2026-11-01)
 - `anticheat/similarity.py`: check_plagiarism (hash-эмбеддинги кода,
   косинус ≥0.95 с эталоном/сдачами сверстников; exact-copy = 1.0) и

@@ -4,6 +4,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
+# DejaVuSans (кириллица) для PDF-отчётов родителям (S-25, порт §20.2)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 # Stockfish 17.1 (ubuntu avx2) — официальный релиз; движок для chess_lab (E-04)
 RUN python - <<'PYEOF'
 import glob
