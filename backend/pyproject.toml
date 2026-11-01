@@ -18,6 +18,7 @@ dependencies = [
     "argon2-cffi>=23.1",
     "RestrictedPython>=8.5",
     "chess>=1.10",
+    "pgvector>=0.3",
     "httpx>=0.28",
     "orjson>=3.10",
 ]

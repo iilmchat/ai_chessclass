@@ -34,7 +34,7 @@
 | chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
 | bots | `/bots` CRUD, `/bots/{id}/match/run` (SSE-прогресс), `/bots/{id}/reliability` | — | 🧱 S-08…S-09 | `choose_move(position)->str`, лестница Elo — Design §8, ADR-011/012 |
 | skills | `/skills/snapshot`, `/skills/scores/{user}`, PDF родителям | — | 🧱 E-08…E-09 | EMA-скоры, fpdf2 + TTF — Design §9 |
-| rag | `/rag/query`, инжест книжек | — | 🧱 S-10 | embeddings 768, pgvector — Design §10 |
+| rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 
 ## 3. Формат фиксации DTO
 
@@ -183,6 +183,27 @@ interface BlunderDto {
   best · good <50 · inaccuracy <100 · mistake <300 · blunder ≥300.
 - Прогресс — Redis pubsub `chess:progress:{game_id}` → SSE. Приватность
   как у py_submissions (свои/teacher-admin — 404 чужому).
+
+### 3.7. RAG (S-13, §10.6, ADR-006)
+
+```ts
+// POST /admin/rag/ingest { titleRu, source?, domain: python|chess|general,
+//   kind: explanation|teacher_solution|chess_position|hint, text } → 201
+interface IngestOut { documentId: string; chunks: number; embedMode: "openai" | "hash" }
+// GET /admin/rag/search?q&k(1..20) → { query, hits: [{ chunkId, documentId,
+//   titleRu, text, similarity }] }  // top-k по косинусу (pgvector <=>)
+```
+
+- `rag_documents` (tsv GIN для гибридного поиска) + `rag_chunks` (embed
+  Vector(768), HNSW vector_cosine_ops).
+- Чанкинг: ~`RAG_CHUNK_CHARS=800` симв. с перекрытием 100, разрыв по
+  абзацам/пробелам.
+- Эмбеддинги: модель `LLM_EMBED_MODEL` (открытый вопрос §18.2) через
+  OpenAI-compat /embeddings; **без провайдера — детерминированный
+  hash-фолбэк** (bag-of-words, L2), режим фиксируется в `embedMode` —
+  пайплайн ingest/retrieval работает в dev/CI end-to-end.
+- Оценка качества (R-04): `backend/scripts/rag_eval.py` — запросы →
+  топ-хиты по seed-корпусу (ручная интерпретация).
 
 ### 3.4. Лестница подсказок (S-09, §5.4)
 
@@ -438,3 +459,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-10: Engine ✅ — профили §9, UCI_Elo, SF только worker; SF 17.1 в образе | S-10 |
 | 2026-11-01 | S-11: инсайт ✅ — §3.5 (facts+LLM), arq-путь api→worker, chess_positions | S-11 |
 | 2026-11-01 | S-12: партии/блюндеры ✅ — §3.6 (upload/arq/SSE/explain), классификация Δeval | S-12 |
+| 2026-11-01 | S-13: RAG ✅ — §3.7 (pgvector 768/HNSW, ingest/search, hash-фолбэк) | S-13 |

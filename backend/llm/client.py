@@ -92,5 +92,16 @@ class OpenAICompatProvider(LLMProvider):
         data = response.json()
         return [str(item["id"]) for item in data.get("data", [])]
 
+    async def embeddings(self, texts: list[str], model: str) -> list[list[float]]:
+        """OpenAI-совместимый /embeddings: список векторов по текстам."""
+        if not self.is_configured():
+            raise LLMUnavailableError("LLM_BASE_URL не настроен")
+        response = await self._client.post(
+            "/embeddings", json={"model": model, "input": texts}
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [item["embedding"] for item in data["data"]]
+
     async def close(self) -> None:
         await self._client.aclose()

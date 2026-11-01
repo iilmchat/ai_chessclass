@@ -8,6 +8,17 @@
 
 ### Добавлено
 
+#### S-13 — RAG: pgvector 768 (2026-11-01)
+- Миграция `0009_rag`: `rag_documents` (tsv GIN) + `rag_chunks`
+  (embed Vector(768), HNSW vector_cosine_ops).
+- `backend/rag/`: embeddings (OpenAI-compat /embeddings + детерминированный
+  hash-фолбэк для dev/CI), ingest (чанкинг 800/100, замена по title),
+  retrieval (top-k cosine, фильтр доменов), admin-роутер
+  `POST /admin/rag/ingest`, `GET /admin/rag/search`.
+- Seeds: 7 обучающих документов (python/chess); `scripts/rag_eval.py` (R-04).
+- Deps: pgvector>=0.3. Config: LLM_EMBED_MODEL, RAG_CHUNK_CHARS/OVERLAP,
+  RAG_TOP_K.
+
 #### S-12 — PGN-анализ и блюндеры (2026-11-01)
 - Миграция `0008_chess_games`: `chess_games` (pgn/source), `chess_analyses`
   (status pending→running→done|failed, sf JSONB, llm JSONB).

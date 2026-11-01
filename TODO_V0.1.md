@@ -132,7 +132,7 @@
 
 ## E-05 · RAG и сквозной ассистент (S-13…S-14)
 
-### S-13 🗂️ pgvector 768 (ingest + retrieval)
+### S-13 ✅ pgvector 768 (ingest + retrieval)
 - [ ] `rag_documents`, `rag_chunks` (vector(768), HNSW-индекс); маршрут rag.embed в gateway
 - [ ] ingest-админка: загрузка текстов/этюдов/решений учителя; чанкинг
 - [ ] retrieval: топ-k по косинусу; скрипт `scripts/rag_eval` (качество, R-04)

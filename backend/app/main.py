@@ -17,6 +17,7 @@ from domains.chess_lab.router import router as chess_router
 from domains.profile.router import router as profile_router
 from domains.python_teacher.router import router as py_router
 from llm.router import router as llm_admin_router
+from rag.router import router as rag_admin_router
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,7 @@ app.include_router(profile_router, prefix="/api/v1")
 app.include_router(py_router, prefix="/api/v1")
 app.include_router(chess_router, prefix="/api/v1")
 app.include_router(llm_admin_router, prefix="/api/v1")
+app.include_router(rag_admin_router, prefix="/api/v1")
 
 
 def run() -> None:

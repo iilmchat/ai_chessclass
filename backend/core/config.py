@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     # --- chess_lab (E-04)
     chess_blunder_cp: int = 300  # Δeval ≥ порога → blunder (§6.2, config не hardcoded)
     chess_pgn_max_bytes: int = 2_000_000  # §13.4
+    # --- rag (S-13; §10.6, ADR-006: 768; модель — открытый вопрос §18.2)
+    llm_embed_model: str = "nomic-embed-text-v1.5"
+    rag_chunk_chars: int = 800
+    rag_chunk_overlap: int = 100
+    rag_top_k: int = 5
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"
