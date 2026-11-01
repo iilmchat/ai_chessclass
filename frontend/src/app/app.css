@@ -320,6 +320,19 @@ body {
   color: var(--danger);
 }
 
+/* --- dashboard: сводка (S-26) --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
 /* --- chess_lab: инсайт (S-11) --- */
 .chess-grid {
   display: grid;

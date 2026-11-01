@@ -8,6 +8,11 @@
 
 ### Добавлено
 
+#### S-26 — Полировка UI (2026-11-01)
+- Dashboard: сводка всех доменов (инфраструктура/Elo/слабые навыки),
+  инсайт дня (стартовая позиция через шлюз), рекомендации; loading/error
+  состояния; dark-тема через prefers-color-scheme.
+
 #### S-25 — PDF-отчёты родителям (2026-11-01)
 - Deps: fpdf2>=2.8; DejaVuSans в образе (fonts-dejavu-core) для кириллицы.
 - Миграция `0014_reports`: `reports_pdfs` (student/requested_by/kind/path/
