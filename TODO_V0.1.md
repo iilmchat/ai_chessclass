@@ -196,10 +196,11 @@
 - **DoD:** матч → итог → Elo обновлён → реплей смотрится ✅
   (2026-11-01: pytest 137 passed; replay/leaderboard/SSE API + BotsPage; отчёт — docs/sprint-reports/S-20-2026-11-01.md)
 
-### S-21 🚩 trivial_bot
-- [ ] детект: длина кода < порога; ходы «из кармана»; повторяющийся паттерн против random
-- [ ] флаг в anticheat_flags с evidence
-- **DoD:** тривиальный бот получает флаг, валидный не трогается
+### S-21 ✅ trivial_bot
+- [x] детект: длина кода < порога; ходы «из кармана»; повторяющийся паттерн против random
+- [x] флаг в anticheat_flags с evidence
+- **DoD:** тривиальный бот получает флаг, валидный не трогается ✅
+  (2026-11-01: pytest 139 passed; hardcoded-ходы → флаг 0.8/0.9; отчёт — docs/sprint-reports/S-21-2026-11-01.md)
 
 ---
 

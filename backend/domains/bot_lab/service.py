@@ -32,6 +32,8 @@ async def get_bot(session: AsyncSession, user, bot_id: int) -> BotVersion:
 async def create_bot(
     session: AsyncSession, user, code: str, entry: str = "choose_move"
 ) -> BotVersion:
+    from domains.bot_lab.trivial import check_trivial_bot
+
     max_no = (
         await session.execute(
             select(func.max(BotVersion.version_no)).where(
@@ -46,6 +48,8 @@ async def create_bot(
         entry=entry,
     )
     session.add(bot)
+    await session.flush()
+    await check_trivial_bot(session, user.id, bot.id, code)
     await session.flush()
     return bot
 

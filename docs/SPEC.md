@@ -541,3 +541,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-18: матчи/Elo ✅ — §3.10 (random/greedy/minimax2, arq-луп, K=32 clamp ±40) | S-18 |
 | 2026-11-01 | S-19: SF-лестница ✅ — UCI_Elo 1400/1600/1800, семплирование 10 % (sf_sample) | S-19 |
 | 2026-11-01 | S-20: матчи-UX ✅ — replay/leaderboard/SSE, BotsPage (редактор/матч/реплей) | S-20 |
+| 2026-11-01 | S-21: trivial_bot ✅ — hardcoded-ходы → флаг (ADR-005: не блокирует) | S-21 |
