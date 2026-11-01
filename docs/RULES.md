@@ -63,6 +63,7 @@
 | readyz | `curl http://localhost:8020/readyz` → `status: ready`, `migrationsUpToDate: true` |
 | Фронтенд | `http://localhost:3200` — на дашборде «API/БД/Redis — ок» |
 | CI (GitHub) | `.github/workflows/ci.yml`: backend ruff → mypy → alembic → seeds → pytest (pg+redis); frontend npm test → npm run build (Node 22); e2e Playwright (API 8021 + worker + pg/redis) |
+| E2E-стенд | `.\scripts\e2e.ps1 test` — отдельные db 5439/redis 6385, API 8021, web 3201, reset/cleanup |
 
 ## 7. Шаблон отчёта спринта
 

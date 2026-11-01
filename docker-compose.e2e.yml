@@ -1,0 +1,138 @@
+# ChessClass — отдельный e2e-стенд (S-36).
+# Запуск: docker compose -f docker-compose.e2e.yml up -d --build
+# Полный прогон с очисткой: .\scripts\e2e.ps1 test
+# Порты: db 5439, redis 6385, API 8021, web 3201.
+# Данные и volumes — chessclass_e2e_*; dev-БД не затрагивается.
+
+name: chessclass_e2e
+
+x-e2e-env: &e2e-env
+  APP_ENV: dev
+  DATABASE_URL: postgresql+asyncpg://chess:chess_e2e@db:5432/chessclass
+  REDIS_URL: redis://redis:6379/0
+  JWT_SECRET: e2e-secret-please-change-0123456789abcdef
+  WEB_BASE_URL: http://127.0.0.1:3201
+  LLM_BASE_URL: ""
+  LLM_API_KEY: ""
+  LLM_LOCAL_FALLBACK: "false"
+  REPORTS_DIR: /srv/reports
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: chessclass-e2e-db
+    environment:
+      POSTGRES_USER: chess
+      POSTGRES_PASSWORD: chess_e2e
+      POSTGRES_DB: chessclass
+    ports:
+      - "5439:5432"
+    volumes:
+      - chessclass_e2e_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chess -d chessclass"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [e2enet]
+
+  redis:
+    image: redis:7-alpine
+    container_name: chessclass-e2e-redis
+    ports:
+      - "6385:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [e2enet]
+
+  setup:
+    build:
+      context: ./backend
+    image: chessclass/backend:e2e
+    container_name: chessclass-e2e-setup
+    command: sh -c "alembic upgrade head && python -m db.seeds"
+    environment: *e2e-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    networks: [e2enet]
+
+  api:
+    build:
+      context: ./backend
+    image: chessclass/backend:e2e
+    container_name: chessclass-e2e-api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8020
+    environment:
+      <<: *e2e-env
+      APP_ROLE: api
+    ports:
+      - "8021:8020"
+    volumes:
+      - chessclass_e2e_reports:/srv/reports
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        ["CMD", "python", "-c",
+         "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8020/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 30
+    restart: unless-stopped
+    networks: [e2enet]
+
+  worker:
+    build:
+      context: ./backend
+    image: chessclass/backend:e2e
+    container_name: chessclass-e2e-worker
+    command: arq app.worker.WorkerSettings
+    environment:
+      <<: *e2e-env
+      APP_ROLE: worker
+    volumes:
+      - chessclass_e2e_reports:/srv/reports
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks: [e2enet]
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: chessclass/frontend:e2e
+    container_name: chessclass-e2e-web
+    ports:
+      - "3201:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [e2enet]
+
+volumes:
+  chessclass_e2e_pgdata:
+    name: chessclass_e2e_pgdata
+  chessclass_e2e_reports:
+    name: chessclass_e2e_reports
+
+networks:
+  e2enet:
+    name: chessclass-e2e-net

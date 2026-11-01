@@ -74,7 +74,13 @@ docker compose -f docker-compose.dev.yml run --rm seed    # админ, учен
 
 cd frontend
 npm test                    # Vitest: SSE-парсер/поток/reconnect
-npm run test:e2e            # Playwright: 7 сценариев (нужен dev api+worker)
+npm run test:e2e            # Playwright против dev api+worker
+```
+
+Изолированный e2e-стенд (8021/3201, своя БД, очистка):
+
+```powershell
+.\scripts\e2e.ps1 test      # reset -> up -> Playwright -> down -v
 ```
 
 **Prod:** каркас — `docker-compose.prod.yml`; доведение стека (web-образ,
@@ -99,7 +105,7 @@ healthchecks, миграции, TLS, бэкапы) — спринты S-30 ✅/S
 | Миграции | Alembic head **0014_reports** (14) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 3 пользователя + 11 навыков + 5 skill_links + 16 заданий |
-| Следующий этап | **v0.2.0** — S-30…S-35 ✅, далее S-36…S-45 ([план](TODO_V0.2.md)) |
+| Следующий этап | **v0.2.0** — S-30…S-36 ✅, далее S-37…S-45 ([план](TODO_V0.2.md)) |
 
 ---
 

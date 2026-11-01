@@ -83,6 +83,16 @@
 - CI run `41357215595`: e2e/backend/frontend зелёные (1m34s/2m32s/12s).
 - `npm run test:e2e` — 7 passed (56 с).
 
+#### S-36 — Отдельная e2e-БД и стенд (2026-11-02)
+- `docker-compose.e2e.yml`: project `chessclass_e2e`, db 5439, redis 6385,
+  api 8021, web 3201; volumes `chessclass_e2e_*`; setup = migrate + seeds.
+- `scripts/e2e.ps1` (`up`/`down`/`reset`/`test`/`logs`): `test` делает
+  reset → up → Playwright → down -v.
+- Изоляция проверена при работающем dev-стеке: 7 passed (15.9 с), dev-БД
+  и volumes не затронуты; e2e-стек удалён после прогона.
+- CI job `e2e` уже использует отдельные pg/redis services; локальный
+  compose-стенд — для параллельной работы с dev.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —
