@@ -8,6 +8,11 @@
 
 ### Добавлено
 
+#### S-15 — Реестр навыков и emits (2026-11-01)
+- chess-блюндеры → события навыков (`tactics_hanging`, −1.0, meta gameId/ply)
+  в `analyze_game_job`; таблица весов SPEC §8 дополнена.
+- (Таблицы skills/skill_events и py-emit'ы — S-03/S-09; judge — E-07.)
+
 #### S-14 — Ассистент E2E (2026-11-01)
 - Knowledge-блок в prompt_builder (`build_messages(..., knowledge=...)`):
   RAG-чанки (топ-2, python/general) перед фактами — в

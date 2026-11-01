@@ -1,7 +1,10 @@
 """S-12: upload PGN (валидация/приватность) + юнит parse_pgn."""
 
 import pytest
+import sqlalchemy as sa
 
+from core.config import settings
+from core.db import session_factory
 from domains.chess_lab.ingestion import InvalidPgnError, parse_pgn
 from tests.conftest import API, login, register_verified
 
@@ -78,3 +81,41 @@ async def test_upload_pending_and_privacy(admin_client, make_client, unique_emai
         f"{API}/chess/games/{game_id}", headers={"Authorization": f"Bearer {access_b}"}
     )
     assert response.status_code == 404
+
+
+async def test_blunder_emits_skill_event(
+    admin_client, make_client, unique_email, worker_role, redis_client
+):
+    """S-15: блюндер партии → событие навыка tactics_hanging (−1.0)."""
+    from pathlib import Path
+
+    if not Path(settings.stockfish_path).exists():
+        pytest.skip("Stockfish не установлен")
+
+    client = await make_client()
+    await register_verified(client, unique_email)
+    _c, access, user_id = await login(client, unique_email)
+    response = await client.post(
+        f"{API}/chess/games/upload",
+        json={"pgn": GOOD_PGN},
+        headers={"Authorization": f"Bearer {access}"},
+    )
+    game_id = int(response.json()["gameId"])
+
+    from domains.chess_lab.service import analyze_game_job
+    from domains.cognitive.models import SkillEvent
+
+    result = await analyze_game_job(game_id, redis_client)
+    assert result["ok"] is True
+
+    async with session_factory() as session:
+        events = (
+            await session.execute(
+                sa.select(SkillEvent).where(
+                    SkillEvent.user_id == user_id,
+                    SkillEvent.weight == -1.0,
+                )
+            )
+        ).scalars().all()
+        assert events, "блюндер должен породить событие −1.0"
+        assert events[0].domain.value == "chess"

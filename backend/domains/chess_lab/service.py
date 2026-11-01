@@ -10,6 +10,7 @@
 import asyncio
 import json
 import logging
+from decimal import Decimal
 
 import chess
 from sqlalchemy import select
@@ -38,6 +39,7 @@ INSIGHT_TIMEOUT_S = 30.0
 GAME_ANALYSIS_TIMEOUT_S = 300.0
 PROGRESS_CHANNEL = "chess:progress:{game_id}"
 PIECE_VALUES = {"p": 1, "n": 3, "b": 3, "r": 5, "q": 9}
+WEIGHT_BLUNDER_EVENT = Decimal("-1.000")  # SPEC §8: блюндер в партии
 
 
 def material_balance(board: chess.Board) -> int:
@@ -429,6 +431,21 @@ async def analyze_game_job(game_id: int, redis) -> dict:
                 )
 
             blunders = [m for m in move_analyses if m["classification"] == "blunder"]
+
+            # события навыков: блюндер — минус в «висячие фигуры» (§8 весов)
+            from domains.cognitive.events import emit_skill_event
+            from domains.cognitive.models import SkillDomain
+
+            for blunder in blunders:
+                await emit_skill_event(
+                    session,
+                    user_id=game.user_id,
+                    skill_slug="tactics_hanging",
+                    domain=SkillDomain.CHESS,
+                    weight=WEIGHT_BLUNDER_EVENT,
+                    meta={"gameId": game_id, "ply": blunder["ply"]},
+                )
+            await session.flush()
             analysis.sf = {
                 "moves": move_analyses,
                 "blunders": blunders,

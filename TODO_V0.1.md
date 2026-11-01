@@ -150,11 +150,13 @@
 
 ## E-06 · События навыков (S-15…S-16)
 
-### S-15 🔗 Реестр навыков и emits
-- [ ] `skills`, `cognitive_skill_events` (DDL → SPEC); общий emit-хелпер
-- [ ] интеграция emits: py-сдачи/подсказки/solution, chess-блюндеры, judge
-- [ ] карта «тема задания → навык» (Design §10.1), веса (таблица → SPEC)
-- **DoD:** любая сдача/анализ порождает события навыков
+### S-15 ✅ Реестр навыков и emits
+- [x] `skills`, `cognitive_skill_events` (DDL → SPEC); общий emit-хелпер
+- [x] интеграция emits: py-сдачи/подсказки/solution, chess-блюндеры, judge
+- [x] карта «тема задания → навык» (Design §10.1), веса (таблица → SPEC)
+- **DoD:** любая сдача/анализ порождает события навыков ✅
+  (2026-11-01: pytest 122 passed; таблицы/emit сделаны в S-03/S-09, доподтянуты
+  chess-блюндеры; judge — E-07; отчёт — docs/sprint-reports/S-15-2026-11-01.md)
 
 ### S-16 📊 EMA и дашборд ученика
 - [ ] `user_skill_scores`: недельные EMA (α в config), задача arq `scores:recalc` (nightly)

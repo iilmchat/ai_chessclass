@@ -260,6 +260,7 @@ domain, weight Numeric(6,3), meta JSONB, occurred_at. Базовые веса (�
 | seeded-подсказка открыта | −0.5 |
 | LLM-подсказка | −1.0 |
 | открытие решения | **−2.0** |
+| блюндер в партии (chess) | −1.0 |
 
 Эмитятся только для роли student; навык отсутствует → skip + warning.
 
@@ -475,3 +476,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-12: партии/блюндеры ✅ — §3.6 (upload/arq/SSE/explain), классификация Δeval | S-12 |
 | 2026-11-01 | S-13: RAG ✅ — §3.7 (pgvector 768/HNSW, ingest/search, hash-фолбэк) | S-13 |
 | 2026-11-01 | S-14: ассистент E2E ✅ — knowledge-блок (RAG) в промптах, сценарии A/B/D | S-14 |
+| 2026-11-01 | S-15: emits ✅ — chess-блюндеры → tactics_hanging (−1.0); таблица весов §8 полная | S-15 |
