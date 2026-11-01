@@ -8,6 +8,17 @@
 
 ### Добавлено
 
+#### S-17 — Боты: контракт и SafePosition (2026-11-01)
+- Миграция `0011_bot_versions` (version_no per user, entry, is_active).
+- `domains/bot_lab/`: `safe_position.py` (read-only фасад: fen/turn/
+  legal_moves/piece_at/is_attacked/material/king_square), `runner.py`
+  (собственный subprocess: SafePosition строится в ребёнке, extra_globals
+  в run_restricted, per-move таймаут 1.0 с, валидация легальности хода),
+  `service.py` (версии/тест), роутер `/api/v1/bots`.
+- `chess` добавлен в FORBIDDEN_MODULES песочницы (ботам — SafePosition).
+- Тесты: random-бот (легальный UCI), версии, restricted/timeout/contract,
+  приватность.
+
 #### S-16 — EMA и дашборд навыков (2026-11-01)
 - Миграция `0010_skill_scores`: `user_skill_scores` (PK user+skill,
   week ISO, score 0..100).

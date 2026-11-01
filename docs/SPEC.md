@@ -32,7 +32,7 @@
 | python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `POST /py/assignments/{id}/hint`, `GET /py/assignments/{id}/solution`, `GET /py/submissions/{id}` | — | ✅ S-08/S-09 | assert-тесты в песочнице; вердикты §3.3; ladder §3.4; флаги §8; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
-| bots | `/bots` CRUD, `/bots/{id}/match/run` (SSE-прогресс), `/bots/{id}/reliability` | — | 🧱 S-08…S-09 | `choose_move(position)->str`, лестница Elo — Design §8, ADR-011/012 |
+| bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `POST /bots/{id}/test` (+ S-18+: match/run, ladder) | — | ✅ S-17 | контракт choose_move(position)->str, SafePosition, per-move 1.0 c; лестница — Design §8 |
 | skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 
@@ -264,6 +264,31 @@ domain, weight Numeric(6,3), meta JSONB, occurred_at. Базовые веса (�
 
 Эмитятся только для роли student; навык отсутствует → skip + warning.
 
+### 3.9. bot_lab: контракт ботов (S-17)
+
+```ts
+// POST /bots { code, entry? = "choose_move" } → 201 { id, versionNo, entry, isActive }
+// GET /bots (свои, активные) · GET /bots/{id}
+// POST /bots/{id}/test { fen } →
+interface BotTestOut {
+  ok: boolean; moveUci: string | null; timeMs: number;
+  error: string | null; errorType: string | null; output: string | null;
+}
+```
+
+- **Контракт бота**: `choose_move(position) -> str` (UCI-ход) — entry
+  настраивается; `evaluate(position) -> float` — для greedy-ботов (S-18).
+- **SafePosition** — read-only фасад позиции в песочнице: `fen`, `turn`
+  (white/black), `legal_moves` (UCI-список), `is_check`,
+  `piece_at(square)`, `is_attacked(square)`, `material(color)`,
+  `king_square(color)`. Прямой доступ к python-chess ботам запрещён
+  (`chess` в FORBIDDEN_MODULES песочницы).
+- Версии: `bot_versions` (version_no растёт per user; is_active — рабочая).
+- Запуск: свежий процесс песочницы на ход, per-move таймаут
+  `BOT_PERMOVE_TIMEOUT_S=1.0`, RLIMIT 256 МБ, ход валидируется родителем
+  (легальность). Коды ошибок: `bot_restricted` (статика), `bot_timeout`
+  (408), `bot_error` (422: контракт/нелегальный ход).
+
 **EMA-скоры** (§10.3, S-16): `user_skill_scores` PK (user_id, skill_id),
 week `YYYY-Www` (ISO), score 0..100. Формула: raw = clamp(50 + Σвесов×10,
 0..100) за неделю; score = α·raw + (1−α)·prev, α = `SKILL_EMA_ALPHA=0.3`.
@@ -484,3 +509,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-14: ассистент E2E ✅ — knowledge-блок (RAG) в промптах, сценарии A/B/D | S-14 |
 | 2026-11-01 | S-15: emits ✅ — chess-блюндеры → tactics_hanging (−1.0); таблица весов §8 полная | S-15 |
 | 2026-11-01 | S-16: EMA/дашборд ✅ — user_skill_scores, /skills API (§8), cron nightly, spider-UI | S-16 |
+| 2026-11-01 | S-17: боты-контракт ✅ — §3.9 (SafePosition, choose_move), bot_versions, chess в запретах | S-17 |

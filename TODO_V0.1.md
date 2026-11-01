@@ -168,12 +168,13 @@
 
 ## E-07 · Лаборатория ботов (S-17…S-21)
 
-### S-17 🧪 Контракт и SafePosition
-- [ ] SafePosition read-only прокси: fen/turn/legal_moves/piece_at/is_attacked/material
-- [ ] запись ботов: контракт `choose_move(position)->str` / `evaluate(position)->float`
-- [ ] `bot_versions`; запуск в executor (per-move 1.0 c); запрет импорта python-chess внутрь
+### S-17 ✅ Контракт и SafePosition
+- [x] SafePosition read-only прокси: fen/turn/legal_moves/piece_at/is_attacked/material
+- [x] запись ботов: контракт `choose_move(position)->str` / `evaluate(position)->float`
+- [x] `bot_versions`; запуск в executor (per-move 1.0 c); запрет импорта python-chess внутрь
 - **Порт из teacher:** executor — общий, не копия (§20.4)
-- **DoD:** простой random-бот ученика возвращает легальные ходы
+- **DoD:** простой random-бот ученика возвращает легальные ходы ✅
+  (2026-11-01: pytest 132 passed; random-бот → легальный UCI; отчёт — docs/sprint-reports/S-17-2026-11-01.md)
 
 ### S-18 🎯 Лестница-часть 1: random + greedy + minimax2
 - [ ] оппоненты random (≈400), greedy (≈800, по evaluate/материал-дельта)

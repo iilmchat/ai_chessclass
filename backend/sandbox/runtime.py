@@ -70,6 +70,7 @@ FORBIDDEN_MODULES: frozenset[str] = frozenset(
         "requests",
         "pickle",
         "marshal",
+        "chess",  # python-chess запрещён ботам (SafePosition вместо него, S-17)
     }
 )
 
@@ -245,12 +246,15 @@ def run_restricted(
     memory_limit_mb: int | None = None,
     max_output_chars: int | None = None,
     apply_limits: bool = False,
+    extra_globals: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Выполнить код в RestrictedPython и вернуть dict-результат.
 
     Вызывается в дочернем процессе (или тестами напрямую, без apply_limits —
     чтобы не ограничивать сам pytest). `stdin_text` подаётся в `input()`
     построчно; когда строки кончаются, возвращается пустая строка.
+    `extra_globals` — безопасные объекты хоста (например SafePosition для
+    ботов, S-17); они не могут обойти гварды RestrictedPython.
     """
     violations = find_violations(code)
     if violations:
@@ -290,6 +294,8 @@ def run_restricted(
         "_unpack_sequence_": guarded_unpack_sequence,
         "_iter_unpack_sequence_": guarded_iter_unpack_sequence,
     }
+    if extra_globals:
+        safe_globals.update(extra_globals)
 
     def collected_output() -> str:
         printer = safe_globals.get("_print")
