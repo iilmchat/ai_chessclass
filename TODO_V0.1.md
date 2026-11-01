@@ -213,10 +213,11 @@
 - **DoD:** ставки флагов на реальных данных; false-positive ≈ 0 в тестовом наборе ✅
   (2026-11-01: pytest 141 passed; perfect-bot → флаг 0.75, review-статус-машина; отчёт — docs/sprint-reports/S-22-2026-11-01.md)
 
-### S-23 👨‍⚖️ LLM-judge (Decider)
-- [ ] маршрут anticheat.judge_explain (Decider Flash V1.2), токены — бюджет школы
-- [ ] сессии «объясни свой код/ход»: транскрипты; вердикт за учителем (ADR-005)
-- **DoD:** judge-сессия запускается из UI, транскрипт виден учителю
+### S-23 ✅ LLM-judge (Decider)
+- [x] маршрут anticheat.judge_explain (Decider Flash V1.2), токены — бюджет школы
+- [x] сессии «объясни свой код/ход»: транскрипты; вердикт за учителем (ADR-005)
+- **DoD:** judge-сессия запускается из UI, транскрипт виден учителю ✅
+  (2026-11-01: pytest 142 passed; judge start→transcript→verdict; отчёт — docs/sprint-reports/S-23-2026-11-01.md)
 
 ### S-24 🧾 Плагиат и профиль-сверка
 - [ ] plagiarism_suspected: сходство с эталонами/другими учениками (embeddings 768 + diff)

@@ -544,3 +544,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-20: матчи-UX ✅ — replay/leaderboard/SSE, BotsPage (редактор/матч/реплей) | S-20 |
 | 2026-11-01 | S-21: trivial_bot ✅ — hardcoded-ходы → флаг (ADR-005: не блокирует) | S-21 |
 | 2026-11-01 | S-22: флаги-движок ✅ — engine_likeliness (top1Rate ≥ 0.9 → флаг), review-статус-машина | S-22 |
+| 2026-11-01 | S-23: judge ✅ — anticheat.judge-сессии (транскрипт, вердикт учителя) | S-23 |

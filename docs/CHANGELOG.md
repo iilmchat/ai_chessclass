@@ -8,6 +8,17 @@
 
 ### Добавлено
 
+#### S-23 — LLM-judge (Decider) (2026-11-01)
+- Миграция `0013_judge_sessions`: `anticheat_judge_sessions` (транскрипт
+  JSONB, teacher_verdict/reviewed_by/at).
+- `anticheat/judge.py`: start_judge_session (маршрут anticheat.judge_explain,
+  question ученика → уточняющие вопросы judge'а; ответ не подсказывает
+  решение), list_sessions (teacher/admin), review_session (вердикт).
+- API: `POST /admin/anticheat/judge` (student — старт), `GET
+  /admin/anticheat/judge?userId` (teacher/admin), `POST .../judge/{id}/verdict`.
+- Тесты: старт → транскрипт (system-сообщение) → учительский вердикт
+  (student → 403).
+
 #### S-22 — Флаги-движок (2026-11-01)
 - `anticheat/likeliness.py`: sf_match_rate (top1/top3 rate + avg accuracy
   против SF) + check_engine_likeliness (порог `ENGINE_LIKELINESS_TOP1_THRESHOLD=0.9`,

@@ -2,12 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import Field
 
 from core.base import CamelModel
 from domains.anticheat.models import AnticheatFlag
-from domains.auth.deps import DbSession, require_role
+from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
 
 router = APIRouter(prefix="/admin/anticheat", tags=["anticheat"])
@@ -94,4 +94,88 @@ async def review_flag(
         evidence=flag.evidence,
         status=flag.status.value,
         note=flag.note,
+    )
+
+
+# --- judge-сессии (S-23)
+
+
+class JudgeStartIn(CamelModel):
+    sourceRef: str = Field(min_length=3, max_length=64)
+    question: str = Field(min_length=5, max_length=2000)
+    studentCode: str | None = Field(default=None, max_length=8000)
+
+
+class JudgeSessionOut(CamelModel):
+    id: str
+    question: str
+    answer: str
+    modelUsed: str
+
+
+class JudgeReviewIn(CamelModel):
+    verdict: str = Field(min_length=3, max_length=2000)
+
+
+@router.post("/judge", status_code=201, response_model=JudgeSessionOut)
+async def start_judge(
+    body: JudgeStartIn, user: CurrentUser, session: DbSession, request: Request
+) -> JudgeSessionOut:
+    """Ученик объясняет свой код — judge задаёт уточняющие вопросы (S-23)."""
+    from domains.anticheat.judge import start_judge_session
+
+    result = await start_judge_session(
+        session,
+        request.app.state.redis,
+        user,
+        source_ref=body.sourceRef,
+        question=body.question,
+        student_code=body.studentCode,
+    )
+    return JudgeSessionOut(
+        id=str(result["sessionId"]),
+        question=result["question"],
+        answer=result["answer"],
+        modelUsed=result["modelUsed"],
+    )
+
+
+@router.get("/judge", response_model=list[dict])
+async def list_judge_sessions(
+    _guard: TeacherOrAdmin,
+    session: DbSession,
+    user_id: int | None = Query(default=None, alias="userId"),
+) -> list[dict]:
+    from domains.anticheat.judge import list_sessions
+
+    rows = await list_sessions(session, _guard, user_id=user_id)
+    return [
+        {
+            "id": str(s.id),
+            "userId": str(s.user_id),
+            "sourceRef": s.source_ref,
+            "question": s.question,
+            "answer": s.answer,
+            "modelUsed": s.model_used,
+            "teacherVerdict": s.teacher_verdict,
+        }
+        for s in rows
+    ]
+
+
+@router.post("/judge/{session_id}/verdict", response_model=JudgeSessionOut)
+async def review_judge_session(
+    session_id: int,
+    body: JudgeReviewIn,
+    _guard: TeacherOrAdmin,
+    session: DbSession,
+) -> JudgeSessionOut:
+    from domains.anticheat.judge import review_session
+
+    judge_session = await review_session(session, _guard, session_id, body.verdict)
+    return JudgeSessionOut(
+        id=str(judge_session.id),
+        question=judge_session.question,
+        answer=judge_session.answer,
+        modelUsed=judge_session.model_used,
     )

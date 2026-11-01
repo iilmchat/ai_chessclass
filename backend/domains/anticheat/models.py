@@ -98,3 +98,30 @@ class AnticheatFlag(Base):
         ),
         CheckConstraint("confidence >= 0 AND confidence <= 1", name="confidence_range"),
     )
+
+
+class JudgeSession(Base):
+    """Judge-сессия «объясни свой код/ход» (§9.3): транскрипт хранится,
+    вердикт — за учителем (ADR-005)."""
+
+    __tablename__ = "anticheat_judge_sessions"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, Identity(always=True), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    source_ref: Mapped[str] = mapped_column(String(64), nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    model_used: Mapped[str] = mapped_column(String(64), nullable=False)
+    transcript: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    teacher_verdict: Mapped[str | None] = mapped_column(Text)
+    reviewed_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
