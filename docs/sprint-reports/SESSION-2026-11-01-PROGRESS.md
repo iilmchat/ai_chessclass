@@ -1,6 +1,6 @@
-# Прогресс сессии 2026-11-01 (автономный режим)
+# Прогресс сессии 2026-11-01 (автономный режим) — обновление 2
 
-Спринты S-11…S-18 (8 спринтов за сессию) — все ✅, закоммичены и запушены
+Спринты S-11…S-21 (11 спринтов за сессию) — все ✅, закоммичены и запушены
 в https://github.com/iilmchat/ai_chessclass (main).
 
 ## Готово по этапам
@@ -11,37 +11,30 @@
 - **E-04 Шахматный домен** ✅ (S-10…S-12)
 - **E-05 RAG и сквозной ассистент** ✅ (S-13…S-14)
 - **E-06 События навыков** ✅ (S-15…S-16)
-- **E-07 Лаборатория ботов** — S-17, S-18 ✅ (S-19…S-21 остались)
+- **E-07 Лаборатория ботов** ✅ (S-17…S-21)
 
 ## Состояние
 
-- Тесты: **135 passed** · ruff 0 · mypy 0 (130 файлов) · tsc 0
+- Тесты: **139 passed** · ruff 0 · mypy 0 (133 файла) · tsc 0
 - Миграции: head `0012_bot_matches` (12 миграций)
-- Маршруты API v1: healthz/readyz, auth (8), profile (5), py (8),
-  chess (8), skills (4), bots (7), admin/models + finops + rag (3)
-- 12 отчётов спринтов + CHANGELOG + SPEC (10 разделов контрактов)
-- Демо-аккаунты: admin@chessclass.dev / student1@chessclass.dev (пароли в .env.example)
-- Стек живой: api/worker(SF 17.1)/web/db/redis; воркер — APP_ROLE=worker
+- API v1: healthz/readyz, auth (8), profile (5), py (8), chess (8+),
+  skills (4), bots (7+replay/SSE/leaderboard), admin (models/finops/rag)
+- 17 отчётов спринтов + CHANGELOG + SPEC (10 разделов) + README/LICENSE
+- Стек живой: api/worker(SF 17.1, APP_ROLE=worker)/web/db/redis
 
-## Следующие спринты (по TODO_V0.1)
+## Осталось до v0.1.0 (8 спринтов)
 
-1. **S-19**: лестница-часть 2 — SF UCI_Elo 1400/1600/1800 (threads=1,
-   по инстансу на arq-процесс), concurrency 2, семплирование 10 % ходов
-   в bot_match_moves (sf_sample) → данные для engine_likeliness.
-2. **S-20**: Elo-UX — SSE-прогресс и реплей матча, Elo-график, UI /bots
-   (редактор, матч, лидерборд).
-3. **S-21**: trivial_bot-детект (длина кода/«ходы из кармана»/паттерн) →
-   anticheat_flags.
-
-Затем E-08 (античит 2.0), E-09 (отчёты PDF), E-10 (прод-полировка) —
-12 спринтов до v0.1.0.
+1. **S-22…S-24 — E-08 Античит 2.0**: флаги-движок (engine_likeliness по
+   sf_sample-семплам против топ-1 SF), дашборд учителя флагов
+   (GET /admin/anticheat/flags + review), unexplained_code (judge-сессия).
+2. **S-25…S-26 — E-09 Отчёты**: PDF родителям (fpdf2 + TTF, reports_*),
+   дашборд учителя (класс × навыки).
+3. **S-27…S-29 — E-10 Полировка**: prod-compose, nginx, бэкапы,
+   security-заголовки, e2e Playwright, релиз v0.1.0.
 
 ## Известные хвосты (не блокеры)
 
-- `run_match` в worker — без ограничения параллельности (§7.2: 2) —
-  добавить max_jobs/лимит при S-19.
-- SSE матча (pubsub `bots:match:{id}`) — эндпоинт появится в S-20.
-- insight без knowledge для шахмат (осмысленный запрос — с ECO/метаданными
-  партий, S-12+).
-- psycopg2 удалён, dev-зависимости ставятся в run-контейнер (~40 c) —
-  dev-target в Dockerfile (по необходимости).
+- Матчи: concurrency 2 (§7.2) — ограничение per-очередь при росте;
+  SSE-прогресс в UI — polling пока; Elo-график — с историей матчей.
+- Инсайт без knowledge для шахмат (запрос от метаданных партий/ECO).
+- dev-target Dockerfile (dev-депы в run-контейнере ~40 с на прогон).
