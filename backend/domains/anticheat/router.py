@@ -179,3 +179,64 @@ async def review_judge_session(
         answer=judge_session.answer,
         modelUsed=judge_session.model_used,
     )
+
+
+class StudentCardOut(CamelModel):
+    userId: str
+    email: str
+    flags: list[FlagOut]
+    judgeSessions: list[dict]
+
+
+@router.get("/students/{user_id}/card", response_model=StudentCardOut)
+async def student_card(
+    user_id: int, _guard: TeacherOrAdmin, session: DbSession
+) -> StudentCardOut:
+    """Карточка ученика: лента флагов + judge-сессии (кабинет учителя, S-24)."""
+    from sqlalchemy import select
+
+    from domains.anticheat.judge import list_sessions
+    from domains.auth.models import User
+
+    student = await session.get(User, user_id)
+    if student is None:
+        from core.errors import AppError
+
+        raise AppError("user_not_found", "Ученик не найден", 404)
+    flags = (
+        await session.execute(
+            select(AnticheatFlag)
+            .where(AnticheatFlag.user_id == user_id)
+            .order_by(AnticheatFlag.confidence.desc())
+            .limit(50)
+        )
+    ).scalars().all()
+    sessions_list = await list_sessions(session, _guard, user_id=user_id, limit=20)
+    return StudentCardOut(
+        userId=str(user_id),
+        email=student.email,
+        flags=[
+            FlagOut(
+                id=str(f.id),
+                userId=str(f.user_id),
+                kind=f.kind.value,
+                domain=f.domain.value,
+                sourceRef=f.source_ref,
+                confidence=float(f.confidence),
+                evidence=f.evidence,
+                status=f.status.value,
+                note=f.note,
+            )
+            for f in flags
+        ],
+        judgeSessions=[
+            {
+                "id": str(s.id),
+                "sourceRef": s.source_ref,
+                "question": s.question,
+                "answer": s.answer,
+                "teacherVerdict": s.teacher_verdict,
+            }
+            for s in sessions_list
+        ],
+    )

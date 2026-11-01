@@ -8,6 +8,16 @@
 
 ### Добавлено
 
+#### S-24 — Плагиат и профиль-сверка (2026-11-01)
+- `anticheat/similarity.py`: check_plagiarism (hash-эмбеддинги кода,
+  косинус ≥0.95 с эталоном/сдачами сверстников; exact-copy = 1.0) и
+  check_profile_mismatch (chess ≥70 при python-циклы <40 → флаг, §9.2).
+- Плагиат-проверка интегрирована в submit.
+- Кабинет учителя: `GET /admin/anticheat/students/{id}/card` — карточка
+  ученика (флаги по confidence + judge-сессии).
+- Тесты: exact-copy флаг, оригинальное решение чист (false-positive 0),
+  карточка (RBAC, 404).
+
 #### S-23 — LLM-judge (Decider) (2026-11-01)
 - Миграция `0013_judge_sessions`: `anticheat_judge_sessions` (транскрипт
   JSONB, teacher_verdict/reviewed_by/at).

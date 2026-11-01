@@ -441,6 +441,16 @@ async def submit(
         starter_code=assignment.starter_code,
         attempt_no=attempt_no,
     )
+    # античит: plagiarism (сходство с эталоном/сверстниками, S-24)
+    from domains.anticheat.similarity import check_plagiarism
+
+    await check_plagiarism(
+        session,
+        user_id=user.id,
+        submission_id=submission.id,
+        assignment_id=assignment.id,
+        code=code,
+    )
 
     # событие навыка (тема задания; вес меньше при неудаче — §5.3)
     if user.role is UserRole.STUDENT:
