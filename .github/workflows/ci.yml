@@ -150,6 +150,15 @@ jobs:
             > ../e2e-api.log 2>&1 &
           nohup env APP_ROLE=worker arq app.worker.WorkerSettings \
             > ../e2e-worker.log 2>&1 &
+          for kind in random greedy minimax sf; do
+            max_jobs=1
+            if [ "$kind" = "random" ]; then max_jobs=2; fi
+            nohup env APP_ROLE=worker \
+              WORKER_QUEUE="arq:matches:$kind" \
+              WORKER_MAX_JOBS="$max_jobs" \
+              arq app.worker.WorkerSettings \
+              > "../e2e-worker-$kind.log" 2>&1 &
+          done
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8021/readyz >/dev/null; then
               exit 0
@@ -182,4 +191,5 @@ jobs:
             frontend/playwright-report/
             e2e-api.log
             e2e-worker.log
+            e2e-worker-*.log
           if-no-files-found: ignore

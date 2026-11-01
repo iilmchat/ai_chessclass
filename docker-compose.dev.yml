@@ -85,6 +85,94 @@ services:
         condition: service_healthy
     networks: [ccnet]
 
+  worker-match-random:
+    build:
+      context: ./backend
+    image: chessclass/backend:dev
+    container_name: chessclass-worker-match-random
+    command: arq app.worker.WorkerSettings
+    volumes:
+      - ./backend:/srv/backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *backend_env
+      WORKER_QUEUE: arq:matches:random
+      WORKER_MAX_JOBS: "2"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [ccnet]
+
+  worker-match-greedy:
+    build:
+      context: ./backend
+    image: chessclass/backend:dev
+    container_name: chessclass-worker-match-greedy
+    command: arq app.worker.WorkerSettings
+    volumes:
+      - ./backend:/srv/backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *backend_env
+      WORKER_QUEUE: arq:matches:greedy
+      WORKER_MAX_JOBS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [ccnet]
+
+  worker-match-minimax:
+    build:
+      context: ./backend
+    image: chessclass/backend:dev
+    container_name: chessclass-worker-match-minimax
+    command: arq app.worker.WorkerSettings
+    volumes:
+      - ./backend:/srv/backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *backend_env
+      WORKER_QUEUE: arq:matches:minimax
+      WORKER_MAX_JOBS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [ccnet]
+
+  worker-match-sf:
+    build:
+      context: ./backend
+    image: chessclass/backend:dev
+    container_name: chessclass-worker-match-sf
+    command: arq app.worker.WorkerSettings
+    volumes:
+      - ./backend:/srv/backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *backend_env
+      WORKER_QUEUE: arq:matches:sf
+      WORKER_MAX_JOBS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [ccnet]
+
   migrate:
     build:
       context: ./backend

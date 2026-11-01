@@ -38,8 +38,9 @@ async def test_match_vs_sf1400(
 
     result = await run_match(bot_id, "stockfish-1400", redis_client)
     assert "error" not in result, result
-    # против SF-1400 random-бот почти наверняка проигрывает, но результат честный
-    assert result["result"] in ("win", "loss", "draw")
+    # против SF-1400 random-бот почти наверняка проигрывает; timeout —
+    # легитимный исход при per-move/budget-таймауте (S-37)
+    assert result["result"] in ("win", "loss", "draw", "timeout")
     assert 0 < result["plies"] <= 60
 
     from core.db import session_factory

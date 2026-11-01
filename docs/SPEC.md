@@ -32,7 +32,7 @@
 | python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `POST /py/assignments/{id}/hint`, `GET /py/assignments/{id}/solution`, `GET /py/submissions/{id}` | — | ✅ S-08/S-09 | assert-тесты в песочнице; вердикты §3.3; ladder §3.4; флаги §8; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
-| bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `GET /bots/stats`, `POST /bots/{id}/test`, `POST /bots/{id}/match/run` (202; random/greedy/minimax2/SF-1400/1600/1800), `GET /bots/{id}/matches` | — | ✅ S-17…S-19 | choose_move-контракт §3.9; матчи arq; Elo K=32 clamp ±40; семплирование 10 % ходов (sf_sample) |
+| bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `GET /bots/stats`, `POST /bots/{id}/test`, `POST /bots/{id}/match/run` (202/429 `match_limit`; random/greedy/minimax2/SF-1400/1600/1800), `GET /bots/{id}/matches`, `GET /admin/matches/metrics` (admin) | — | ✅ S-17…S-19/S-37 | choose_move §3.9; per-queue матчи 2/1/1/1; Elo K=32 clamp ±40; sf_sample |
 | skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
@@ -320,6 +320,12 @@ interface BotTestOut {
   (ply/fen/uci/agent/thinkMs); приватность как у матчей (404 чужому).
 - **Лидерборд**: `GET /bots/leaderboard?limit` — top по Elo (v0.1 открытым
   списком; §18.5 UX-вопрос).
+- **Очереди (S-37)**: `POST /bots/{id}/match/run` → 202 `{matchId,status}`
+  или 429 `match_limit` (max 5 активных на пользователя); матч попадает в
+  `arq:matches:{random|greedy|minimax|sf}` (лимиты 2/1/1/1).
+- **Метрики (admin)**: `GET /admin/matches/metrics?hours=24` —
+  `{hours,total,byOpponent,timeouts,avgDurationMs,p95DurationMs,refused,
+  queues[{kind,queue,limit,queued,active,refused}]}`.
 
 **EMA-скоры** (§10.3, S-16): `user_skill_scores` PK (user_id, skill_id),
 week `YYYY-Www` (ISO), score 0..100. Формула: raw = clamp(50 + Σвесов×10,
@@ -581,3 +587,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-27: e2e ✅ — полный journey §3.4 (регистрация→...→PDF) в тест-наборе | S-27 |
 | 2026-11-01 | S-31: LLM live ✅ — RouterAI-слаги/цены, `/admin/llm/health`, smoke 4/4, FinOps | S-31 |
 | 2026-11-02 | S-33: SSE UI ✅ — `useEventStream`, PGN-прогресс/blunders, матч-прогресс, polling fallback | S-33 |
+| 2026-11-02 | S-37: match queues ✅ — per-queue workers, max 5 active, metrics/load | S-37 |

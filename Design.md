@@ -131,7 +131,7 @@
 | Категория | Требование |
 |-----------|------------|
 | Производительность | p95 API < 500 мс без LLM; инсайт позиции ≤ 5 с (SF movetime ≤ 1 с + LLM); матч бота ≤ 120 c (BOT_MATCH_BUDGET_S) |
-| Нагрузка MVP | ≤ 100 одновременных учеников, ≤ 5 одновременных матчей (arq concurrency 2 — v0.1) |
+| Нагрузка MVP | ≤ 100 одновременных учеников, ≤ 5 одновременных матчей (per-queue 2/1/1/1 — S-37) |
 | Стоимость LLM | бюджеты на ученика/день: free 50k токенов, pro 500k (§8.5); цена каждого вызова в ₽ (`LLM_COST_CURRENCY=RUB`) |
 | Персистентность | docker volume; ежедневный pg_dump (infra) |
 | Локализация | RU интерфейс, RU промпты; код/идентификаторы — EN |
@@ -269,7 +269,7 @@ ai_chessclass/
 **C. Матч бота**
 ```
 ученик → POST /bots/{id}/match {opponent}
- → arq job (очередь matches, concurrency 2)
+ → arq job (очередь matches:{random|greedy|minimax|sf}, per-queue workers)
  → цикл: SafePosition ← python-chess (в воркере) → choose_move() в executor
    (timeout 1.0 c/ход) → ход → противник (ladder / Stockfish UCI_Elo)
  → MAX_PLIES=60, BOT_MATCH_BUDGET_S=120; LLM не тратится
@@ -291,7 +291,8 @@ ai_chessclass/
   разделение на микросервисы не планируется до нагрузок, которых нет.
 - **Frontend**: SPA без SSR; API v1 + JWT; state — TanStack Query + легкий
   zustand-стор; порты виджетов из двух фронтов (§20).
-- **Фоновые задачи**: arq (Redis 6383) — очереди `analyze`, `matches`, `pdf`.
+- **Фоновые задачи**: arq (Redis 6384) — `analyze`,
+  `matches:{random,greedy,minimax,sf}`, `pdf`.
 
 ---
 
@@ -505,7 +506,7 @@ def evaluate(position) -> float:    # опциональный контракт
 | per-move timeout | **1.0 c** |
 | MAX_PLIES (полуходов) | **60** |
 | BOT_MATCH_BUDGET_S | **120 c** на матч, иначе таймаут/поражение |
-| Очередь | arq queue `matches`, **concurrency 2** |
+| Очередь | per-queue arq workers: random **2**, greedy/minimax/SF **1** (суммарно 5) |
 | LLM во время матчей | **никак** (ноль трат) |
 
 ### 7.3. Лестница оппонентов
@@ -785,8 +786,8 @@ Seed-миграция заполняет связи:
   `rag_*`, `audit_*`, `reports_*`.
 - Времена — UTC (`timestamptz`); JSON — `jsonb`; деньги/цены — `numeric(12,4)`
   (`LLM_COST_CURRENCY=RUB`); миграции — Alembic (шаги: базис → домен → seed).
-- Redis **6384**: кэш, очереди arq (`analyze`, `matches`, `pdf`), rate-limit,
-  счётчики квот (`quota:{user}:{date}`), pubsub для SSE-прогресса матчей.
+- Redis **6384**: кэш, очереди arq (`analyze`, `matches:{random,greedy,minimax,sf}`,
+  `pdf`), rate-limit, счётчики квот (`quota:{user}:{date}`), pubsub для SSE.
 
 ### 11.2. Каталог таблиц v0.1
 
@@ -902,8 +903,9 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 
 - Глобальный: 120 req/min/user (Redis bucket); LLM-маршруты: 10 req/min
   на пользователя и 30/h (кроме teacher) — квоты токенов всё равно ограничивают.
-- Матчи ботов: max 5 активных матчей на пользователя, очередь —
-  round-robin по id очередей (fair — v0.2, в v0.1 FIFO).
+- Матчи ботов: max **5 активных** матчей на пользователя (API → 429
+  `match_limit`), per-queue воркеры (random 2, greedy/minimax/SF 1) —
+  очереди не голодают друг друга; внутри очереди FIFO (S-37).
 
 ## 13. Безопасность и приватность
 
@@ -1008,12 +1010,13 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | `chessclass-db` | postgres:17 (+pgvector ext) | **5438** | volume `pgdata` |
 | `chessclass-redis` | redis:7 | **6384** | appendonly да |
 | `chessclass-api` | backend (uvicorn) | **8020** | FastAPI + роутеры |
-| `chessclass-worker` | backend (arq) | — | очереди analyze/matches/pdf; в образе Stockfish 17; LM Studio URL — через env |
+| `chessclass-worker` | backend (arq) | — | default queue: analyze/pdf; в образе Stockfish 17 |
+| `chessclass-worker-match-{random,greedy,minimax,sf}` | backend (arq) | — | per-queue матчи: 2/1/1/1 (S-37) |
 | `chessclass-web` | node (dev, vite) / nginx (prod) | **3200** | демо-статика/API-proxy |
 | `chessclass-e2e-api` / `chessclass-e2e-web` | same, другие порты | **8021/3201** | e2e-стенд (смежная БД `chessclass_e2e`) |
 
 - Engine-бюджеты (movetime/multipv): один Stockfish binary в worker; по одному
-  инстансу на arq-процесс (матчи concurrency 2 → 2 инстанса); сила — UCI_Elo.
+  инстансу на arq-процесс; SF-очередь — 1 слот, random — 2, greedy/minimax — 1.
 - `docker-compose.dev.yml` (bind mounts, hot reload), `.prod.yml`
   (S-30: migrate-гейт → api workers=4 + healthcheck → worker/web; web — nginx
   со SPA и proxy `/api/`; API — loopback; edge-nginx/TLS — S-38).
@@ -1038,7 +1041,7 @@ BUDGET_FREE_TOKENS_DAY=50000   BUDGET_PRO_TOKENS_DAY=500000
 # engine / sandbox
 STOCKFISH_PATH=/usr/local/bin/stockfish
 MAX_PLIES=60  BOT_MATCH_BUDGET_S=120  BOT_PERMOVE_TIMEOUT_S=1.0
-BOT_MATCH_CONCURRENCY=2
+# match workers: WORKER_QUEUE=arq:matches:<kind>, WORKER_MAX_JOBS=2/1/1/1 (S-37)
 
 # приложения
 JWT_SECRET=change-me  JWT_TTL=15m  REFRESH_TTL=30d  EMBEDDING_DIM=768
@@ -1143,7 +1146,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 |---|---|---|---|
 | R-01 | Слаги/цены LLM RouterAI меняются (M3.1 Flash, V4.1 Flash, Beam 501B, Decider) — модели уйдут/подорожают | маршруты падают, бюджет плывёт | проверка слагов на бутстрапе + конфиг цен, echo-fallback, FinOps-дашборд |
 | R-02 | Sandbox-утечка (RestrictedPython bypass) | исполнение кода учеников | тест-матрица атак, executor-process isolation, жёсткий лимит памяти; аудит policy |
-| R-03 | Stockfish/ресурс-стоимость (много пользователей, матчи) | CPU просадки | concurrency 2, movetime-бюджеты, очереди, честно «SF — только worker» |
+| R-03 | Stockfish/ресурс-стоимость (много пользователей, матчи) | CPU просадки | per-queue workers 2/1/1/1 (5), лимит 5 активных, movetime-бюджеты, «SF — только worker» |
 | R-04 | pgvector качество поиска (RU, 768-dim) | слабый RAG-контекст | оценочный скрипт (rag_eval), возможность смены embedding-модели, ручки prompt_builder |
 | R-05 | Ложные срабатывания античита | недоверие детей/родителей | только флаги (ADR-005), confidence-шкала, человек решает; judge-сессия с учеником |
 | R-06 | Пересечение портов/контейнеров с соседними DEV-проектами (KI-001) | сломаем работающие сервисы | свои порты (§2.4), префикс chessclass-*, проверка перед действием |
@@ -1178,7 +1181,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 | ADR-009 | Judge античита — Decider Flash V1.2 (маленькая и дешёвая) — **superseded S-31** | Decider на RouterAI — decisions-API, не OpenAI chat; judge-route использует Gemini 3.1 Flash Lite | 2026-10-31 |
 | ADR-010 | PDF родителям — fpdf2 + TTF (порт из annotator) | проверено: RU-шрифты, качество | 2026-10-31 |
 | ADR-011 | python-chess исполняется только вне песочницы (воркер), ученику — SafeProxy | минимальная поверхность атаки | 2026-10-31 |
-| ADR-012 | Матчи — arq очередь `matches`, concurrency 2, нулевой LLM-расход | CPU-bound нагрузка, а не LLM-bound | 2026-10-31 |
+| ADR-012 | Матчи — arq очередь `matches`, concurrency 2, нулевой LLM-расход — **superseded S-37** | per-queue workers 2/1/1/1 + лимит 5 активных | 2026-10-31 |
 | ADR-013 | Порты смещены: pg 5436→**5438**, redis 6383→**6384** (KI-001: заняты контейнерами ai_teacher); внутри сети — родные 5432/6379 | не трогаем чужие контейнеры; сверка со свободными портами | 2026-10-31 |
 
 Статусы: `accepted` (по умолчанию), `proposed`, `superseded`.

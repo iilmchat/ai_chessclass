@@ -128,6 +128,98 @@ services:
     networks: [ccnet]
     restart: unless-stopped
 
+  worker-match-random:
+    build:
+      context: ./backend
+    image: chessclass/backend:prod
+    container_name: chessclass-prod-worker-match-random
+    command: arq app.worker.WorkerSettings
+    env_file: *env-file
+    environment:
+      <<: *backend-env
+      APP_ROLE: worker
+      WORKER_QUEUE: arq:matches:random
+      WORKER_MAX_JOBS: "2"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+    networks: [ccnet]
+    restart: unless-stopped
+
+  worker-match-greedy:
+    build:
+      context: ./backend
+    image: chessclass/backend:prod
+    container_name: chessclass-prod-worker-match-greedy
+    command: arq app.worker.WorkerSettings
+    env_file: *env-file
+    environment:
+      <<: *backend-env
+      APP_ROLE: worker
+      WORKER_QUEUE: arq:matches:greedy
+      WORKER_MAX_JOBS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+    networks: [ccnet]
+    restart: unless-stopped
+
+  worker-match-minimax:
+    build:
+      context: ./backend
+    image: chessclass/backend:prod
+    container_name: chessclass-prod-worker-match-minimax
+    command: arq app.worker.WorkerSettings
+    env_file: *env-file
+    environment:
+      <<: *backend-env
+      APP_ROLE: worker
+      WORKER_QUEUE: arq:matches:minimax
+      WORKER_MAX_JOBS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+    networks: [ccnet]
+    restart: unless-stopped
+
+  worker-match-sf:
+    build:
+      context: ./backend
+    image: chessclass/backend:prod
+    container_name: chessclass-prod-worker-match-sf
+    command: arq app.worker.WorkerSettings
+    env_file: *env-file
+    environment:
+      <<: *backend-env
+      APP_ROLE: worker
+      WORKER_QUEUE: arq:matches:sf
+      WORKER_MAX_JOBS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+    networks: [ccnet]
+    restart: unless-stopped
+
   web:
     build:
       context: ./frontend

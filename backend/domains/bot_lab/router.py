@@ -1,18 +1,35 @@
 """Роутер /api/v1/bots (Design §12.2): версии ботов, тест хода, матчи."""
 
 import json
+from collections import Counter
+from datetime import UTC, datetime, timedelta
+from typing import Annotated
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import Field
+from sqlalchemy import func, select
 
 from core.base import CamelModel
 from core.config import settings
 from core.errors import AppError
-from domains.auth.deps import CurrentUser, DbSession
+from domains.auth.deps import CurrentUser, DbSession, require_role
+from domains.auth.models import User, UserRole
 from domains.bot_lab import service as svc
+from domains.bot_lab.queues import (
+    ACTIVE_MATCH_TTL_S,
+    MATCH_QUEUES,
+    MAX_ACTIVE_MATCHES,
+    active_key,
+    queue_for_opponent,
+    queue_kind,
+    refused_key,
+)
 
 router = APIRouter(prefix="/bots", tags=["bot_lab"])
+admin_router = APIRouter(prefix="/admin", tags=["bot_lab"])
+
+AdminOnly = Annotated[User, Depends(require_role(UserRole.ADMIN))]
 
 
 class BotCreateIn(CamelModel):
@@ -51,6 +68,26 @@ class MatchRunIn(CamelModel):
 class MatchRunOut(CamelModel):
     matchId: int
     status: str
+
+
+class MatchQueueMetricOut(CamelModel):
+    kind: str
+    queue: str
+    limit: int
+    queued: int
+    active: int
+    refused: int
+
+
+class MatchMetricsOut(CamelModel):
+    hours: int
+    total: int
+    byOpponent: dict[str, int]
+    timeouts: int
+    avgDurationMs: int | None
+    p95DurationMs: int | None
+    refused: int
+    queues: list[MatchQueueMetricOut]
 
 
 class MatchOut(CamelModel):
@@ -164,6 +201,29 @@ async def run_match(
 
     from domains.bot_lab.models import BotMatch, MatchResult
 
+    # S-37: не более 5 активных (pending/running) матчей на пользователя.
+    since = datetime.now(UTC) - timedelta(seconds=ACTIVE_MATCH_TTL_S)
+    active_count = await session.scalar(
+        select(func.count())
+        .select_from(BotMatch)
+        .where(
+            BotMatch.user_id == user.id,
+            BotMatch.finished_at.is_(None),
+            BotMatch.started_at >= since,
+        )
+    )
+    if (active_count or 0) >= MAX_ACTIVE_MATCHES:
+        kind = queue_kind(body.opponent)
+        refused = refused_key(kind)
+        redis = request.app.state.redis
+        await redis.incr(refused)
+        await redis.expire(refused, 7 * 24 * 3600)
+        raise AppError(
+            "match_limit",
+            f"Не более {MAX_ACTIVE_MATCHES} одновременных матчей",
+            429,
+        )
+
     # S-33: матч создаётся до enqueue, чтобы UI сразу получил matchId и SSE.
     match = BotMatch(
         version_id=bot.id,
@@ -178,9 +238,12 @@ async def run_match(
     await session.flush()
     await session.commit()
 
+    queue = queue_for_opponent(body.opponent)
     pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     try:
-        await pool.enqueue_job("run_match", bot_id, body.opponent, match.id)
+        await pool.enqueue_job(
+            "run_match", bot_id, body.opponent, match.id, _queue_name=queue
+        )
     finally:
         await pool.aclose()
     return MatchRunOut(matchId=match.id, status="queued")
@@ -285,3 +348,65 @@ async def match_events(
             await pubsub.aclose()
 
     return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+@admin_router.get("/matches/metrics", response_model=MatchMetricsOut)
+async def match_metrics(
+    _guard: AdminOnly,
+    session: DbSession,
+    request: Request,
+    hours: int = Query(default=24, ge=1, le=168),
+) -> MatchMetricsOut:
+    """S-37: длительность/таймауты/отказы и состояние per-queue воркеров."""
+    from domains.bot_lab.models import BotMatch, MatchResult
+
+    since = datetime.now(UTC) - timedelta(hours=hours)
+    rows = (
+        await session.execute(
+            select(BotMatch).where(BotMatch.started_at >= since)
+        )
+    ).scalars().all()
+    durations = sorted(
+        row.duration_ms for row in rows if row.finished_at is not None
+    )
+    p95 = (
+        durations[
+            min(len(durations) - 1, int(len(durations) * 0.95))
+        ]
+        if durations
+        else None
+    )
+    by_opponent = Counter(row.opponent for row in rows)
+    timeouts = sum(1 for row in rows if row.result == MatchResult.TIMEOUT)
+
+    redis = request.app.state.redis
+    queues: list[MatchQueueMetricOut] = []
+    refused_total = 0
+    for kind, (queue, limit) in MATCH_QUEUES.items():
+        queued = int(await redis.zcard(queue) or 0)
+        active = int(await redis.scard(active_key(kind)) or 0)
+        refused = int(await redis.get(refused_key(kind)) or 0)
+        refused_total += refused
+        queues.append(
+            MatchQueueMetricOut(
+                kind=kind,
+                queue=queue,
+                limit=limit,
+                queued=queued,
+                active=active,
+                refused=refused,
+            )
+        )
+
+    return MatchMetricsOut(
+        hours=hours,
+        total=len(rows),
+        byOpponent=dict(by_opponent),
+        timeouts=timeouts,
+        avgDurationMs=(
+            int(sum(durations) / len(durations)) if durations else None
+        ),
+        p95DurationMs=p95,
+        refused=refused_total,
+        queues=queues,
+    )

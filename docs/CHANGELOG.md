@@ -93,6 +93,18 @@
 - CI job `e2e` уже использует отдельные pg/redis services; локальный
   compose-стенд — для параллельной работы с dev.
 
+#### S-37 — Concurrency матчей и справедливость (2026-11-02)
+- `domains/bot_lab/queues.py`: `arq:matches:{random,greedy,minimax,sf}`,
+  лимиты 2/1/1/1 (суммарно 5), маппинг соперников, ключи active/refused.
+- API: max 5 активных матчей на пользователя → 429 `match_limit`;
+  enqueue в per-queue arq; `GET /admin/matches/metrics` (p95, timeouts,
+  refused, queued/active по очередям).
+- Воркеры: `WORKER_QUEUE`/`WORKER_MAX_JOBS` env; compose dev/e2e/prod
+  запускает 4 match-воркера; default worker — analyze/pdf.
+- `scripts/match_load.py`: 5 матчей (random×2, greedy, minimax2, SF-1400)
+  — 5/5 finished за 21.5 с, метрики сняты.
+- Тесты: queue mapping/limits, 6-й матч 429, admin metrics; backend 159.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

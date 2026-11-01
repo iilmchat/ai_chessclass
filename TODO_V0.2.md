@@ -9,7 +9,7 @@
 > Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md` (шаблон — `docs/RULES.md` §7).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 7/16 (S-30…S-36 ✅).** Сначала
+**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 8/16 (S-30…S-37 ✅).** Сначала
 закрываем технические хвосты v0.1.0 (E-11…E-13), затем — возможности v0.2
 из Design §2.2 (E-14…E-16). Формула этапа: **сначала надёжность, потом
 класс и вовлечение**.
@@ -121,11 +121,18 @@
   не тронута. CI job `e2e` использует отдельные pg/redis services.
 - **Отчёт:** `docs/sprint-reports/S-36-2026-11-02.md`.
 
-### S-37 ☐ Concurrency матчей и справедливость
-- [ ] per-queue лимиты (SF/random/greedy/minimax), максимум 5 матчей
-- [ ] round-robin по id очередей вместо FIFO (Design §11.1)
-- [ ] нагрузочный тест, метрики длительности/отказов, таймауты
+### S-37 ✅ Concurrency матчей и справедливость
+- [x] per-queue лимиты (SF/random/greedy/minimax), максимум 5 матчей
+- [x] round-robin по id очередей вместо FIFO (Design §11.1)
+- [x] нагрузочный тест, метрики длительности/отказов, таймауты
 - **DoD:** 5 матчей параллельно укладываются в бюджет; нет голодания очередей.
+- **Факт:** per-queue воркеры `arq:matches:{random,greedy,minimax,sf}`
+  (2/1/1/1), API 429 `match_limit` при >5 активных; `GET
+  /admin/matches/metrics` (p95, timeouts, refused, queue lengths/active);
+  `scripts/match_load.py` — 5/5 finished за 21.5 с (random×2, greedy,
+  minimax2, SF-1400), все очереди отработали; unit-тест 6-го матча 429.
+  Backend 159 passed; e2e 7 passed (27.6 с).
+- **Отчёт:** `docs/sprint-reports/S-37-2026-11-02.md`.
 
 ### S-38 ☐ Бэкапы, TLS и runbook
 - [ ] nightly `pg_dump` (cron/контейнер, retention 14 дней), sha256

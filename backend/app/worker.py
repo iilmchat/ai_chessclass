@@ -1,6 +1,7 @@
-"""arq-воркер (Design §3.2/:151). Очереди analyze/matches/pdf появятся позже (E-04/E-07/E-09)."""
+"""arq-воркер (Design §3.2/§15.1): analyze/pdf — default queue, matches — per-queue (S-37)."""
 
 import logging
+import os
 
 import arq
 from arq.connections import RedisSettings
@@ -60,9 +61,21 @@ async def run_match(
 ) -> dict:
     """Матч бота против оппонента лестницы (S-18; без LLM)."""
     from domains.bot_lab.match import run_match as run
+    from domains.bot_lab.queues import ACTIVE_MATCH_TTL_S, active_key, queue_kind
 
-    logger.info("worker: run_match bot=%s vs %s", bot_version_id, opponent)
-    return await run(bot_version_id, opponent, ctx["redis"], match_id=match_id)
+    kind = queue_kind(opponent)
+    active = active_key(kind)
+    redis = ctx["redis"]
+    if match_id is not None:
+        await redis.sadd(active, match_id)
+        await redis.expire(active, ACTIVE_MATCH_TTL_S)
+
+    logger.info("worker: run_match bot=%s vs %s queue=%s", bot_version_id, opponent, kind)
+    try:
+        return await run(bot_version_id, opponent, redis, match_id=match_id)
+    finally:
+        if match_id is not None:
+            await redis.srem(active, match_id)
 
 
 class WorkerSettings:
@@ -70,9 +83,8 @@ class WorkerSettings:
     #: nightly-пересчёт EMA (§10.3) — 03:40 UTC
     cron_jobs = [arq.cron("app.worker.scores_recalc", hour=3, minute=40, run_at_startup=False)]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
-    # arq default create_pool пишет в "arq:queue"; разделение на analyze/
-    # matches/pdf — при росте нагрузок (Design §11.1)
-    queue_name = "arq:queue"
-    max_jobs = 4
+    #: default queue — analyze/pdf; match workers получают WORKER_QUEUE из compose
+    queue_name = os.getenv("WORKER_QUEUE", "arq:queue")
+    max_jobs = int(os.getenv("WORKER_MAX_JOBS", "4"))
     job_timeout = 300  # BOT_MATCH_BUDGET_S=120 + запас
     health_check_interval = 30

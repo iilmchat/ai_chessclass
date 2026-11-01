@@ -74,8 +74,9 @@ async def test_match_run_returns_real_match_id(
     bot_id = int(response.json()["id"])
 
     class FakePool:
-        async def enqueue_job(self, *args):
+        async def enqueue_job(self, *args, **kwargs):
             self.args = args
+            self.kwargs = kwargs
 
         async def aclose(self):
             return None
