@@ -1,0 +1,105 @@
+# ChessClass — prod-стек (S-29). Контракт: Design.md §15.1.
+# Запуск: docker compose -f docker-compose.prod.yml up -d
+# TLS: nginx-каркас (terminates при готовности сертификатов).
+
+name: chessclass-prod
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: chessclass-prod-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-chessclass}
+    volumes:
+      - chessclass_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [ccnet]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: chessclass-prod-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - chessclass_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [ccnet]
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+    image: chessclass/backend:prod
+    container_name: chessclass-prod-api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8020 --workers 2
+    environment:
+      APP_ENV: prod
+      APP_ROLE: api
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-chessclass}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:?set in .env}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+    ports:
+      - "${API_PORT:-8020}:8020"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [ccnet]
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+    image: chessclass/backend:prod
+    container_name: chessclass-prod-worker
+    command: arq app.worker.WorkerSettings
+    environment:
+      APP_ENV: prod
+      APP_ROLE: worker
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-chessclass}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:?set in .env}
+      STOCKFISH_PATH: /usr/local/bin/stockfish
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [ccnet]
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: chessclass/frontend:prod
+    container_name: chessclass-prod-web
+    ports:
+      - "${WEB_PORT:-3200}:80"
+    depends_on:
+      - api
+    networks: [ccnet]
+    restart: unless-stopped
+
+volumes:
+  chessclass_pgdata:
+    name: chessclass_prod_pgdata
+  chessclass_redisdata:
+    name: chessclass_prod_redisdata
+
+networks:
+  ccnet:
+    name: chessclass-prod-net
