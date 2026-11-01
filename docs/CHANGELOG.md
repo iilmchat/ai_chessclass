@@ -8,6 +8,17 @@
 
 ### Добавлено
 
+#### S-18 — Матчи и Elo (2026-11-01)
+- Миграция `0012_bot_matches`: `bot_stats` (elo/wins/losses/draws),
+  `bot_matches` (result CHECK, elo_delta), `bot_match_moves` (реплей).
+- `opponents.py`: random ≈400 / greedy ≈800 (материал-дельта) / minimax2
+  ≈1100 (negamax глубина 2 + alpha-beta) — trusted-модули воркера.
+- `match.py`: матч-луп (MAX_PLIES=60, бюджет 120 с, нарушения ученика =
+  поражение), Elo K=32 clamp ±40 (ADR-008), pubsub `bots:match:{id}`;
+  arq-задача `run_match`.
+- API: `POST /bots/{id}/match/run` (202), `GET /bots/{id}/matches`,
+  `GET /bots/stats` (объявлен раньше `/{bot_id}`).
+
 #### S-17 — Боты: контракт и SafePosition (2026-11-01)
 - Миграция `0011_bot_versions` (version_no per user, entry, is_active).
 - `domains/bot_lab/`: `safe_position.py` (read-only фасад: fen/turn/

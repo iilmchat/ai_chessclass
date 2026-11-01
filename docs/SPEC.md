@@ -32,7 +32,7 @@
 | python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `POST /py/assignments/{id}/hint`, `GET /py/assignments/{id}/solution`, `GET /py/submissions/{id}` | — | ✅ S-08/S-09 | assert-тесты в песочнице; вердикты §3.3; ladder §3.4; флаги §8; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
-| bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `POST /bots/{id}/test` (+ S-18+: match/run, ladder) | — | ✅ S-17 | контракт choose_move(position)->str, SafePosition, per-move 1.0 c; лестница — Design §8 |
+| bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `GET /bots/stats`, `POST /bots/{id}/test`, `POST /bots/{id}/match/run` (202), `GET /bots/{id}/matches` | — | ✅ S-17/S-18 | choose_move-контракт §3.9; матчи arq (random/greedy/minimax2), Elo K=32 clamp ±40; SF-лестница — S-19 |
 | skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 
@@ -289,6 +289,24 @@ interface BotTestOut {
   (легальность). Коды ошибок: `bot_restricted` (статика), `bot_timeout`
   (408), `bot_error` (422: контракт/нелегальный ход).
 
+### 3.10. Матчи и Elo (S-18, §7.2–7.4)
+
+```ts
+// POST /bots/{id}/match/run { opponent: "random"|"greedy"|"minimax2" } → 202
+// GET /bots/{id}/matches → [{ id, opponent, result, movesCount, durationMs, eloDelta, ... }]
+// GET /bots/stats → { elo, wins, losses, draws }  // старт 1000
+```
+
+- Оппоненты (trusted-модули на воркере, python-chess вне песочницы):
+  random ≈400 · greedy ≈800 (материал-дельта) · minimax2 ≈1100
+  (negamax глубина 2 + alpha-beta). LLM в матчах — ноль (§7.3).
+- Матч: MAX_PLIES=60, бюджет `BOT_MATCH_BUDGET_S=120`; ученик — белыми
+  (v0.1); нарушение/ошибка/таймаут ученика = немедленное поражение.
+- Elo (ADR-008): старт 1000, K=32, clamp ±40 за матч; `bot_stats` —
+  elo/wins/losses/draws; `bot_matches` — result/moves_count/duration_ms/
+  elo_delta; `bot_match_moves` — реплей (семплирование SF — S-19).
+- Прогресс — Redis pubsub `bots:match:{id}`.
+
 **EMA-скоры** (§10.3, S-16): `user_skill_scores` PK (user_id, skill_id),
 week `YYYY-Www` (ISO), score 0..100. Формула: raw = clamp(50 + Σвесов×10,
 0..100) за неделю; score = α·raw + (1−α)·prev, α = `SKILL_EMA_ALPHA=0.3`.
@@ -510,3 +528,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-15: emits ✅ — chess-блюндеры → tactics_hanging (−1.0); таблица весов §8 полная | S-15 |
 | 2026-11-01 | S-16: EMA/дашборд ✅ — user_skill_scores, /skills API (§8), cron nightly, spider-UI | S-16 |
 | 2026-11-01 | S-17: боты-контракт ✅ — §3.9 (SafePosition, choose_move), bot_versions, chess в запретах | S-17 |
+| 2026-11-01 | S-18: матчи/Elo ✅ — §3.10 (random/greedy/minimax2, arq-луп, K=32 clamp ±40) | S-18 |

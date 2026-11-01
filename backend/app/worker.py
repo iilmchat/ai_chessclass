@@ -55,8 +55,16 @@ async def scores_recalc(ctx: dict) -> dict:
     return {"users": len(user_ids), "updatedRows": updated}
 
 
+async def run_match(ctx: dict, bot_version_id: int, opponent: str) -> dict:
+    """Матч бота против оппонента лестницы (S-18; без LLM)."""
+    from domains.bot_lab.match import run_match as run
+
+    logger.info("worker: run_match bot=%s vs %s", bot_version_id, opponent)
+    return await run(bot_version_id, opponent, ctx["redis"])
+
+
 class WorkerSettings:
-    functions = [heartbeat, analyze_position, analyze_game, scores_recalc]
+    functions = [heartbeat, analyze_position, analyze_game, scores_recalc, run_match]
     #: nightly-пересчёт EMA (§10.3) — 03:40 UTC
     cron_jobs = [arq.cron("scores_recalc", hour=3, minute=40, run_at_startup=False)]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)

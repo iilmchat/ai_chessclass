@@ -176,11 +176,12 @@
 - **DoD:** простой random-бот ученика возвращает легальные ходы ✅
   (2026-11-01: pytest 132 passed; random-бот → легальный UCI; отчёт — docs/sprint-reports/S-17-2026-11-01.md)
 
-### S-18 🎯 Лестница-часть 1: random + greedy + minimax2
-- [ ] оппоненты random (≈400), greedy (≈800, по evaluate/материал-дельта)
-- [ ] minimax2 (≈1100, negamax глубина 2 + alpha-beta через SafePosition)
-- [ ] матч-луп в arq без LLM; MAX_PLIES=60, BOT_MATCH_BUDGET_S=120
-- **DoD:** матч против random/greedy/minimax2 играется до конца за ≤ 120 c
+### S-18 ✅ Лестница-часть 1: random + greedy + minimax2
+- [x] оппоненты random (≈400), greedy (≈800, по evaluate/материал-дельта)
+- [x] minimax2 (≈1100, negamax глубина 2 + alpha-beta через SafePosition)
+- [x] матч-луп в arq без LLM; MAX_PLIES=60, BOT_MATCH_BUDGET_S=120
+- **DoD:** матч против random/greedy/minimax2 играется до конца за ≤ 120 c ✅
+  (2026-11-01: pytest 135 passed; random-бот vs random — матч до конца, Elo K=32; отчёт — docs/sprint-reports/S-18-2026-11-01.md)
 
 ### S-19 🏆 Лестница-часть 2: Stockfish UCI_Elo
 - [ ] оппоненты SF UCI_Elo 1400/1600/1800 (threads=1); по инстансу на arq-процесс
