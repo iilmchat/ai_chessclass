@@ -206,11 +206,12 @@
 
 ## E-08 · Античит 2.0 (S-22…S-24)
 
-### S-22 🐞 Флаги-движок
-- [ ] `anticheat_flags` (DDL → SPEC); правила-эвристики: confidence, evidence, статус-машина (new → reviewed)
-- [ ] engine_likeliness по PGN: match rate SF-топ-1/3, точность; порог — config
-- [ ] admin-руты review (teacher/admin)
-- **DoD:** ставки флагов на реальных данных; false-positive ≈ 0 в тестовом наборе
+### S-22 ✅ Флаги-движок
+- [x] `anticheat_flags` (DDL → SPEC); правила-эвристики: confidence, evidence, статус-машина (new → reviewed)
+- [x] engine_likeliness по PGN: match rate SF-топ-1/3, точность; порог — config
+- [x] admin-руты review (teacher/admin)
+- **DoD:** ставки флагов на реальных данных; false-positive ≈ 0 в тестовом наборе ✅
+  (2026-11-01: pytest 141 passed; perfect-bot → флаг 0.75, review-статус-машина; отчёт — docs/sprint-reports/S-22-2026-11-01.md)
 
 ### S-23 👨‍⚖️ LLM-judge (Decider)
 - [ ] маршрут anticheat.judge_explain (Decider Flash V1.2), токены — бюджет школы

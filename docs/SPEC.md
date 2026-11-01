@@ -35,6 +35,7 @@
 | bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `GET /bots/stats`, `POST /bots/{id}/test`, `POST /bots/{id}/match/run` (202; random/greedy/minimax2/SF-1400/1600/1800), `GET /bots/{id}/matches` | — | ✅ S-17…S-19 | choose_move-контракт §3.9; матчи arq; Elo K=32 clamp ±40; семплирование 10 % ходов (sf_sample) |
 | skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
+| anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
 ## 3. Формат фиксации DTO
 
@@ -542,3 +543,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-19: SF-лестница ✅ — UCI_Elo 1400/1600/1800, семплирование 10 % (sf_sample) | S-19 |
 | 2026-11-01 | S-20: матчи-UX ✅ — replay/leaderboard/SSE, BotsPage (редактор/матч/реплей) | S-20 |
 | 2026-11-01 | S-21: trivial_bot ✅ — hardcoded-ходы → флаг (ADR-005: не блокирует) | S-21 |
+| 2026-11-01 | S-22: флаги-движок ✅ — engine_likeliness (top1Rate ≥ 0.9 → флаг), review-статус-машина | S-22 |

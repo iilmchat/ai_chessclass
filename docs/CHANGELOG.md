@@ -8,6 +8,15 @@
 
 ### Добавлено
 
+#### S-22 — Флаги-движок (2026-11-01)
+- `anticheat/likeliness.py`: sf_match_rate (top1/top3 rate + avg accuracy
+  против SF) + check_engine_likeliness (порог `ENGINE_LIKELINESS_TOP1_THRESHOLD=0.9`,
+  ≥3 семпла) → флаг 0.75.
+- Admin-роутер `GET /admin/anticheat/flags?status` (teacher/admin) +
+  `POST /flags/{id}/review` (статус-машина: reviewed/false_positive/confirmed).
+- Тесты: review-флоу (RBAC 403 student), engine_likeliness против реального
+  SF (perfect-bot top1Rate=1.0 → флаг).
+
 #### S-21 — trivial_bot (2026-11-01)
 - `bot_lab/trivial.py`: эвристика — захардкоженные UCI-ходы («из кармана»)
   → флаг trivial_bot (0.80; +short_code → 0.90); minimal random-бот валиден

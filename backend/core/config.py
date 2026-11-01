@@ -95,8 +95,9 @@ class Settings(BaseSettings):
 
     # --- cognitive (S-16; §10.3 EMA)
     skill_ema_alpha: float = 0.3
-    # --- anticheat (S-21; §9.2 пороги — config)
+    # --- anticheat (S-21/S-22; §9.2 пороги — config)
     bot_trivial_min_lines: int = 5
+    engine_likeliness_top1_threshold: float = 0.9
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"
