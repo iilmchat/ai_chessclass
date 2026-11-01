@@ -69,6 +69,17 @@
 - Адаптивная вёрстка `.board-controls`, light/dark цвета доски.
 - `npm test` 5 passed; `npm run build` tsc 0; main 404.37 kB (gzip 128.44).
 
+#### S-35 — Playwright UI-e2e (2026-11-02)
+- Deps: `@playwright/test` 1.64, `pg` (verify-token из dev-БД).
+- `playwright.config.ts`: Vite 3201, trace/video retain-on-failure, retries=1,
+  один worker; webServer поднимает frontend.
+- `e2e/full-journey.spec.ts`: 7/7 passed локально — регистрация (API),
+  email verify (БД+API), login UI, задание (CodeMirror), инсайт SF, бот-матч
+  через SSE, дашборд, PDF (API).
+- CI job `e2e`: pg/redis services, API 8021 + worker, Stockfish, DejaVu,
+  Playwright chromium; артефакты trace/video при падении.
+- `npm run test:e2e` — 7 passed (56 с).
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

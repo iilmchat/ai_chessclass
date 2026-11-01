@@ -62,7 +62,7 @@
 | healthz | `curl http://localhost:8020/healthz` → `{"status":"ok","db":true,"redis":true}` |
 | readyz | `curl http://localhost:8020/readyz` → `status: ready`, `migrationsUpToDate: true` |
 | Фронтенд | `http://localhost:3200` — на дашборде «API/БД/Redis — ок» |
-| CI (GitHub) | `.github/workflows/ci.yml`: backend ruff → mypy → alembic → seeds → pytest (pg+redis); frontend npm test → npm run build (Node 22) |
+| CI (GitHub) | `.github/workflows/ci.yml`: backend ruff → mypy → alembic → seeds → pytest (pg+redis); frontend npm test → npm run build (Node 22); e2e Playwright (API 8021 + worker + pg/redis) |
 
 ## 7. Шаблон отчёта спринта
 

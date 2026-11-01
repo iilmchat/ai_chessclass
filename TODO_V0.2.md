@@ -9,7 +9,7 @@
 > Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md` (шаблон — `docs/RULES.md` §7).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 5/16 (S-30…S-34 ✅).** Сначала
+**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 6/16 (S-30…S-35 ✅).** Сначала
 закрываем технические хвосты v0.1.0 (E-11…E-13), затем — возможности v0.2
 из Design §2.2 (E-14…E-16). Формула этапа: **сначала надёжность, потом
 класс и вовлечение**.
@@ -93,12 +93,18 @@
   invalid FEN error, flip. `npm test` 5, build 404.37 kB (gzip 128.44).
 - **Отчёт:** `docs/sprint-reports/S-34-2026-11-02.md`.
 
-### S-35 ☐ Playwright UI-e2e
-- [ ] `@playwright/test`, конфиг, стенд 8021/3201, артефакты trace/video
-- [ ] 7 сценариев: регистрация → email → задание → инсайт → бот-матч →
+### S-35 ✅ Playwright UI-e2e
+- [x] `@playwright/test`, конфиг, стенд 8021/3201, артефакты trace/video
+- [x] 7 сценариев: регистрация → email → задание → инсайт → бот-матч →
       дашборд → PDF
-- [ ] CI-job, retries=1, отдельная БД (зависит от S-36)
+- [x] CI-job, retries=1, отдельная БД (зависит от S-36)
 - **DoD:** сценарии зелёные локально и в CI; падение даёт trace.
+- **Факт:** `playwright.config.ts` (3201, trace/video retain-on-failure,
+  retries=1); e2e/full-journey.spec.ts — 7/7 passed локально (56 с).
+  Регистрация/verify/PDF — API+БД (dev-email), остальное — UI.
+  CI job `e2e`: pg/redis services, API 8021, worker, Stockfish, fonts,
+  Playwright; артефакты при падении.
+- **Отчёт:** `docs/sprint-reports/S-35-2026-11-02.md`.
 
 ---
 

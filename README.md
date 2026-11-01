@@ -9,8 +9,8 @@
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
 — backend: lint (ruff) → typecheck (mypy) → alembic → seeds → pytest; frontend:
-Vitest → tsc/build (PostgreSQL 17 + Redis сервисы; подробности —
-[docs/RULES.md](docs/RULES.md))
+Vitest → tsc/build; e2e: Playwright journey (PostgreSQL 17 + Redis сервисы;
+подробности — [docs/RULES.md](docs/RULES.md))
 
 **Стек:** Python 3.12 + FastAPI · React 19 + TypeScript (Vite) · PostgreSQL 17 + pgvector ·
 Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, локальный
@@ -91,10 +91,11 @@ healthchecks, миграции, TLS, бэкапы) — спринты S-30 ✅/S
 | Спринты | **29/29** (S-01…S-29), этапы E-01…E-10 ✅ |
 | Тесты backend | **156 passed** (юнит + интеграционные + e2e-journey) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
+| UI-e2e | **7 passed** (Playwright: полный journey)
 | Миграции | Alembic head **0014_reports** (14) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 3 пользователя + 11 навыков + 5 skill_links + 16 заданий |
-| Следующий этап | **v0.2.0** — S-30…S-34 ✅, далее S-35…S-45 ([план](TODO_V0.2.md)) |
+| Следующий этап | **v0.2.0** — S-30…S-35 ✅, далее S-36…S-45 ([план](TODO_V0.2.md)) |
 
 ---
 
