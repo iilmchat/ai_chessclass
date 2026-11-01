@@ -19,6 +19,7 @@ MAX_CONTEXT_MESSAGES = 20
 MAX_MESSAGE_CHARS = 4000
 
 FACTS_HEADER = "Факты (проверенные данные, менять нельзя):"
+KNOWLEDGE_HEADER = "Полезный материал (база знаний):"
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,9 +50,16 @@ def get_route_params(route: str) -> RouteParams:
     return params
 
 
-def build_user_content(request: str, facts: list[str] | None = None) -> str:
-    """Запрос пользователя + блок фактов (движок/тесты) отдельным списком."""
+def build_user_content(
+    request: str,
+    facts: list[str] | None = None,
+    knowledge: list[str] | None = None,
+) -> str:
+    """Запрос + блок базы знаний (RAG, §8.6) + блок фактов (движок/тесты)."""
     parts: list[str] = [request]
+    if knowledge:
+        parts.append(KNOWLEDGE_HEADER)
+        parts.extend(f"- {item}" for item in knowledge)
     if facts:
         parts.append(FACTS_HEADER)
         parts.extend(f"- {fact}" for fact in facts)
@@ -64,9 +72,14 @@ def build_messages(
     request: str,
     *,
     facts: list[str] | None = None,
+    knowledge: list[str] | None = None,
     history: list[LLMMessage] | None = None,
 ) -> list[LLMMessage]:
-    """Собрать список сообщений: system(маршрут×уровень) + история + user."""
+    """Собрать список сообщений: system(маршрут×уровень) + история + user.
+
+    knowledge — RAG-контекст (Design §8.6): вставляется перед фактами,
+    чтобы модель опиралась на материал базы знаний, не трогая факты.
+    """
     rules = get_level_rules(level)
     messages = [
         LLMMessage(role="system", content=build_system_prompt(route, rules.rules))
@@ -78,7 +91,9 @@ def build_messages(
     messages.append(
         LLMMessage(
             role="user",
-            content=build_user_content(request, facts)[:MAX_MESSAGE_CHARS * 2],
+            content=build_user_content(request, facts, knowledge)[
+                : MAX_MESSAGE_CHARS * 2
+            ],
         )
     )
     return messages

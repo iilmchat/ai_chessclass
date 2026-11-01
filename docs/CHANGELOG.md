@@ -8,6 +8,15 @@
 
 ### Добавлено
 
+#### S-14 — Ассистент E2E (2026-11-01)
+- Knowledge-блок в prompt_builder (`build_messages(..., knowledge=...)`):
+  RAG-чанки (топ-2, python/general) перед фактами — в
+  `python_teacher.hint` и `python_teacher.comment` (по теме задания);
+  сбой RAG не ломает ассистента.
+- Сквозные тесты сценариев A/B/D (Design §3.4): сдача → вердикт+комментарий
+  + llm_calls; позиция → факты+объяснение + llm_calls; RAG-документ →
+  knowledge доходит до промпта (echo). Фикстура `worker_role` в conftest.
+
 #### S-13 — RAG: pgvector 768 (2026-11-01)
 - Миграция `0009_rag`: `rag_documents` (tsv GIN) + `rag_chunks`
   (embed Vector(768), HNSW vector_cosine_ops).

@@ -36,6 +36,12 @@ def redis_client():
 
 
 @pytest.fixture
+def worker_role(monkeypatch):
+    """APP_ROLE=worker — для сценариев с Stockfish (§15.3)."""
+    monkeypatch.setattr(settings, "app_role", "worker")
+
+
+@pytest.fixture
 async def make_client():
     """Фабрика httpx-клиентов с общим транспортом (каждый — свежая cookie-jar)."""
     async with LifespanManager(app) as manager:

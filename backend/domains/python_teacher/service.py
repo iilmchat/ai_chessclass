@@ -208,6 +208,20 @@ async def _failed_attempts(session: AsyncSession, user_id: int, assignment_id: i
 # --- лестница подсказок (Design §5.4)
 
 
+async def _rag_knowledge(session: AsyncSession, topic: str, level: Level) -> list[str]:
+    """RAG-контекст (§8.6): топ-2 чанка базы знаний по теме задания."""
+    from rag import retrieval
+
+    try:
+        hits = await retrieval.search(
+            session, topic, k=2, domains=["python", "general"]
+        )
+    except Exception as exc:  # noqa: BLE001 — RAG не ломает ассистента
+        logger.warning("py: RAG-контекст недоступен: %s", exc)
+        return []
+    return [f"{hit['titleRu']}: {hit['text'][:300]}" for hit in hits]
+
+
 async def get_hint(
     session: AsyncSession, redis, user: User, assignment_id: int, hint_idx: int
 ) -> dict:
@@ -232,6 +246,7 @@ async def get_hint(
         weight = WEIGHT_HINT_SEEDED
     else:
         llm_idx = hint_idx - len(seeded) + 1
+        knowledge = await _rag_knowledge(session, assignment.topic, level)
         messages = build_messages(
             "python_teacher.hint",
             level,
@@ -245,6 +260,7 @@ async def get_hint(
                 f"Условие: {assignment.statement[:400]}",
                 f"Сеед-подсказок уже открыто: {len(seeded)}",
             ],
+            knowledge=knowledge,
         )
         result = await llm_generate(
             session,
@@ -321,8 +337,10 @@ async def _make_comment(
     """Комментарий по маршруту comment (L1/L2 по уровню); echo — dev.
 
     Возвращает (route, model_used, level, content) или None (шлюз недоступен).
+    RAG-контекст по теме задания — блок knowledge (S-14).
     """
     level = await _user_level(session, user)
+    knowledge = await _rag_knowledge(session, assignment.topic, level)
     messages = build_messages(
         "python_teacher.comment",
         level,
@@ -339,6 +357,7 @@ async def _make_comment(
                 else "Все тесты пройдены"
             ),
         ],
+        knowledge=knowledge,
     )
     try:
         result = await llm_generate(

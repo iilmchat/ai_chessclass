@@ -205,6 +205,20 @@ interface IngestOut { documentId: string; chunks: number; embedMode: "openai" | 
 - Оценка качества (R-04): `backend/scripts/rag_eval.py` — запросы →
   топ-хиты по seed-корпусу (ручная интерпретация).
 
+### 3.8. Ассистент E2E (S-14, §3.4 сценарии A/B/D)
+
+- **Knowledge-блок** (§8.6): `build_messages(..., knowledge=[...])` —
+  RAG-чанки (топ-2, домены python/general) перед фактами; вставляется в
+  `python_teacher.hint` и `python_teacher.comment` (по теме задания).
+  Сбой RAG не ломает ассистента (warning + пустой knowledge).
+- Сценарии (тесты `tests/test_assistant_e2e.py`):
+  - **A**: сдача → вердикт + LLM-комментарий + запись в `llm_calls`
+    (route `python_teacher.comment`);
+  - **B**: позиция → факты SF + объяснение + запись `llm_calls`
+    (route `chess_lab.insight`; в dev — status `echo`);
+  - **D**: инжест знания по теме → hint содержит knowledge-блок
+    («Полезный материал (база знаний)» доходит до LLM).
+
 ### 3.4. Лестница подсказок (S-09, §5.4)
 
 1. **Seeded ступени** (`py_hints`, kind concept/strategy/pseudocode/code) —
@@ -460,3 +474,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-11: инсайт ✅ — §3.5 (facts+LLM), arq-путь api→worker, chess_positions | S-11 |
 | 2026-11-01 | S-12: партии/блюндеры ✅ — §3.6 (upload/arq/SSE/explain), классификация Δeval | S-12 |
 | 2026-11-01 | S-13: RAG ✅ — §3.7 (pgvector 768/HNSW, ingest/search, hash-фолбэк) | S-13 |
+| 2026-11-01 | S-14: ассистент E2E ✅ — knowledge-блок (RAG) в промптах, сценарии A/B/D | S-14 |
