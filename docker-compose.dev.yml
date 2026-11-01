@@ -46,6 +46,9 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8020 --reload
     volumes:
       - ./backend:/srv/backend
+    env_file:
+      - path: .env
+        required: false
     environment:
       APP_ENV: dev
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-chess}:${POSTGRES_PASSWORD:-chess_dev_2026}@db:5432/${POSTGRES_DB:-chessclass}
@@ -67,6 +70,9 @@ services:
     command: arq app.worker.WorkerSettings
     volumes:
       - ./backend:/srv/backend
+    env_file:
+      - path: .env
+        required: false
     environment: &backend_env
       APP_ENV: dev
       APP_ROLE: worker
@@ -88,6 +94,9 @@ services:
     command: alembic upgrade head
     volumes:
       - ./backend:/srv/backend
+    env_file:
+      - path: .env
+        required: false
     environment: *backend_env
     depends_on:
       db:
@@ -103,6 +112,9 @@ services:
     command: python -m db.seeds
     volumes:
       - ./backend:/srv/backend
+    env_file:
+      - path: .env
+        required: false
     environment: *backend_env
     depends_on:
       db:

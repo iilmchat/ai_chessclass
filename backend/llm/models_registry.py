@@ -58,8 +58,8 @@ def build_models_registry() -> dict[str, ModelSpec]:
         "judge": ModelSpec(
             tier="judge",
             slug=settings.llm_model_judge,
-            display="Decider Flash V1.2",
-            role="античит-judge, короткие сессии",
+            display="Gemini 3.1 Flash Lite",
+            role="чат-judge, короткие сессии (Decider — decisions-API)",
             price_in=settings.llm_cost_judge_in,
             price_out=settings.llm_cost_judge_out,
         ),

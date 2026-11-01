@@ -21,7 +21,9 @@ def test_registry_has_all_v01_routes():
 def test_models_registry_tiers_and_prices():
     assert set(MODELS) == set(TIERS)
     assert MODELS["L1"].price_in is not None and MODELS["L1"].price_out is not None
-    assert MODELS["judge"].price_in is None  # цена judge — по тарифу RouterAI (R-01)
+    # S-31: цены judge/L3-alt взяты из каталога RouterAI
+    assert MODELS["judge"].price_in is not None
+    assert MODELS["L3_alt"].price_in is not None
 
 
 def test_resolve_tier_by_level():

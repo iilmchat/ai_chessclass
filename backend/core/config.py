@@ -45,27 +45,29 @@ class Settings(BaseSettings):
     # сверяются с провайдером на бутстрапе; несоответствие → warning + env
     llm_base_url: str = ""
     llm_api_key: str = ""
-    llm_model_l1: str = "minimax-m3.1"
-    llm_model_l2: str = "deepseek-v4.1"
-    llm_model_l3: str = "beam-1.0-501b"
-    llm_model_l3_alt: str = "claude-sonnet-5.5"
-    llm_model_judge: str = "decider-flash-v1.2"
+    llm_model_l1: str = "minimax/minimax-m3.1-flash"
+    llm_model_l2: str = "deepseek/deepseek-v4.1-flash"
+    llm_model_l3: str = "reflection/beam-1.0-501b-a23b"
+    llm_model_l3_alt: str = "anthropic/claude-sonnet-5.5"
+    # RouterAI Decider — decisions-API, не OpenAI chat; judge-route вызывается
+    # через chat-completions, поэтому S-31 использует chat-совместимый Gemini.
+    llm_model_judge: str = "google/gemini-3.1-flash-lite"
     llm_timeout_s: float = 40.0  # §8.4: максимум на клиентский запрос
     llm_retry_delay_s: float = 2.0  # §8.4: 1 retry через 2 с
     llm_local_fallback: bool = False
     llm_local_base_url: str = "http://localhost:1234/v1"
     llm_cost_currency: str = "RUB"
-    # цены ₽/1M (Numeric(12,4)); judge/L3-alt Design не фиксирует — задать env'ом
-    llm_cost_l1_in: Decimal = Decimal("7.0")
-    llm_cost_l1_out: Decimal = Decimal("25.0")
-    llm_cost_l2_in: Decimal = Decimal("26.0")
-    llm_cost_l2_out: Decimal = Decimal("100.0")
-    llm_cost_l3_in: Decimal = Decimal("26.0")
-    llm_cost_l3_out: Decimal = Decimal("104.0")
-    llm_cost_l3_alt_in: Decimal | None = None
-    llm_cost_l3_alt_out: Decimal | None = None
-    llm_cost_judge_in: Decimal | None = None
-    llm_cost_judge_out: Decimal | None = None
+    # цены ₽/1M (Numeric(12,4)); взяты из каталога RouterAI на 2026-11-01
+    llm_cost_l1_in: Decimal = Decimal("5.2362")
+    llm_cost_l1_out: Decimal = Decimal("20.9449")
+    llm_cost_l2_in: Decimal = Decimal("5.7598")
+    llm_cost_l2_out: Decimal = Decimal("22.1178")
+    llm_cost_l3_in: Decimal = Decimal("26.1811")
+    llm_cost_l3_out: Decimal = Decimal("104.7245")
+    llm_cost_l3_alt_in: Decimal = Decimal("209.4490")
+    llm_cost_l3_alt_out: Decimal = Decimal("1047.2449")
+    llm_cost_judge_in: Decimal = Decimal("26.1811")
+    llm_cost_judge_out: Decimal = Decimal("157.0867")
     budget_free_tokens_day: int = 50_000
     budget_pro_tokens_day: int = 500_000
 

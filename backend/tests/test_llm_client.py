@@ -7,7 +7,7 @@ from llm.base import LLMMessage, LLMUnavailableError, is_placeholder_secret
 from llm.client import OpenAICompatProvider
 
 
-def _ok_response(content: str = "Привет! Вот разбор.") -> httpx.Response:
+def _ok_response(content: str | None = "Привет! Вот разбор.") -> httpx.Response:
     return httpx.Response(
         200,
         json={
@@ -66,6 +66,21 @@ async def test_generate_unavailable_after_retry():
     provider = _provider(handler)
     with pytest.raises(LLMUnavailableError):
         await provider.generate("m1", [LLMMessage(role="user", content="x")])
+    await provider.close()
+
+
+async def test_generate_rejects_null_content():
+    calls = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return _ok_response(None)
+
+    provider = _provider(handler)
+    with pytest.raises(LLMUnavailableError, match="пустой"):
+        await provider.generate("m1", [LLMMessage(role="user", content="x")])
+    assert calls == 2  # null content не считается успехом, был retry
     await provider.close()
 
 

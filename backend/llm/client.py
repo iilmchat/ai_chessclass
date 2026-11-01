@@ -68,7 +68,11 @@ class OpenAICompatProvider(LLMProvider):
                 response = await self._client.post("/chat/completions", json=payload)
                 response.raise_for_status()
                 data = response.json()
-                text = data["choices"][0]["message"]["content"]
+                text = data["choices"][0]["message"].get("content")
+                if text is None or not str(text).strip():
+                    # reasoning-модель могла израсходовать весь max_tokens;
+                    # не отдаём "None" клиенту — уходим в retry/fallback.
+                    raise ValueError("пустой message.content")
                 usage_raw = data.get("usage") or {}
                 usage = LLMUsage(
                     prompt_tokens=int(usage_raw.get("prompt_tokens", 0)),

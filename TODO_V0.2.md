@@ -9,7 +9,7 @@
 > Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md` (шаблон — `docs/RULES.md` §7).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 1/16 (S-30 ✅).** Сначала
+**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 2/16 (S-30, S-31 ✅).** Сначала
 закрываем технические хвосты v0.1.0 (E-11…E-13), затем — возможности v0.2
 из Design §2.2 (E-14…E-16). Формула этапа: **сначала надёжность, потом
 класс и вовлечение**.
@@ -36,17 +36,20 @@
   отчёт — `docs/sprint-reports/S-30-2026-11-01.md`)
 - **Связь:** хвост S-29 (prod-compose без web-образа); nginx/TLS — S-38.
 
-### S-31 ☐ Живой LLM-провайдер и FinOps
-- [ ] RouterAI: `LLM_BASE_URL` + `LLM_API_KEY` в prod-env; проверка слагов
-      на старте (уже есть) + отчёт о расхождении
-- [ ] `GET /admin/llm/health`: configured, модели, последний вызов, бюджеты,
-      latency p95; без ключа — `status: echo`
-- [ ] `scripts/llm_smoke.py`: 3 маршрута (`python_teacher.comment`,
-      `chess_lab.insight`, `anticheat.judge_explain`) + запись `llm_calls`
-- [ ] runbook: ротация ключа, downgrade, локальный LM Studio, стоимость
-- **DoD:** 3 живых вызова `status=ok` и строки в `llm_calls`; при отсутствии
-  ключа smoke завершается кодом 2 с понятной диагностикой (echo не маскируется).
-- **Блокер:** нужен ключ RouterAI (пользователь передаёт через env, не в git).
+### S-31 ✅ Живой LLM-провайдер и FinOps
+- [x] RouterAI: `LLM_BASE_URL` + `LLM_API_KEY` в env; слаги сверены с
+      `GET /v1/models` (полные id), цены ₽/1M обновлены; judge —
+      `google/gemini-3.1-flash-lite` (Decider — decisions-API, не chat)
+- [x] `GET /admin/llm/health`: configured, модели, последний вызов, бюджеты,
+      p95, расход за UTC-день; без ключа — `status: echo`
+- [x] `scripts/llm_smoke.py`: 4 маршрута (L1/L2/L3/judge) + запись `llm_calls`
+- [x] runbook: `docs/runbooks/llm-gateway.md` (ротация ключа, downgrade,
+      локальный LM Studio, стоимость)
+- **DoD:** 4 живых вызова `status=ok`, строки `llm_calls` id 88–91
+  (2026-11-01); health live `status=ok`, все 5 тиров доступны; smoke без ключа
+  возвращает код 2 (echo не маскируется). pytest 155, ruff/mypy 0.
+- **Блокер:** снят 2026-11-01 — ключ RouterAI передан через `.env` (не в git).
+- **Отчёт:** `docs/sprint-reports/S-31-2026-11-01.md`.
 
 ---
 

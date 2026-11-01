@@ -42,6 +42,8 @@ class EmbeddingProvider:
     @property
     def mode(self) -> str:
         """Провайдер ('openai') или hash-фолбэк ('hash') — фиксируется в meta."""
+        if not settings.llm_embed_model:
+            return "hash"
         return "openai" if self._provider.is_configured() else "hash"
 
     async def embed(self, texts: list[str]) -> tuple[list[list[float]], str]:

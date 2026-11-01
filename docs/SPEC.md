@@ -417,11 +417,16 @@ Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfi
 
 | Тир | Слаг (default, env `LLM_MODEL_*`) | in | out | Роль |
 |---|---|---|---|---|
-| L1 | `minimax-m3.1` | 7 | 25 | комментарии/подсказки (массовые) |
-| L2 | `deepseek-v4.1` | 26 | 100 | инсайты, разборы, бот-coach |
-| L3 | `beam-1.0-501b` | 26 | 104 | advanced, сложные разборы |
-| L3_alt | `claude-sonnet-5.5` | — | — | резерв/проверка качества (тариф RouterAI) |
-| judge | `decider-flash-v1.2` | — | — | античит-judge (заполнить env `LLM_COST_JUDGE_*`) |
+| L1 | `minimax/minimax-m3.1-flash` | 5.2362 | 20.9449 | комментарии/подсказки (массовые) |
+| L2 | `deepseek/deepseek-v4.1-flash` | 5.7598 | 22.1178 | инсайты, разборы, бот-coach |
+| L3 | `reflection/beam-1.0-501b-a23b` | 26.1811 | 104.7245 | advanced, сложные разборы |
+| L3_alt | `anthropic/claude-sonnet-5.5` | 209.4490 | 1047.2449 | резерв/проверка качества |
+| judge | `google/gemini-3.1-flash-lite` | 26.1811 | 157.0867 | античит-judge (chat-совместимый) |
+
+Слаги — полные id из `GET {LLM_BASE_URL}/models`; цены — каталог RouterAI
+на 2026-11-01 (₽/1M). RouterAI Decider (`perplexity/pplx-decider-flash-v1.2`)
+использует decisions-API, не OpenAI chat, поэтому judge-route S-31 работает
+через Gemini Flash Lite; адаптер Decider — отдельная задача.
 
 Параметры вызовов (temperature/max_tokens) — по маршрутам при переносе промптов
 доменов (S-05+); карточки промптов живут в коде, здесь — идентификаторы.
@@ -433,6 +438,13 @@ Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfi
   цены — строки Numeric (JSON JS-safe).
 - `GET /api/v1/admin/finops/usage?days=7` (admin, 1–90) — агрегат по дням:
   `{currency, days[{day, users, tokensIn, tokensOut, costTotal}]}` (§6.4).
+- `GET /api/v1/admin/llm/health` (admin, S-31) — живой статус шлюза:
+  `{status: ok|degraded|echo, providerConfigured, baseUrl,
+  availableModels[≤50], tiers[{tier, slug, available}], missingModels,
+  lastCall{at, route, modelUsed, status, latencyMs}, latencyP95Ms,
+  today{tokensIn, tokensOut, costTotal}, budgetFreeTokensDay,
+  budgetProTokensDay}`. Проверяет `GET /models` с таймаутом 5 с; `echo` —
+  без `LLM_BASE_URL`, `degraded` — провайдер недоступен или слаги не найдены.
 
 ### 6.4. Экономика (S-05, зафиксировано)
 
@@ -446,7 +458,10 @@ Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfi
 `route`, `level`, `model_requested`, `model_used` (слаг / `lmstudio` / `echo`),
 `fallback_from`, `tokens_in/out`, `cost_in/out` Numeric(12,4) (null, если цена
 не задана), `latency_ms`, `status` (`ok | echo | error`), `task_kind`
-(`sync | async`), `created_at`.
+(`sync | async`), `created_at`. Пустой `message.content` (reasoning-модель
+израсходовала бюджет) — retry, затем fallback, а не строка `"None"`.
+Запись `llm_calls` идёт после успешной генерации; сбой FinOps-записи не
+повторяет уже оплаченный LLM-вызов (S-31).
 
 **Квоты и бюджеты** (Design §8.5): Redis-ключ `quota:{user}:{YYYY-MM-DD}`
 (TTL 48 ч), бюджеты free 50 000 / pro 500 000 токенов/день
@@ -549,3 +564,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-25: PDF-отчёты ✅ — fpdf2+DejaVuSans (кириллица), reports_pdfs, GET/POST /reports/pdf | S-25 |
 | 2026-11-01 | S-26: полировка UI ✅ — дашборд-сводка, статистика Elo, инсайт дня, dark-тема | S-26 |
 | 2026-11-01 | S-27: e2e ✅ — полный journey §3.4 (регистрация→...→PDF) в тест-наборе | S-27 |
+| 2026-11-01 | S-31: LLM live ✅ — RouterAI-слаги/цены, `/admin/llm/health`, smoke 4/4, FinOps | S-31 |

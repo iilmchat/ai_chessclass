@@ -73,7 +73,7 @@ docker compose -f docker-compose.dev.yml run --rm seed    # админ, учен
 ```
 
 **Prod:** каркас — `docker-compose.prod.yml`; доведение стека (web-образ,
-healthchecks, миграции, TLS, бэкапы) — спринты S-30/S-38 в
+healthchecks, миграции, TLS, бэкапы) — спринты S-30 ✅/S-38 в
 [TODO_V0.2.md](TODO_V0.2.md).
 
 > **Порты.** ADR-013: pg 5438, redis 6384 — изоляция от соседних проектов
@@ -88,11 +88,11 @@ healthchecks, миграции, TLS, бэкапы) — спринты S-30/S-38 
 |------------|----------|
 | Версия | **v0.1.0** (2026-11-01, тег `v0.1.0`, коммит `316fce9`) |
 | Спринты | **29/29** (S-01…S-29), этапы E-01…E-10 ✅ |
-| Тесты backend | **149 passed** (юнит + интеграционные + e2e-journey) |
+| Тесты backend | **155 passed** (юнит + интеграционные + e2e-journey) |
 | Миграции | Alembic head **0014_reports** (14) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 3 пользователя + 11 навыков + 5 skill_links + 16 заданий |
-| Следующий этап | **v0.2.0** — S-30 ✅, далее S-31…S-45 ([план](TODO_V0.2.md)) |
+| Следующий этап | **v0.2.0** — S-30, S-31 ✅, далее S-32…S-45 ([план](TODO_V0.2.md)) |
 
 ---
 
@@ -106,6 +106,7 @@ healthchecks, миграции, TLS, бэкапы) — спринты S-30/S-38 
 - [TODO_V0.2.md](TODO_V0.2.md) — активный план v0.2.0 (S-30…S-45)
 - [TODO_V0.1.md](TODO_V0.1.md) — архив плана v0.1.0 (S-01…S-29)
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — изменения по спринтам
+- [docs/runbooks/llm-gateway.md](docs/runbooks/llm-gateway.md) — LLM-шлюз: ключи, health, fallback
 - [Ретроспектива v0.1.0](docs/sprint-reports/RETROSPECTIVE-E01-E10.md)
 - Отчёты спринтов: [docs/sprint-reports/](docs/sprint-reports/)
 

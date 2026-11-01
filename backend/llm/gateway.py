@@ -116,31 +116,34 @@ async def llm_generate(
                 effective.slug, messages,
                 temperature=temperature, max_tokens=max_tokens,
             )
-            latency_ms = int((time.monotonic() - started) * 1000)
-            status = economy.STATUS_OK if model_used != "echo" else economy.STATUS_ECHO
-            fallback_from = None
-            if not (index == 0 and status == economy.STATUS_OK):
-                fallback_from = _prev_marker(chain, index, effective.slug)
-            if effective.tier != spec.tier and status == economy.STATUS_OK:
-                fallback_from = f"quota_downgrade:{spec.tier}"
-            await economy.register_call(
-                session, redis,
-                user_id=ctx.user_id, route=route, level=level.value,
-                model_requested=spec.slug, model_used=model_used,
-                fallback_from=fallback_from, usage=usage, latency_ms=latency_ms,
-                status=status, spec=effective, task_kind=ctx.task_kind,
-            )
-            return LLMResult(
-                route=route, level=level, tier=effective.tier,
-                model_requested=spec.slug, model_used=model_used,
-                text=text, usage=usage, status=status, fallback_from=fallback_from,
-            )
         except Exception as exc:  # noqa: BLE001 — идём дальше по цепочке
             last_error = exc
             logger.warning(
                 "llm fallback: %s (%s) не ответил: %s — пробуем следующий шаг",
                 model_used, effective.slug, exc,
             )
+            continue
+
+        latency_ms = int((time.monotonic() - started) * 1000)
+        status = economy.STATUS_OK if model_used != "echo" else economy.STATUS_ECHO
+        fallback_from = None
+        if not (index == 0 and status == economy.STATUS_OK):
+            fallback_from = _prev_marker(chain, index, effective.slug)
+        if effective.tier != spec.tier and status == economy.STATUS_OK:
+            fallback_from = f"quota_downgrade:{spec.tier}"
+        # Ошибка записи FinOps не должна повторять уже оплаченный LLM-вызов.
+        await economy.register_call(
+            session, redis,
+            user_id=ctx.user_id, route=route, level=level.value,
+            model_requested=spec.slug, model_used=model_used,
+            fallback_from=fallback_from, usage=usage, latency_ms=latency_ms,
+            status=status, spec=effective, task_kind=ctx.task_kind,
+        )
+        return LLMResult(
+            route=route, level=level, tier=effective.tier,
+            model_requested=spec.slug, model_used=model_used,
+            text=text, usage=usage, status=status, fallback_from=fallback_from,
+        )
     raise RuntimeError(f"llm: цепочка fallback исчерпана: {last_error}")
 
 

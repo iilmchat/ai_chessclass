@@ -28,6 +28,14 @@ _CLEAN_IPS = ("127.0.0.1", "testclient", "unknown")
 _seeds_done = False
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    """Тесты герметичны: не ходим в живой RouterAI/LM Studio из dev-.env."""
+    _ = config
+    settings.llm_base_url = ""
+    settings.llm_api_key = ""
+    settings.llm_local_fallback = False
+
+
 @pytest.fixture
 def redis_client():
     """Клиент Redis для тестов экономики/квот (закрывается после теста)."""

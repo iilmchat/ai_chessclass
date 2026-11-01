@@ -22,6 +22,20 @@
 - Фикс worker: `arq.cron("app.worker.scores_recalc")` (был рестарт-луп с S-16);
   регресс-тест `tests/test_worker_settings.py`; prod smoke + heartbeat OK.
 
+#### S-31 — Живой LLM-провайдер и FinOps (2026-11-01)
+- RouterAI: слаги сверены с `GET /v1/models` (полные id с префиксами),
+  цены ₽/1M обновлены; judge переведён на chat-совместимый
+  `google/gemini-3.1-flash-lite` (Decider — decisions-API, не chat).
+- `GET /admin/llm/health`: статус `ok|degraded|echo`, доступность всех тиров,
+  последний вызов, p95 latency, расход за UTC-день и дневные бюджеты.
+- `scripts/llm_smoke.py`: 4 живых маршрута (L1/L2/L3/judge), запись `llm_calls`;
+  прогон RouterAI — 4/4 `status=ok`.
+- Dev-compose передаёт `.env` в api/worker/migrate/seed; тесты герметичны
+  (LLM-сеть отключена в `pytest_configure`).
+- Провайдер не возвращает `"None"` при пустом `message.content` — retry/fallback;
+  ошибка записи FinOps не повторяет оплаченный вызов; embeddings без модели
+  сразу используют hash-фолбэк.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

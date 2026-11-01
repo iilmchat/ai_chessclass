@@ -2,6 +2,7 @@
 бутстрап-валидация слагов, admin-эндпоинт моделей."""
 
 import httpx
+import pytest
 import sqlalchemy as sa
 
 from core.config import settings
@@ -36,7 +37,7 @@ def _chat_ok(content: str) -> httpx.Response:
 
 async def test_generate_by_route_intermediate_l2(redis_client):
     def handler(request: httpx.Request) -> httpx.Response:
-        assert b'"deepseek-v4.1"' in request.read()  # insight intermediate → L2
+        assert settings.llm_model_l2.encode() in request.read()  # insight intermediate → L2
         return _chat_ok("Позиция спокойная, у белых перевес.")
 
     provider = _mock_provider(handler)
@@ -52,8 +53,8 @@ async def test_generate_by_route_intermediate_l2(redis_client):
         )
         assert "перевес" in result.text
         assert result.tier == "L2"
-        assert result.model_requested == "deepseek-v4.1"
-        assert result.model_used == "deepseek-v4.1"
+        assert result.model_requested == settings.llm_model_l2
+        assert result.model_used == settings.llm_model_l2
         assert result.status == "ok" and result.fallback_from is None
         # llm_calls: одна строка, статус ok, слаг L2
         row = (
@@ -66,7 +67,7 @@ async def test_generate_by_route_intermediate_l2(redis_client):
 
 async def test_advanced_route_uses_l3(redis_client):
     def handler(request: httpx.Request) -> httpx.Response:
-        assert b'"beam-1.0-501b"' in request.read()  # insight advanced → L3
+        assert settings.llm_model_l3.encode() in request.read()  # insight advanced → L3
         return _chat_ok("Глубокий разбор.")
 
     provider = _mock_provider(handler)
@@ -123,8 +124,36 @@ async def test_echo_when_cloud_not_configured(redis_client):
         assert result.fallback_from == "cloud_not_configured"
 
 
+async def test_db_error_does_not_repeat_paid_llm_call(redis_client, monkeypatch):
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return _chat_ok("ответ")
+
+    provider = _mock_provider(handler)
+
+    async def fail_register(*args, **kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr("llm.gateway.economy.register_call", fail_register)
+    async with session_factory() as session:
+        with pytest.raises(RuntimeError, match="db down"):
+            await llm_generate(
+                session,
+                redis_client,
+                route="python_teacher.comment",
+                level=Level.NOVICE,
+                messages=[LLMMessage(role="user", content="x")],
+                ctx=LLMCallContext(),
+                provider=provider,
+            )
+    assert calls == 1  # FinOps-сбой не должен повторять оплаченный вызов
+
+
 async def test_bootstrap_slags_validation():
-    known = {"minimax-m3.1", "deepseek-v4.1"}  # L3/judge — нет у провайдера
+    known = {settings.llm_model_l1, settings.llm_model_l2}  # L3/judge — нет у провайдера
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path.endswith("/models")
@@ -151,7 +180,7 @@ async def test_admin_models_endpoint(admin_client, make_client, unique_email):
     assert body["currency"] == "RUB"
     tiers = {m["tier"] for m in body["models"]}
     assert tiers == {"L1", "L2", "L3", "L3_alt", "judge"}
-    assert body["models"][0]["priceIn"] == "7.0000"
+    assert body["models"][0]["priceIn"] == f"{settings.llm_cost_l1_in:.4f}"
 
     response = await client.get(
         f"{API}/admin/models", headers={"Authorization": f"Bearer {student_access}"}
