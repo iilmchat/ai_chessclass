@@ -78,6 +78,8 @@
   через SSE, дашборд, PDF (API).
 - CI job `e2e`: pg/redis services, API 8021 + worker, Stockfish, DejaVu,
   Playwright chromium; артефакты trace/video при падении.
+- CI backend job: Stockfish + DejaVu + `REPORTS_DIR` — иначе падали
+  S-27-тесты на GitHub runner.
 - `npm run test:e2e` — 7 passed (56 с).
 
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
