@@ -17,6 +17,7 @@ from domains.auth.router import router as auth_router
 from domains.bot_lab.router import admin_router as bot_admin_router
 from domains.bot_lab.router import router as bots_router
 from domains.chess_lab.router import router as chess_router
+from domains.classes.router import router as classes_router
 from domains.cognitive.router import router as skills_router
 from domains.profile.router import router as profile_router
 from domains.python_teacher.router import router as py_router
@@ -99,6 +100,7 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(profile_router, prefix="/api/v1")
 app.include_router(py_router, prefix="/api/v1")
 app.include_router(chess_router, prefix="/api/v1")
+app.include_router(classes_router, prefix="/api/v1")
 app.include_router(skills_router, prefix="/api/v1")
 app.include_router(bots_router, prefix="/api/v1")
 app.include_router(bot_admin_router, prefix="/api/v1")

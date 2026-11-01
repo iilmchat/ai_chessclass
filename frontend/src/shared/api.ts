@@ -254,3 +254,108 @@ export function explainBlunder(
     body: JSON.stringify({ ply }),
   });
 }
+
+// --- classes (S-40)
+
+export interface ClassDto {
+  id: string;
+  name: string;
+  teacherId: string;
+  inviteCode: string | null;
+  memberCount: number;
+  createdAt: string;
+}
+
+export interface ClassMemberDto {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  level: string;
+  joinedAt: string;
+}
+
+export interface ClassDetailDto extends ClassDto {
+  members: ClassMemberDto[];
+}
+
+export interface ClassSkillDto {
+  slug: string;
+  titleRu: string;
+  domain: string;
+  score: number;
+  week: string | null;
+}
+
+export interface ClassDashboardMemberDto {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  level: string;
+  joinedAt: string;
+  skills: ClassSkillDto[];
+  flagsCount: number;
+  newFlagsCount: number;
+  matchesCount: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  elo: number;
+}
+
+export interface ClassDashboardDto {
+  classId: string;
+  className: string;
+  memberCount: number;
+  members: ClassDashboardMemberDto[];
+}
+
+export function fetchClasses(): Promise<ClassDto[]> {
+  return apiFetch('/classes');
+}
+
+export function createClass(name: string): Promise<ClassDto> {
+  return apiFetch('/classes', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function joinClass(inviteCode: string): Promise<ClassDto> {
+  return apiFetch('/classes/join', {
+    method: 'POST',
+    body: JSON.stringify({ inviteCode }),
+  });
+}
+
+export function fetchClassDetail(classId: string): Promise<ClassDetailDto> {
+  return apiFetch(`/classes/${classId}`);
+}
+
+export function fetchClassDashboard(
+  classId: string,
+): Promise<ClassDashboardDto> {
+  return apiFetch(`/classes/${classId}/dashboard`);
+}
+
+export function rotateClassInvite(classId: string): Promise<ClassDto> {
+  return apiFetch(`/classes/${classId}/invite`, { method: 'POST' });
+}
+
+export function addClassMember(
+  classId: string,
+  email: string,
+): Promise<ClassMemberDto> {
+  return apiFetch(`/classes/${classId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function removeClassMember(
+  classId: string,
+  userId: string,
+): Promise<void> {
+  return apiFetch(`/classes/${classId}/members/${userId}`, {
+    method: 'DELETE',
+  });
+}

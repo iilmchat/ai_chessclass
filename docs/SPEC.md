@@ -34,6 +34,7 @@
 | chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
 | bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `GET /bots/stats`, `POST /bots/{id}/test`, `POST /bots/{id}/match/run` (202/429 `match_limit`; random/greedy/minimax2/SF-1400/1600/1800), `GET /bots/{id}/matches`, `GET /admin/matches/metrics` (admin) | — | ✅ S-17…S-19/S-37 | choose_move §3.9; per-queue матчи 2/1/1/1; Elo K=32 clamp ±40; sf_sample |
 | skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
+| classes | `GET/POST /classes`, `POST /classes/join`, `GET /classes/{id}`, `POST /classes/{id}/invite`, `GET /classes/{id}/dashboard`, `POST/DELETE /classes/{id}/members[/{userId}]` | — | ✅ S-40 | teacher/admin — создание/управление; student — join/свои классы; чужой teacher — 403 (SPEC §3.11) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -338,6 +339,53 @@ week `YYYY-Www` (ISO), score 0..100. Формула: raw = clamp(50 + Σвесо
 Ночных пересчёт — arq cron `scores:recalc` (03:40 UTC); ручной —
 `POST /skills/{id}/recalc` (teacher/admin). Нейтральный скор = 50.
 
+### 3.11. classes: классы и группы (S-40, §4.1/§10.5)
+
+```ts
+// POST /classes { name } → 201 ClassOut          // teacher/admin
+// GET /classes → ClassOut[]                       // teacher — свои; student — членство; admin — все
+// POST /classes/join { inviteCode } → ClassOut    // student; повторный join идемпотентен
+// GET /classes/{id} → ClassDetailOut              // manager/member; roster — только manager
+// POST /classes/{id}/invite → ClassOut            // manager; ротация кода
+// GET /classes/{id}/dashboard → ClassDashboardOut // manager
+// POST /classes/{id}/members { email } → 201 ClassMemberOut // manager
+// DELETE /classes/{id}/members/{userId} → 204     // manager
+
+interface ClassOut {
+  id: string; name: string; teacherId: string;
+  inviteCode: string | null;   // только manager
+  memberCount: number; createdAt: string;
+}
+interface ClassDetailOut extends ClassOut { members: ClassMemberOut[]; }
+interface ClassMemberOut {
+  userId: string; email: string; displayName: string | null;
+  level: string; joinedAt: string;
+}
+interface ClassDashboardOut {
+  classId: string; className: string; memberCount: number;
+  members: [{
+    userId: string; email: string; displayName: string | null;
+    level: string; joinedAt: string;
+    skills: { slug: string; titleRu: string; domain: string; score: number; week: string | null }[];
+    flagsCount: number; newFlagsCount: number;
+    matchesCount: number; wins: number; losses: number; draws: number; elo: number;
+  }];
+}
+```
+
+- DDL: `classes(id, name, teacher_id FK users, invite_code UNIQUE,
+  created_at)`; `class_members(class_id FK classes, user_id FK users,
+  joined_at, PK(class_id,user_id))`; индексы `ix_classes_teacher`,
+  `ix_class_members_user`.
+- RBAC: создание/инвайт/добавление/удаление/дашборд — teacher-owner или
+  admin; чужой teacher — 403 `class_forbidden`; student не создаёт класс
+  (403), join — только student; чужой/несуществующий код — 404.
+- Ошибки: `class_not_found`, `class_forbidden`, `class_invite_invalid`,
+  `class_student_only`, `class_member_exists` (409), `class_member_role`
+  (422), `class_member_not_found`, `class_name_invalid`.
+- Дашборд агрегирует `user_skill_scores` (11 навыков), `anticheat_flags`
+  (всего/новые), `bot_stats` (матчи/победы/поражения/ничьи/Elo).
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -595,3 +643,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-37: match queues ✅ - per-queue workers, max 5 active, metrics/load | S-37 |
 | 2026-11-02 | S-38: backups/TLS ✅ - sha256/retention, restore-test, edge HTTPS/HSTS, runbook | S-38 |
 | 2026-11-02 | S-39: chess knowledge ✅ - 13 seed-док, FEN/phase/rerank, knowledge в insight/blunder, eval 13/13 | S-39 |
+| 2026-11-02 | S-40: classes ✅ - classes/class_members, invites, teacher dashboard, RBAC; UI кабинета | S-40 |

@@ -307,8 +307,9 @@ ai_chessclass/
     admin — всё + админ-инструменты (задания, эталоны, модели, тарифы).
 - Аутентификация: email + пароль **Argon2id**; access JWT (короткий TTL),
   refresh в **HttpOnly-cookie**; email-верификация (одноразовый токен, 24 ч);
-  сброс пароля по токену. Классы/группы «учитель–ученик» — v0.2; в v0.1
-  teacher видит всех учеников платформы (малая школа).
+  сброс пароля по токену. Классы/группы «учитель–ученик» — v0.2 (S-40):
+  `classes` (owner-teacher, invite_code) + `class_members`; в v0.1
+  teacher видел всех учеников платформы (малая школа).
 
 ### 4.2. Единый уровень ученика
 
@@ -764,6 +765,8 @@ Seed-миграция заполняет связи:
 - **Учитель**: таблица класса (ученики × навыки), фильтры `низкие/Elo`,
   клик → карточка ученика, **флаги античита**, истории изменений. Ссылка
   на PDF.
+  - S-40: классы/группы — `GET /classes/{id}/dashboard` (навыки, флаги,
+    матчи/Elo); владелец-учитель или admin; чужой teacher — 403.
 - **PDF родителям** (fpdf2 + TTF, порт из annotator): «итоги недели/месяца» —
   навыки с трендами, задания, шахматный прогресс, Elo бота, комментарии
   учителя. Route `reports.parent_summary` — L1 генерирует
@@ -804,6 +807,8 @@ users(id, email uq, password_hash, role, email_verified_at, is_active, created_a
 email_tokens(id, user_id, kind verify|reset, token, expires_at, used_at)
 refresh_sessions(id, user_id, token_hash, user_agent, expires_at, revoked_at)
 user_profiles(user_id pk→users, display_name, level, billing_tier, prefs jsonb)
+classes(id, name, teacher_id→users, invite_code uq, created_at)  # S-40
+class_members(class_id→classes, user_id→users, joined_at, pk(class_id,user_id))
 ```
 
 **Python-домен (py_*)**

@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
 import { BotsPage } from '../pages/BotsPage';
 import { ChessPage } from '../pages/ChessPage';
+import { ClassesPage } from '../pages/ClassesPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { PythonPage } from '../pages/PythonPage';
 import { SkillsPage } from '../pages/SkillsPage';
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/chess', label: 'Шахматы' },
   { to: '/bots', label: 'Боты' },
   { to: '/skills', label: 'Навыки' },
+  { to: '/classes', label: 'Классы' },
 ];
 
 export function App() {
@@ -44,6 +46,7 @@ export function App() {
           <Route path="/chess" element={<ChessPage />} />
           <Route path="/bots" element={<BotsPage />} />
           <Route path="/skills" element={<SkillsPage />} />
+          <Route path="/classes" element={<ClassesPage />} />
         </Routes>
       </main>
     </div>

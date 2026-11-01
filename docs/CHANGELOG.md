@@ -128,6 +128,17 @@
 - `LLM_EMBED_MODEL` пуст по умолчанию → hash-фолбэк без сетевых вызовов.
 - Тесты: фаза/запрос/поиск + knowledge в insight; backend 162, frontend 5.
 
+#### S-40 — Группы и классы (2026-11-02)
+- Миграция `0015_classes`: `classes` (teacher_id, invite_code UNIQUE) +
+  `class_members` (PK class_id+user_id), индексы.
+- `domains/classes`: 8 endpoints — create/list/join/detail, rotate invite,
+  dashboard, add/remove member; RBAC (owner-teacher/admin; student join).
+- Dashboard: 11 навыков, флаги (всего/новые), матчи/победы/ничьи/Elo.
+- Seed: `teacher@chessclass.dev` (`SEED_TEACHER_PASSWORD`); UI `/classes`:
+  список, создание, инвайт, участники, таблица группы.
+- Тесты: create/join/dashboard, чужой teacher 403, add/remove/rotate;
+  backend 164, frontend 5, build OK.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —
