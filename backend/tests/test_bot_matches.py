@@ -60,6 +60,45 @@ async def test_match_vs_random_completes(
         assert float(stats.elo) == result["elo"]
 
 
+async def test_match_run_returns_real_match_id(
+    admin_client, make_client, unique_email, monkeypatch
+):
+    client = await make_client()
+    await register_verified(client, unique_email)
+    _c, access, _uid = await login(client, unique_email)
+    headers = {"Authorization": f"Bearer {access}"}
+
+    response = await client.post(
+        f"{API}/bots", json={"code": RANDOM_BOT}, headers=headers
+    )
+    bot_id = int(response.json()["id"])
+
+    class FakePool:
+        async def enqueue_job(self, *args):
+            self.args = args
+
+        async def aclose(self):
+            return None
+
+    async def fake_create_pool(*args, **kwargs):
+        return FakePool()
+
+    monkeypatch.setattr("arq.connections.create_pool", fake_create_pool)
+    response = await client.post(
+        f"{API}/bots/{bot_id}/match/run",
+        json={"opponent": "random"},
+        headers=headers,
+    )
+    assert response.status_code == 202
+    match_id = int(response.json()["matchId"])
+    assert match_id > 0
+
+    async with session_factory() as session:
+        match = await session.get(BotMatch, match_id)
+        assert match is not None
+        assert match.finished_at is None
+
+
 async def test_match_stats_endpoint(
     admin_client, make_client, unique_email, worker_role, redis_client
 ):
@@ -71,6 +110,10 @@ async def test_match_stats_endpoint(
     response = await client.get(f"{API}/bots/stats", headers=headers)
     assert response.status_code == 200
     assert response.json()["elo"] == 1000.0
+
+    response = await client.get(f"{API}/bots/leaderboard", headers=headers)
+    assert response.status_code == 200  # S-33: /leaderboard не перехвачен /{bot_id}
+    assert isinstance(response.json(), list)
 
     response = await client.post(
         f"{API}/bots", json={"code": RANDOM_BOT}, headers=headers

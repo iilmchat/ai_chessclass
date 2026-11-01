@@ -9,7 +9,7 @@
 > Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md` (шаблон — `docs/RULES.md` §7).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 3/16 (S-30, S-31, S-32 ✅).** Сначала
+**Сводно:** 16 спринтов / 6 этапов. **Прогресс: 4/16 (S-30…S-33 ✅).** Сначала
 закрываем технические хвосты v0.1.0 (E-11…E-13), затем — возможности v0.2
 из Design §2.2 (E-14…E-16). Формула этапа: **сначала надёжность, потом
 класс и вовлечение**.
@@ -68,12 +68,18 @@
   номера строк, ввод, переключение задания, сохранение после reload.
 - **Отчёт:** `docs/sprint-reports/S-32-2026-11-02.md`.
 
-### S-33 ☐ SSE в UI
-- [ ] общий `useEventStream` (fetch/EventSource, токен, reconnect, last-event-id)
-- [ ] прогресс PGN-анализа и бот-матча на экране; fallback на polling
-- [ ] индикаторы «идёт/готово/ошибка», очистка подписки, тест хука
+### S-33 ✅ SSE в UI
+- [x] общий `useEventStream` (fetch/EventSource, токен, reconnect, last-event-id)
+- [x] прогресс PGN-анализа и бот-матча на экране; fallback на polling
+- [x] индикаторы «идёт/готово/ошибка», очистка подписки, тест хука
 - **DoD:** прогресс виден без ручного refresh; обрыв связи восстанавливается;
   polling остаётся страховкой.
+- **Факт:** `useEventStream` (fetch-SSE, Bearer, reconnect, Last-Event-ID);
+  PGN: `status/progress/done` + blunders; матч: `running/done` (matchId
+  создаётся до enqueue, SSE отдаёт позднему подписчику done); polling 2.5–3 с.
+  Vitest: 5 тестов (парсер, поток, reconnect); `tsc`/build 0. Backend 156.
+  CI: job `frontend` (npm ci/test/build).
+- **Отчёт:** `docs/sprint-reports/S-33-2026-11-02.md`.
 
 ### S-34 ☐ Доска: drag-and-drop и мобильный UX
 - [ ] перетаскивание фигур, подсветка легальных ходов, отмена/повтор

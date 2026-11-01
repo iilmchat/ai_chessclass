@@ -294,6 +294,7 @@ interface BotTestOut {
 
 ```ts
 // POST /bots/{id}/match/run { opponent: "random"|"greedy"|"minimax2" } → 202
+//   { matchId, status: "queued" } — строка матча создаётся до enqueue (S-33)
 // GET /bots/{id}/matches → [{ id, opponent, result, movesCount, durationMs, eloDelta, ... }]
 // GET /bots/stats → { elo, wins, losses, draws }  // старт 1000
 ```
@@ -312,7 +313,9 @@ interface BotTestOut {
   elo/wins/losses/draws; `bot_matches` — result/moves_count/duration_ms/
   elo_delta; `bot_match_moves` — реплей (семплирование SF — S-19).
 - Прогресс — Redis pubsub `bots:match:{id}` → SSE
-  `GET /bots/{id}/matches/{mid}/events`.
+  `GET /bots/{id}/matches/{mid}/events`: начальный `{status:"running", ply}`,
+  затем `{status:"running", ply}` каждые 5 полуходов и
+  `{status:"done", result, eloDelta}`; поздний подписчик получает done сразу.
 - **Реплей**: `GET /bots/{id}/matches/{mid}/replay` — метаданные + ходы
   (ply/fen/uci/agent/thinkMs); приватность как у матчей (404 чужому).
 - **Лидерборд**: `GET /bots/leaderboard?limit` — top по Elo (v0.1 открытым
@@ -386,11 +389,23 @@ Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfi
 }
 ```
 
-## 5. Живые события (SSE) — резерв
+## 5. Живые события (SSE)
 
-- `GET /api/v1/bots/{id}/match/events` — SSE-прогресс матча (полуход, доска).
-- Воркер arq публикует в Redis pubsub; формат сообщения — JSON `{event, data}`.
-- Контракт закрепляется в S-08; до этого не изобретаем поля.
+- **Chess PGN**: `GET /api/v1/chess/games/{id}/events` — первый
+  `event: status` `{status: pending|running|done|failed}`; затем
+  `event: progress` `{ply, total, status}` каждые ~5 позиций;
+  `done/failed` — конец потока. Поздний подписчик при уже готовом анализе
+  получает `status` и поток закрывается.
+- **Bot match**: `GET /api/v1/bots/{id}/matches/{mid}/events` — первый
+  `event: progress` `{status:"running", ply}` или `{status:"done", result,
+  eloDelta}`; далее progress каждые 5 полуходов и финальный done.
+- Авторизация — Bearer access-JWT (заголовок `Authorization`), поэтому
+  фронтенд использует `fetch`-SSE (`useEventStream`), а не `EventSource`.
+- `useEventStream` поддерживает reconnect с экспоненциальной задержкой и
+  `Last-Event-ID`; при недоступности SSE UI переходит на polling
+  (`GET /chess/games/{id}` / `GET /bots/{id}/matches`).
+- Формат SSE-блока — стандартный `event:`/`data:`; сервер закрывает поток
+  после `done/failed`.
 
 ## 6. LLM-шлюз: маршруты и модели (S-04)
 
@@ -565,3 +580,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-01 | S-26: полировка UI ✅ — дашборд-сводка, статистика Elo, инсайт дня, dark-тема | S-26 |
 | 2026-11-01 | S-27: e2e ✅ — полный journey §3.4 (регистрация→...→PDF) в тест-наборе | S-27 |
 | 2026-11-01 | S-31: LLM live ✅ — RouterAI-слаги/цены, `/admin/llm/health`, smoke 4/4, FinOps | S-31 |
+| 2026-11-02 | S-33: SSE UI ✅ — `useEventStream`, PGN-прогресс/blunders, матч-прогресс, polling fallback | S-33 |

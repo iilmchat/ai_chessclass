@@ -960,7 +960,8 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 - **React 19 + TypeScript + Vite**; роутер — React Router 7; состояние —
   TanStack Query (сервер) + Zustand (UI-state); формы — RHF+Zod; графики —
   Recharts; редактор кода — CodeMirror 6 (python, bot editor); SSE —
-  native EventSource.
+  fetch-stream с Bearer (EventSource не передаёт Authorization) + polling
+  fallback.
 - Порт компонентов из двух проектов: каждый «виджет» — таблица в §20.
 - Дизайн-система: shadcn/ui + Tailwind (виджеты перестраиваются —
   адаптация стилей); темы: light/dark (в профиле).

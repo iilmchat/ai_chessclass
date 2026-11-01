@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  API_BASE,
   ApiError,
   apiFetch,
   getToken,
@@ -8,6 +9,7 @@ import {
 import { LoginGate } from '../shared/LoginGate';
 import { LazyCodeEditor } from '../shared/LazyCodeEditor';
 import { draftKey, readDraft, writeDraft } from '../shared/draft';
+import { useEventStream } from '../shared/useEventStream';
 
 interface BotDto {
   id: string;
@@ -24,6 +26,17 @@ interface MatchDto {
   movesCount: number;
   durationMs: number;
   eloDelta: number;
+}
+
+interface MatchRunOut {
+  matchId: number;
+  status: string;
+}
+
+interface ActiveMatch {
+  botId: string;
+  matchId: number;
+  ply: number;
 }
 
 interface ReplayDto {
@@ -54,6 +67,7 @@ export function BotsPage() {
   const [code, setCode] = useState(() => readDraft(draftKey('bots')) ?? DEFAULT_BOT_CODE);
   const [testInfo, setTestInfo] = useState('');
   const [matches, setMatches] = useState<MatchDto[]>([]);
+  const [activeMatch, setActiveMatch] = useState<ActiveMatch | null>(null);
   const [replay, setReplay] = useState<ReplayDto | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([]);
   const [busy, setBusy] = useState('');
@@ -65,6 +79,23 @@ export function BotsPage() {
     apiFetch<LeaderRow[]>('/bots/leaderboard').then(setLeaderboard).catch(() => setLeaderboard([]));
   }, []);
 
+  const finishMatch = useCallback(
+    (botId: string, result?: string, eloDelta?: number) => {
+      setActiveMatch(null);
+      if (result) {
+        const delta = eloDelta !== undefined ? ` (Δelo ${eloDelta})` : '';
+        setTestInfo(`Матч завершён: ${result}${delta}`);
+      }
+      loadAll();
+      if (botId) {
+        apiFetch<MatchDto[]>(`/bots/${botId}/matches`)
+          .then(setMatches)
+          .catch(() => undefined);
+      }
+    },
+    [loadAll],
+  );
+
   useEffect(() => {
     if (authed) loadAll();
   }, [authed, loadAll]);
@@ -72,6 +103,74 @@ export function BotsPage() {
   useEffect(() => {
     writeDraft(draftKey('bots'), code);
   }, [code]);
+
+  const matchStream = useEventStream({
+    url: activeMatch
+      ? `${API_BASE}/bots/${activeMatch.botId}/matches/${activeMatch.matchId}/events`
+      : null,
+    enabled: activeMatch !== null,
+    onEvent: (event) => {
+      if (event.event !== 'progress') {
+        return;
+      }
+      try {
+        const data = JSON.parse(event.data) as {
+          status?: string;
+          ply?: number;
+          result?: string;
+          eloDelta?: number;
+        };
+        if (data.status === 'running') {
+          setActiveMatch((prev) =>
+            prev && typeof data.ply === 'number'
+              ? { ...prev, ply: data.ply }
+              : prev,
+          );
+        } else if (data.status === 'done') {
+          finishMatch(activeMatch?.botId ?? '', data.result, data.eloDelta);
+        } else if (data.status === 'failed') {
+          setActiveMatch(null);
+          setTestInfo('Матч завершился ошибкой');
+          loadAll();
+        }
+      } catch {
+        // Некорректный JSON не должен ломать UI; polling остаётся страховкой.
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (!activeMatch) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      apiFetch<MatchDto[]>(`/bots/${activeMatch.botId}/matches`)
+        .then((list) => {
+          setMatches(list);
+          const finished = list.find(
+            (match) => match.id === String(activeMatch.matchId),
+          );
+          if (finished) {
+            finishMatch(activeMatch.botId, finished.result, finished.eloDelta);
+          }
+        })
+        .catch(() => undefined);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [activeMatch, finishMatch]);
+
+  const streamLabel =
+    matchStream.status === 'open'
+      ? 'live'
+      : matchStream.status === 'connecting'
+        ? 'подключение'
+        : matchStream.status === 'reconnecting'
+          ? 'переподключение'
+          : matchStream.status === 'error'
+            ? 'polling'
+            : matchStream.status === 'closed'
+              ? 'завершён'
+              : '—';
 
   const act = useCallback(
     async (fn: () => Promise<void>) => {
@@ -109,16 +208,23 @@ export function BotsPage() {
 
   const runMatch = (botId: string, opponent = 'random') =>
     act(async () => {
-      setTestInfo('Матч поставлен в очередь (arq); обновите список через ~20 с');
-      await apiFetch(`/bots/${botId}/match/run`, {
-        method: 'POST',
-        body: JSON.stringify({ opponent }),
-      });
-      setTimeout(() => {
-        apiFetch<{ id: string; opponent: string; result: string; movesCount: number; durationMs: number; eloDelta: number }[]>(
-          `/bots/${botId}/matches`
-        )
-          .then((m) => setMatches(m))
+      setTestInfo('Матч поставлен в очередь…');
+      const started = await apiFetch<MatchRunOut>(
+        `/bots/${botId}/match/run`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ opponent }),
+        },
+      );
+      if (started.matchId > 0) {
+        setActiveMatch({ botId, matchId: started.matchId, ply: 0 });
+        setTestInfo(`Матч #${started.matchId} идёт…`);
+        return;
+      }
+      // Совместимость со старым API (matchId=-1): polling через 20 с.
+      window.setTimeout(() => {
+        apiFetch<MatchDto[]>(`/bots/${botId}/matches`)
+          .then(setMatches)
           .catch(() => undefined);
         loadAll();
       }, 20000);
@@ -150,6 +256,12 @@ export function BotsPage() {
         </button>
       </p>
       {error && <p className="verdict failed-note">{error}</p>}
+
+      {activeMatch && (
+        <p className="link-hint">
+          Матч #{activeMatch.matchId}: ход {activeMatch.ply} · поток: {streamLabel}
+        </p>
+      )}
 
       {stats && (
         <div className="panel">

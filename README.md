@@ -8,8 +8,9 @@
 ([TODO_V0.2.md](TODO_V0.2.md)) · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
-— lint (ruff) → typecheck (mypy) → alembic → seeds → pytest (PostgreSQL 17 + Redis
-сервисы; подробности — [docs/RULES.md](docs/RULES.md))
+— backend: lint (ruff) → typecheck (mypy) → alembic → seeds → pytest; frontend:
+Vitest → tsc/build (PostgreSQL 17 + Redis сервисы; подробности —
+[docs/RULES.md](docs/RULES.md))
 
 **Стек:** Python 3.12 + FastAPI · React 19 + TypeScript (Vite) · PostgreSQL 17 + pgvector ·
 Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, локальный
@@ -88,11 +89,11 @@ healthchecks, миграции, TLS, бэкапы) — спринты S-30 ✅/S
 |------------|----------|
 | Версия | **v0.1.0** (2026-11-01, тег `v0.1.0`, коммит `316fce9`) |
 | Спринты | **29/29** (S-01…S-29), этапы E-01…E-10 ✅ |
-| Тесты backend | **155 passed** (юнит + интеграционные + e2e-journey) |
+| Тесты backend | **156 passed** (юнит + интеграционные + e2e-journey) |
 | Миграции | Alembic head **0014_reports** (14) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 3 пользователя + 11 навыков + 5 skill_links + 16 заданий |
-| Следующий этап | **v0.2.0** — S-30, S-31, S-32 ✅, далее S-33…S-45 ([план](TODO_V0.2.md)) |
+| Следующий этап | **v0.2.0** — S-30…S-33 ✅, далее S-34…S-45 ([план](TODO_V0.2.md)) |
 
 ---
 

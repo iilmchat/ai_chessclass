@@ -8,6 +8,7 @@ from pydantic import Field
 
 from core.base import CamelModel
 from core.config import settings
+from core.errors import AppError
 from domains.auth.deps import CurrentUser, DbSession
 from domains.bot_lab import service as svc
 
@@ -112,6 +113,19 @@ async def bot_stats(user: CurrentUser, session: DbSession) -> StatsOut:
     )
 
 
+# /leaderboard — тоже раньше /{bot_id} (S-33: иначе 422 как int).
+@router.get("/leaderboard")
+async def leaderboard(
+    user: CurrentUser,
+    session: DbSession,
+    limit: int = Query(default=10, ge=1, le=50),
+) -> list[dict]:
+    """Лидерборд по Elo (§7.6; v0.1 — открытым списком)."""
+    from domains.bot_lab.replay import leaderboard as lb
+
+    return await lb(session, limit)
+
+
 @router.get("/{bot_id}", response_model=BotOut)
 async def get_bot(bot_id: int, user: CurrentUser, session: DbSession) -> BotOut:
     bot = await svc.get_bot(session, user, bot_id)
@@ -143,15 +157,33 @@ async def test_bot(
 async def run_match(
     bot_id: int, body: MatchRunIn, user: CurrentUser, session: DbSession, request: Request
 ) -> MatchRunOut:
-    await svc.get_bot(session, user, bot_id)
+    bot = await svc.get_bot(session, user, bot_id)
+    from decimal import Decimal
+
     from arq.connections import RedisSettings, create_pool
+
+    from domains.bot_lab.models import BotMatch, MatchResult
+
+    # S-33: матч создаётся до enqueue, чтобы UI сразу получил matchId и SSE.
+    match = BotMatch(
+        version_id=bot.id,
+        user_id=user.id,
+        opponent=body.opponent,
+        result=MatchResult.DRAW,
+        moves_count=0,
+        duration_ms=0,
+        elo_delta=Decimal("0"),
+    )
+    session.add(match)
+    await session.flush()
+    await session.commit()
 
     pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     try:
-        await pool.enqueue_job("run_match", bot_id, body.opponent)
+        await pool.enqueue_job("run_match", bot_id, body.opponent, match.id)
     finally:
         await pool.aclose()
-    return MatchRunOut(matchId=-1, status="queued")
+    return MatchRunOut(matchId=match.id, status="queued")
 
 
 @router.get("/{bot_id}/matches", response_model=list[MatchOut])
@@ -196,30 +228,47 @@ async def match_replay(
     return await get_replay(session, user, bot_id, match_id)
 
 
-@router.get("/leaderboard")
-async def leaderboard(
-    user: CurrentUser, session: DbSession,
-    limit: int = Query(default=10, ge=1, le=50),
-) -> list[dict]:
-    """Лидерборд по Elo (§7.6; v0.1 — открытым списком)."""
-    from domains.bot_lab.replay import leaderboard as lb
-
-    return await lb(session, limit)
-
-
 @router.get("/{bot_id}/matches/{match_id}/events", summary="SSE прогресс матча")
 async def match_events(
     bot_id: int, match_id: int, user: CurrentUser, session: DbSession, request: Request
 ) -> StreamingResponse:
+    from domains.bot_lab.models import BotMatch
     from domains.bot_lab.replay import match_progress_payload
 
     await svc.get_bot(session, user, bot_id)
+    match = await session.get(BotMatch, match_id)
+    if (
+        match is None
+        or match.version_id != bot_id
+        or match.user_id != user.id
+    ):
+        raise AppError("match_not_found", "Матч не найден", 404)
+
+    initial_ply = match.moves_count
+    if match.finished_at is not None:
+        done_payload = json.dumps(
+            {
+                "status": "done",
+                "result": match.result.value,
+                "eloDelta": float(match.elo_delta),
+            }
+        )
+
+        async def finished_stream():
+            yield f"event: progress\ndata: {done_payload}\n\n"
+
+        return StreamingResponse(finished_stream(), media_type="text/event-stream")
+
     channel = f"bots:match:{match_id}"
 
     async def stream():
         pubsub = request.app.state.redis.pubsub()
         await pubsub.subscribe(channel)
         try:
+            yield (
+                "event: progress\n"
+                f"data: {json.dumps({'status': 'running', 'ply': initial_ply})}\n\n"
+            )
             while True:
                 if await request.is_disconnected():
                     break
@@ -229,7 +278,7 @@ async def match_events(
                 if message and message.get("data"):
                     payload = match_progress_payload(message["data"])
                     yield f"event: progress\ndata: {json.dumps(payload)}\n\n"
-                    if payload.get("status") == "done":
+                    if payload.get("status") in ("done", "failed"):
                         break
         finally:
             await pubsub.unsubscribe(channel)

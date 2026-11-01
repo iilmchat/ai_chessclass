@@ -55,12 +55,14 @@ async def scores_recalc(ctx: dict) -> dict:
     return {"users": len(user_ids), "updatedRows": updated}
 
 
-async def run_match(ctx: dict, bot_version_id: int, opponent: str) -> dict:
+async def run_match(
+    ctx: dict, bot_version_id: int, opponent: str, match_id: int | None = None
+) -> dict:
     """Матч бота против оппонента лестницы (S-18; без LLM)."""
     from domains.bot_lab.match import run_match as run
 
     logger.info("worker: run_match bot=%s vs %s", bot_version_id, opponent)
-    return await run(bot_version_id, opponent, ctx["redis"])
+    return await run(bot_version_id, opponent, ctx["redis"], match_id=match_id)
 
 
 class WorkerSettings:

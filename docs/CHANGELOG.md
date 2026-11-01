@@ -48,6 +48,19 @@
 - `npm run build`: tsc 0; main 355.57 kB (gzip 111.93, +1.81 kB), CodeEditor
   lazy-chunk 467.97 kB (gzip 157.16).
 
+#### S-33 — SSE в UI (2026-11-02)
+- `shared/useEventStream.ts`: fetch-SSE с Bearer, парсер блоков, reconnect
+  с экспоненциальной задержкой и `Last-Event-ID`; Vitest-тесты (5).
+- ChessPage: PGN upload → live-прогресс `{ply,total}`, статус, blunders,
+  объяснение блюндеров; polling fallback каждые 3 с.
+- BotsPage: матч получает реальный `matchId` до enqueue; SSE-прогресс
+  `running/done`, polling fallback 2.5 с; лидерборд починен (route order).
+- Backend: `match_events` отдаёт начальный статус/позднему подписчику done;
+  воркер публикует progress каждые 5 полуходов; chess SSE закрывается на
+  done/failed; `domains.auth.models` импортируется в worker-матче (FK users).
+- `npm test`: 5 passed; `npm run build`: tsc 0; backend 156 passed.
+- CI: job `frontend` (Node 22) — `npm ci` → `npm test` → `npm run build`.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

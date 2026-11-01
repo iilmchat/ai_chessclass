@@ -197,6 +197,9 @@ async def game_events(
         try:
             analysis = await svc.get_analysis_for_user(session, user, game_id)
             yield f"event: status\ndata: {json.dumps({'status': analysis.status.value})}\n\n"
+            if analysis.status.value in ("done", "failed"):
+                # Поздний подписчик: результат уже в БД, pubsub-события не будет.
+                return
             while True:
                 if await request.is_disconnected():
                     break

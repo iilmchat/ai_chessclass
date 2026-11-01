@@ -34,9 +34,16 @@ SF_OPPONENTS: dict[str, int] = {
 SF_MOVE_MS = 300
 
 
-async def run_match(bot_version_id: int, opponent: str, redis) -> dict:
-    """Полный матч: ходы, вердикт, Elo, запись bot_matches/moves."""
+async def run_match(
+    bot_version_id: int, opponent: str, redis, match_id: int | None = None
+) -> dict:
+    """Полный матч: ходы, вердикт, Elo, запись bot_matches/moves.
+
+    ``match_id`` (S-33) — заранее созданная API-строка для SSE; без него
+    матч создаётся здесь (совместимость с тестами и старыми задачами).
+    """
     from core.db import session_factory
+    from domains.auth.models import User  # noqa: F401 - FK users для BotStats
     from domains.bot_lab.models import (
         BotMatch,
         BotMatchMove,
@@ -57,17 +64,28 @@ async def run_match(bot_version_id: int, opponent: str, redis) -> dict:
         version = await session.get(BotVersion, bot_version_id)
         if version is None:
             return {"error": "bot not found"}
-        match = BotMatch(
-            version_id=version.id,
-            user_id=version.user_id,
-            opponent=opponent,
-            result=MatchResult.DRAW,
-            moves_count=0,
-            duration_ms=0,
-            elo_delta=Decimal("0"),
-        )
-        session.add(match)
-        await session.flush()
+        if match_id is not None:
+            match = await session.get(BotMatch, match_id)
+            if (
+                match is None
+                or match.version_id != version.id
+                or match.user_id != version.user_id
+            ):
+                return {"error": "match not found"}
+            if match.finished_at is not None:
+                return {"error": "match already finished"}
+        else:
+            match = BotMatch(
+                version_id=version.id,
+                user_id=version.user_id,
+                opponent=opponent,
+                result=MatchResult.DRAW,
+                moves_count=0,
+                duration_ms=0,
+                elo_delta=Decimal("0"),
+            )
+            session.add(match)
+            await session.flush()
 
         board = chess.Board()
         result_final = MatchResult.DRAW
@@ -145,6 +163,14 @@ async def run_match(bot_version_id: int, opponent: str, redis) -> dict:
                     if sampled:
                         sampled_count += 1
                 ply += 1
+                if ply % 5 == 0:
+                    try:
+                        await redis.publish(
+                            f"bots:match:{match.id}",
+                            json.dumps({"status": "running", "ply": ply}),
+                        )
+                    except Exception:  # noqa: BLE001 - прогресс не критичен
+                        pass
 
             if failure is not None:
                 result_final = failure

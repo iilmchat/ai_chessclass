@@ -1,4 +1,5 @@
-const BASE = '/api/v1';
+export const API_BASE = '/api/v1';
+const BASE = API_BASE;
 const TOKEN_KEY = 'cc_access_token';
 
 let accessToken: string | null = localStorage.getItem(TOKEN_KEY);
@@ -186,4 +187,68 @@ export function fetchPositions(): Promise<{
   total: number;
 }> {
   return apiFetch('/chess/positions?limit=20');
+}
+
+// --- chess_lab: PGN-анализ (S-12/S-33)
+
+export interface GameUploadOut {
+  gameId: string;
+  status: string;
+}
+
+export interface GameStatusOut {
+  gameId: string;
+  status: string;
+  blunderCount: number;
+  summary: Record<string, unknown>;
+}
+
+export interface BlunderDto {
+  ply: number;
+  fenBefore: string;
+  playedSan: string;
+  playedUci: string;
+  bestSan: string;
+  bestUci: string;
+  deltaCp: number;
+  classification: string;
+  explanation: string | null;
+}
+
+export interface BlundersOut {
+  gameId: string;
+  status: string;
+  blunders: BlunderDto[];
+  summary: Record<string, unknown>;
+}
+
+export interface BlunderExplainOut {
+  ply: number;
+  explanation: string;
+  modelUsed: string;
+}
+
+export function uploadGame(pgn: string): Promise<GameUploadOut> {
+  return apiFetch('/chess/games/upload', {
+    method: 'POST',
+    body: JSON.stringify({ pgn }),
+  });
+}
+
+export function fetchGameStatus(gameId: string): Promise<GameStatusOut> {
+  return apiFetch(`/chess/games/${gameId}`);
+}
+
+export function fetchBlunders(gameId: string): Promise<BlundersOut> {
+  return apiFetch(`/chess/games/${gameId}/blunders`);
+}
+
+export function explainBlunder(
+  gameId: string,
+  ply: number,
+): Promise<BlunderExplainOut> {
+  return apiFetch(`/chess/games/${gameId}/blunders/explain`, {
+    method: 'POST',
+    body: JSON.stringify({ ply }),
+  });
 }
