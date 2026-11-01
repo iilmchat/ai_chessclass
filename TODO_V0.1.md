@@ -254,11 +254,12 @@
 - **DoD:** e2e зелёные в CI при каждом PR ✅
   (2026-11-01: pytest 148 passed — API-journey §3.4; Playwright-UI — S-28; отчёт — docs/sprint-reports/S-27-2026-11-01.md)
 
-### S-28 📚 Документация и NFR
-- [ ] `docs/SPEC.md` полный: DDL, API-схемы, таблицы промптов/весов/порогов
-- [ ] `docs/RULES.md` полный; sprint-reports: ретроспектива этапа
-- [ ] NFR-проверки (Design §2.3): p95 < 500 мс, матч ≤ 120 c, бюджеты
-- **DoD:** NFR-чеклист пройден; SPEC/RULES — «жизнеспособные» единственные источники
+### S-28 ✅ Документация и NFR
+- [x] `docs/SPEC.md` полный: DDL, API-схемы, таблицы промптов/весов/порогов
+- [x] `docs/RULES.md` полный; sprint-reports: ретроспектива этапа
+- [x] NFR-проверки (Design §2.3): p95 < 500 мс, матч ≤ 120 c, бюджеты
+- **DoD:** NFR-чеклист пройден; SPEC/RULES — «жизнеспособные» единственные источники ✅
+  (2026-11-01: ретроспектива — docs/sprint-reports/RETROSPECTIVE-E01-E10.md)
 
 ### S-29 🚀 Релиз v0.1.0
 - [ ] prod-compose (uvicorn workers=4 + nginx), миграции auto-run
