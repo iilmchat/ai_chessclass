@@ -20,6 +20,7 @@ from domains.auth.models import User, UserRole
 from domains.auth.service import get_user_by_email
 from domains.cognitive.models import Skill, SkillDomain, SkillLink
 from domains.profile.models import UserProfile
+from domains.progress.models import Achievement
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,28 @@ SKILL_LINKS: tuple[tuple[str, str, float], ...] = (
     ("functions", "planning", 1.0),
     ("debugging", "calculation", 1.0),
     ("complexity", "calculation", 1.0),
+)
+
+# --- бейджи (S-42): code стабилен, kind/threshold — условие выдачи
+ACHIEVEMENTS: tuple[dict[str, str | int], ...] = (
+    {"code": "first_solution", "title": "Первое решение",
+     "description": "Решить первое задание", "kind": "solved", "threshold": 1,
+     "icon": "star"},
+    {"code": "five_solutions", "title": "Пять решений",
+     "description": "Решить пять заданий", "kind": "solved", "threshold": 5,
+     "icon": "five"},
+    {"code": "ten_solutions", "title": "Десятка",
+     "description": "Решить десять заданий", "kind": "solved", "threshold": 10,
+     "icon": "ten"},
+    {"code": "streak_3", "title": "Три дня подряд",
+     "description": "Заниматься три дня подряд", "kind": "streak", "threshold": 3,
+     "icon": "fire"},
+    {"code": "streak_7", "title": "Недельный стрик",
+     "description": "Заниматься семь дней подряд", "kind": "streak", "threshold": 7,
+     "icon": "fire"},
+    {"code": "topics_3", "title": "Три темы",
+     "description": "Решить задания из трёх разных тем", "kind": "topics",
+     "threshold": 3, "icon": "grid"},
 )
 
 
@@ -145,10 +168,32 @@ async def seed_skill_links(session) -> dict[str, int]:
     return {"skill_links": created}
 
 
+async def seed_achievements(session) -> dict[str, int]:
+    existing = set((await session.execute(select(Achievement.code))).scalars())
+    created = 0
+    for item in ACHIEVEMENTS:
+        code = str(item["code"])
+        if code in existing:
+            continue
+        session.add(
+            Achievement(
+                code=code,
+                title_ru=str(item["title"]),
+                description=str(item["description"]),
+                kind=str(item["kind"]),
+                threshold=int(item["threshold"]),
+                icon=str(item["icon"]),
+            )
+        )
+        created += 1
+    await session.flush()
+    return {"achievements": created}
+
+
 async def run() -> dict[str, int]:
     async with session_factory() as session:
         stats: dict[str, int] = {}
-        for step in (seed_users, seed_skills, seed_skill_links):
+        for step in (seed_users, seed_skills, seed_skill_links, seed_achievements):
             stats.update(await step(session))
         await session.commit()
     from db.seeds_rag import seed_rag

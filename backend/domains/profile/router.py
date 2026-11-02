@@ -12,7 +12,7 @@ from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
 from domains.auth.schemas import user_out
 from domains.profile import service as svc
-from domains.profile.models import UserProfile
+from domains.profile.models import AgeGroup, UserProfile
 from domains.profile.schemas import LevelUpdateIn, PageOut, ProfileOut, ProfileUpdateIn
 
 router = APIRouter(prefix="/profile", tags=["profile"])
@@ -28,6 +28,7 @@ def _profile_out(user: User, profile: UserProfile | None) -> ProfileOut:
         displayName=profile.display_name if profile else None,
         level=profile.level if profile else None,
         billingTier=profile.billing_tier if profile else None,
+        ageGroup=profile.age_group if profile else AgeGroup.UNKNOWN,
         prefs=profile.prefs if profile else {},
     )
 
@@ -43,7 +44,7 @@ async def patch_me(
     body: ProfileUpdateIn, user: CurrentUser, session: DbSession
 ) -> ProfileOut:
     profile = await svc.update_my_profile(
-        session, user.id, body.display_name, body.prefs
+        session, user.id, body.display_name, body.prefs, body.age_group
     )
     return _profile_out(user, profile)
 

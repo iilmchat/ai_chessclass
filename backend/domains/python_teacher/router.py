@@ -139,7 +139,12 @@ async def submit(
     request: Request,
 ) -> SubmissionOut:
     submission, _grade = await svc.submit(
-        session, request.app.state.redis, user, assignment_id, body.code
+        session,
+        request.app.state.redis,
+        user,
+        assignment_id,
+        body.code,
+        request=request,
     )
     out = _submission_out(submission)
     feedback = await svc.get_feedback(session, submission.id)

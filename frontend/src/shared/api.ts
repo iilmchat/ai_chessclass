@@ -359,3 +359,56 @@ export function removeClassMember(
     method: 'DELETE',
   });
 }
+
+// --- profile / progress (S-42)
+
+export interface ProfileDto {
+  id: string;
+  email: string;
+  role: string;
+  displayName: string | null;
+  level: string | null;
+  billingTier: string | null;
+  ageGroup: 'child' | 'teen' | 'adult' | 'unknown';
+  emailVerified: boolean;
+  isActive: boolean;
+  prefs: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AchievementDto {
+  code: string;
+  titleRu: string;
+  description: string;
+  icon: string;
+  awarded: boolean;
+  awardedAt: string | null;
+}
+
+export interface ProgressDto {
+  userId: string;
+  solvedCount: number;
+  topics: Record<string, number>;
+  currentStreak: number;
+  longestStreak: number;
+  lastSolvedOn: string | null;
+  achievements: AchievementDto[];
+}
+
+export function fetchMyProfile(): Promise<ProfileDto> {
+  return apiFetch('/profile/me');
+}
+
+export function updateMyProfile(payload: {
+  displayName?: string;
+  ageGroup?: string;
+}): Promise<ProfileDto> {
+  return apiFetch('/profile/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchMyProgress(): Promise<ProgressDto> {
+  return apiFetch('/progress/me');
+}

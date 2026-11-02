@@ -334,8 +334,8 @@ ai_chessclass/
 
 | Поле/сущность | Назначение |
 |---|---|
-| `user_profiles` | display_name, level, age_group (v0.2), email_verified_at, preferences (тема, голос — backlog) |
-| `py_progress` | решено заданий, по темам, стрики (v0.2) |
+| `user_profiles` | display_name, level, age_group (S-42, default unknown), email_verified_at, preferences (тема, голос — backlog) |
+| `py_progress` | решено заданий, по темам, стрики (S-42) |
 | `chess_progress` | позиции/партии, глубина анализа, blunder-стрики |
 | `bot_stats` | текущий Elo, история Elo, матчей, win-rate по лестнице |
 | `user_skill_scores` | недельные EMA по ~10 навыкам (§10) |
@@ -766,6 +766,8 @@ Seed-миграция заполняет связи:
 ### 10.5. Дашборды
 
 - **Ученик**: свой профиль навыков, тренды, Elo бота, рекомендации.
+  - S-42: `py_progress` (решено/темы), стрики (current/longest),
+    достижения (`user_achievements`); UI `/profile` + age_group.
 - **Учитель**: таблица класса (ученики × навыки), фильтры `низкие/Elo`,
   клик → карточка ученика, **флаги античита**, истории изменений. Ссылка
   на PDF.
@@ -810,7 +812,8 @@ Seed-миграция заполняет связи:
 users(id, email uq, password_hash, role, email_verified_at, is_active, created_at)
 email_tokens(id, user_id, kind verify|reset, token, expires_at, used_at)
 refresh_sessions(id, user_id, token_hash, user_agent, expires_at, revoked_at)
-user_profiles(user_id pk→users, display_name, level, billing_tier, prefs jsonb)
+user_profiles(user_id pk→users, display_name, level, billing_tier, prefs jsonb,
+              age_group child|teen|adult|unknown default unknown)  # S-42
 classes(id, name, teacher_id→users, invite_code uq, created_at)  # S-40
 class_members(class_id→classes, user_id→users, joined_at, pk(class_id,user_id))
 audit_logs(id, actor_id→users SET NULL, actor_email, actor_role, action,
@@ -821,6 +824,11 @@ audit_logs(id, actor_id→users SET NULL, actor_email, actor_role, action,
 ```
 py_assignments, py_submissions, py_hints, py_feedback  (§5.2)
 py_reference_solutions(id, assignment_id, source, note)  # для античита-сходства
+py_progress(user_id pk→users, solved_count, topics jsonb, solved_assignments jsonb,
+            current_streak, longest_streak, last_solved_on, updated_at)  # S-42
+achievements(id, code uq, title_ru, description, kind, threshold, icon)
+user_achievements(user_id→users, achievement_id→achievements, awarded_at,
+                  context jsonb, pk(user_id, achievement_id))  # S-42
 ```
 
 **Шахматный домен (chess_*)**
@@ -995,6 +1003,7 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | Шахматы | `/chess/position`, `/chess/games`, `/chess/game/:id` | доска (react-chessboard), инсайт, анализ | все |
 | Боты | `/bots`, `/bots/:id`, `/bots/:id/match/:matchId` | редактор, лестница, реплей матчей | все |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
+| Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |
 | Классы | `/classes` | классы, инвайты, групповой дашборд | teacher/admin (join — student) |
 | Кабинет учителя | `/teacher/students`, `/teacher/flags`, `/teacher/reports` | ученики, флаги, PDF | teacher/admin |
 | Аудит | `/admin/audit/logs`, `/admin/audit/export.csv` | журнал действий, CSV | teacher/admin/auditor |

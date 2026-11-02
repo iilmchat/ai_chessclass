@@ -3,6 +3,7 @@ import { BotsPage } from '../pages/BotsPage';
 import { ChessPage } from '../pages/ChessPage';
 import { ClassesPage } from '../pages/ClassesPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { ProfilePage } from '../pages/ProfilePage';
 import { PythonPage } from '../pages/PythonPage';
 import { SkillsPage } from '../pages/SkillsPage';
 
@@ -13,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/bots', label: 'Боты' },
   { to: '/skills', label: 'Навыки' },
   { to: '/classes', label: 'Классы' },
+  { to: '/profile', label: 'Профиль' },
 ];
 
 export function App() {
@@ -47,6 +49,7 @@ export function App() {
           <Route path="/bots" element={<BotsPage />} />
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/classes" element={<ClassesPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </main>
     </div>

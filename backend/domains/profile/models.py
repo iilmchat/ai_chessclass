@@ -17,6 +17,13 @@ class BillingTier(enum.StrEnum):
     PRO = "pro"
 
 
+class AgeGroup(enum.StrEnum):
+    CHILD = "child"
+    TEEN = "teen"
+    ADULT = "adult"
+    UNKNOWN = "unknown"
+
+
 def _str_enum(enum_cls: type[enum.Enum], length: int) -> sa.Enum:
     """Enum-колонка как VARCHAR + CHECK со значениями (не именами) enum."""
     return sa.Enum(
@@ -43,6 +50,9 @@ class UserProfile(Base):
     )
     billing_tier: Mapped[BillingTier] = mapped_column(
         _str_enum(BillingTier, 12), nullable=False, default=BillingTier.FREE
+    )
+    age_group: Mapped[AgeGroup] = mapped_column(
+        _str_enum(AgeGroup, 12), nullable=False, default=AgeGroup.UNKNOWN
     )
     prefs: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(

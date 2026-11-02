@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
 from core.config import settings
 from core.errors import AppError
@@ -20,6 +21,7 @@ from domains.cognitive.events import (
 )
 from domains.cognitive.models import SkillDomain
 from domains.profile.models import UserProfile
+from domains.progress.service import record_passed_solution
 from domains.python_teacher.grader import grade_solution
 from domains.python_teacher.models import (
     AssignmentLevel,
@@ -375,7 +377,12 @@ async def _make_comment(
 
 
 async def submit(
-    session: AsyncSession, redis, user: User, assignment_id: int, code: str
+    session: AsyncSession,
+    redis,
+    user: User,
+    assignment_id: int,
+    code: str,
+    request: Request | None = None,
 ) -> tuple[PySubmission, object]:
     """Сдача: прогон в песочнице → вердикт → py_submissions → комментарий →
     low_effort-флаг → событие навыка (Design §5.3)."""
@@ -464,6 +471,14 @@ async def submit(
             meta={"submissionId": submission.id, "verdict": grade.verdict},
         )
         await session.flush()
+        if grade.verdict == "passed":
+            await record_passed_solution(
+                session,
+                user,
+                assignment.topic,
+                assignment.id,
+                request=request,
+            )
 
     logger.info(
         "py: сдача user_id=%s assignment=%s → %s (%d/%d)",

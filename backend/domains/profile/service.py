@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.errors import AppError
 from core.levels import Level
 from domains.auth.models import User, UserRole
-from domains.profile.models import UserProfile
+from domains.profile.models import AgeGroup, UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +34,20 @@ async def get_profile_view(session: AsyncSession, user_id: int) -> tuple[User, U
 
 
 async def update_my_profile(
-    session: AsyncSession, user_id: int, display_name: str | None, prefs: dict | None
+    session: AsyncSession,
+    user_id: int,
+    display_name: str | None,
+    prefs: dict | None,
+    age_group: AgeGroup | None = None,
 ) -> UserProfile:
-    """PATCH /profile/me: display_name/prefs; level здесь не меняется."""
+    """PATCH /profile/me: display_name/prefs/age_group; level здесь не меняется."""
     profile = await ensure_profile(session, user_id)
     if display_name is not None:
         profile.display_name = display_name
     if prefs is not None:
         profile.prefs = prefs
+    if age_group is not None:
+        profile.age_group = age_group
     await session.flush()
     return profile
 

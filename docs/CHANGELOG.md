@@ -151,6 +151,20 @@
 - Фикс `reports_pdfs.requested_by` → nullable (FK SET NULL) — миграция 0017.
 - Тесты: auditor read/write, фильтры, CSV, запись действий; backend 165.
 
+#### S-42 — Достижения, стрики и age_group (2026-11-02)
+- Миграция `0018_progress`: `py_progress`, `achievements`,
+  `user_achievements`, `user_profiles.age_group` (default unknown).
+- Стрики: +1 за первый уникальный passed-ассайнмент в новый день; вчера —
+  продолжение, пропуск — сброс в 1; повтор задания не считается; лучший
+  стрик сохраняется. Хук в `python_teacher.submit`.
+- 6 бейджей (seed): first/five/ten solutions, streak_3/7, topics_3;
+  `user_achievements` PK гарантирует выдачу один раз; аудит
+  `achievements.award`.
+- `GET /progress/me` (+ teacher/admin для чужого), UI `/profile`: age_group,
+  решено/темы, current/longest streak, каталог бейджей.
+- Тесты: стрик/сброс/идемпотентность, age_group, прогресс после сдачи;
+  backend 168, frontend 5, build OK.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

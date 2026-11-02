@@ -36,6 +36,7 @@
 | skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
 | classes | `GET/POST /classes`, `POST /classes/join`, `GET /classes/{id}`, `POST /classes/{id}/invite`, `GET /classes/{id}/dashboard`, `POST/DELETE /classes/{id}/members[/{userId}]` | — | ✅ S-40 | teacher/admin — создание/управление; student — join/свои классы; чужой teacher — 403 (SPEC §3.11) |
 | audit | `GET /admin/audit/logs`, `GET /admin/audit/export.csv` | — | ✅ S-41 | read-only журнал: teacher/admin/auditor; CSV + фильтры (SPEC §3.12) |
+| progress | `GET /progress/me`, `GET /progress/{user}` (teacher/admin) | — | ✅ S-42 | стрики, темы, бейджи; age_group в профиле (SPEC §3.13) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -83,14 +84,15 @@ interface MessageOut { ok: boolean }
 ```ts
 // GET /api/v1/profile/me → 200
 interface ProfileOut {
-  id: string; email: string; role: string;
+  id: string; email: string; role: "student" | "teacher" | "admin" | "auditor";
   displayName: string | null;
   level: "novice" | "intermediate" | "advanced" | null; // null — только легаси (до backfill 0003)
   billingTier: "free" | "pro" | null;
+  ageGroup: "child" | "teen" | "adult" | "unknown"; // S-42, default unknown
   emailVerified: boolean; isActive: boolean;
   prefs: Record<string, unknown>; createdAt: string;
 }
-// PATCH /profile/me { displayName?, prefs? } → ProfileOut (level меняет только admin)
+// PATCH /profile/me { displayName?, prefs?, ageGroup? } → ProfileOut (level меняет только admin)
 // GET /profile/students?page&pageSize → { items: ProfileOut[], total, page, pageSize }
 // PATCH /profile/{id}/level { level } → ProfileOut (только admin)
 ```
@@ -418,6 +420,38 @@ interface AuditLogOut {
   индексы actor/created/action. Запись — в той же транзакции, что действие.
 - CSV: фильтры те же, лимит 10 000 строк; экспорт сам логируется.
 
+### 3.13. progress: стрики, темы и достижения (S-42)
+
+```ts
+// GET /progress/me → ProgressOut
+// GET /progress/{user_id} → ProgressOut (teacher/admin)
+interface ProgressOut {
+  userId: string;
+  solvedCount: number;
+  topics: Record<string, number>;      // topic slug → решено
+  currentStreak: number;
+  longestStreak: number;
+  lastSolvedOn: string | null;         // YYYY-MM-DD
+  achievements: [{
+    code: string; titleRu: string; description: string; icon: string;
+    awarded: boolean; awardedAt: string | null;
+  }];
+}
+```
+
+- Стрик: первый **уникальный** passed-ассайнмент в новый день → +1; если
+  последний день был вчера — продолжение, иначе сброс в 1. Повторное
+  решение задания стрик/счётчик не меняет; лучший стрик хранится.
+- `py_progress`: `solved_count`, `topics jsonb`, `solved_assignments jsonb`,
+  `current_streak`, `longest_streak`, `last_solved_on`, `updated_at`.
+- `achievements` (каталог seed) + `user_achievements` (PK user+achievement,
+  `context jsonb`, `awarded_at`) — бейдж выдаётся ровно один раз.
+  Каталог: first/five/ten solutions, streak_3/7, topics_3.
+- `age_group` (`child|teen|adult|unknown`, default `unknown`) — только
+  самооценка в профиле; без даты рождения; меняет сам пользователь.
+- События выдачи пишутся в `audit_logs` (`achievements.award`, source
+  `system`); аудит доступен teacher/admin/auditor (S-41).
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -677,3 +711,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-39: chess knowledge ✅ - 13 seed-док, FEN/phase/rerank, knowledge в insight/blunder, eval 13/13 | S-39 |
 | 2026-11-02 | S-40: classes ✅ - classes/class_members, invites, teacher dashboard, RBAC; UI кабинета | S-40 |
 | 2026-11-02 | S-41: audit ✅ - роль auditor (read-only), audit_logs, CSV/фильтры, логирование действий | S-41 |
+| 2026-11-02 | S-42: progress ✅ - py_progress/стрики, achievements/бейджи, age_group, UI профиля | S-42 |

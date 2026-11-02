@@ -550,6 +550,70 @@ body {
   }
 }
 
+/* --- profile: возраст, стрики, достижения (S-42) --- */
+.profile-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.streak-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-bottom: 10px;
+}
+
+.streak-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.streak-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.achievement {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 13px;
+}
+
+.achievement.earned {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.achievement.locked {
+  opacity: 0.65;
+}
+
+.achievement-icon {
+  font-size: 20px;
+  color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171f;

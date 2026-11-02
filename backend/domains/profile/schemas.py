@@ -8,7 +8,7 @@ from pydantic import Field
 from core.base import CamelModel
 from core.levels import Level
 from domains.auth.models import UserRole
-from domains.profile.models import BillingTier
+from domains.profile.models import AgeGroup, BillingTier
 
 
 class ProfileOut(CamelModel):
@@ -19,6 +19,7 @@ class ProfileOut(CamelModel):
     # null возможен только у легаси-юзеров (до backfill 0003); для новых — всегда
     level: Level | None
     billingTier: BillingTier | None
+    ageGroup: AgeGroup
     emailVerified: bool
     isActive: bool
     prefs: dict[str, Any]
@@ -30,6 +31,7 @@ class ProfileUpdateIn(CamelModel):
 
     display_name: str | None = Field(default=None, min_length=1, max_length=120)
     prefs: dict[str, Any] | None = None
+    age_group: AgeGroup | None = None
 
 
 class LevelUpdateIn(CamelModel):
