@@ -32,11 +32,23 @@ async def _redis_ok(redis) -> bool:
 
 
 async def _queues(redis) -> tuple[dict[str, int], dict[str, int]]:
-    depths = {"arq:queue": int(await redis.llen("arq:queue") or 0)}
+    async def safe_len(key: str) -> int:
+        try:
+            return int(await redis.llen(key) or 0)
+        except Exception:  # noqa: BLE001 - ключ может быть занят не списком
+            return 0
+
+    async def safe_card(key: str) -> int:
+        try:
+            return int(await redis.scard(key) or 0)
+        except Exception:  # noqa: BLE001 - ключ может быть не set
+            return 0
+
+    depths = {"arq:queue": await safe_len("arq:queue")}
     active = {}
     for kind, (queue, _limit) in MATCH_QUEUES.items():
-        depths[queue] = int(await redis.llen(queue) or 0)
-        active[kind] = int(await redis.scard(active_key(kind)) or 0)
+        depths[queue] = await safe_len(queue)
+        active[kind] = await safe_card(active_key(kind))
     return depths, active
 
 
