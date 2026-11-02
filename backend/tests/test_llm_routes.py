@@ -13,7 +13,7 @@ def test_registry_has_all_v01_routes():
         "python_teacher.comment", "python_teacher.hint", "python_teacher.explain_code",
         "chess_lab.insight", "chess_lab.next_moves", "chess_lab.blunder",
         "chess_lab.commentary", "bot_lab.coach", "anticheat.judge_explain",
-        "reports.parent_summary",
+        "reports.parent_summary", "chess_lab.study",
     }
     assert set(ROUTES) == expected
 

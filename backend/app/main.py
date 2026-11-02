@@ -24,6 +24,8 @@ from domains.profile.router import router as profile_router
 from domains.progress.router import router as progress_router
 from domains.python_teacher.router import router as py_router
 from domains.reports.router import router as reports_router
+from domains.studies.router import admin_router as studies_admin_router
+from domains.studies.router import router as studies_router
 from llm.router import router as llm_admin_router
 from rag.router import router as rag_admin_router
 
@@ -112,6 +114,8 @@ app.include_router(audit_router, prefix="/api/v1")
 app.include_router(llm_admin_router, prefix="/api/v1")
 app.include_router(rag_admin_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
+app.include_router(studies_router, prefix="/api/v1")
+app.include_router(studies_admin_router, prefix="/api/v1")
 
 
 def run() -> None:

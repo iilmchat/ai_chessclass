@@ -15,6 +15,7 @@ from domains.profile import models as _profile_models  # noqa: F401
 from domains.progress import models as _progress_models  # noqa: F401
 from domains.python_teacher import models as _py_models  # noqa: F401
 from domains.reports import models as _reports_models  # noqa: F401
+from domains.studies import models as _studies_models  # noqa: F401
 from llm import models as _llm_models  # noqa: F401
 from rag import models as _rag_models  # noqa: F401
 

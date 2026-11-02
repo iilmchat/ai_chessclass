@@ -37,6 +37,8 @@ ROUTES: dict[str, RouteSpec] = {
                   "объяснение плохого хода", "L2", None),
         RouteSpec("chess_lab.commentary", "chess_lab", "commentary",
                   "общий комментарий/беседа", "L1", "L2"),  # L1/L2
+        RouteSpec("chess_lab.study", "chess_lab", "study",
+                  "условие шахматного этюда", "L1", None),
         RouteSpec("bot_lab.coach", "bot_lab", "coach",
                   "советы по улучшению бота (вне матчей)", "L2", None),
         RouteSpec("anticheat.judge_explain", "anticheat", "judge_explain",

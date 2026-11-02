@@ -75,7 +75,13 @@ def unique_email() -> str:
 async def _cleanup():
     yield
     async with session_factory() as session:
-        # e2e-юзеры; задания тестов (slug test-*) — каскадом submissions/hints
+        # Сначала зависимые строки, потом e2e-юзеры (FK SET NULL не удалит).
+        await session.execute(
+            sa.text(
+                "DELETE FROM chess_studies WHERE created_by IN "
+                "(SELECT id FROM users WHERE email LIKE '%@e2e.chessclass')"
+            )
+        )
         await session.execute(
             sa.text("DELETE FROM users WHERE email LIKE '%@e2e.chessclass'")
         )

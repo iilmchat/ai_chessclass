@@ -37,6 +37,7 @@ ROUTE_PARAMS: dict[str, RouteParams] = {
     "chess_lab.next_moves": RouteParams(temperature=0.3, max_tokens=400),
     "chess_lab.blunder": RouteParams(temperature=0.3, max_tokens=400),
     "chess_lab.commentary": RouteParams(temperature=0.5, max_tokens=500),
+    "chess_lab.study": RouteParams(temperature=0.5, max_tokens=300),
     "bot_lab.coach": RouteParams(temperature=0.4, max_tokens=600),
     "anticheat.judge_explain": RouteParams(temperature=0.1, max_tokens=300),
     "reports.parent_summary": RouteParams(temperature=0.3, max_tokens=500),

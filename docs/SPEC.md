@@ -37,6 +37,7 @@
 | classes | `GET/POST /classes`, `POST /classes/join`, `GET /classes/{id}`, `POST /classes/{id}/invite`, `GET /classes/{id}/dashboard`, `POST/DELETE /classes/{id}/members[/{userId}]` | — | ✅ S-40 | teacher/admin — создание/управление; student — join/свои классы; чужой teacher — 403 (SPEC §3.11) |
 | audit | `GET /admin/audit/logs`, `GET /admin/audit/export.csv` | — | ✅ S-41 | read-only журнал: teacher/admin/auditor; CSV + фильтры (SPEC §3.12) |
 | progress | `GET /progress/me`, `GET /progress/{user}` (teacher/admin) | — | ✅ S-42 | стрики, темы, бейджи; age_group в профиле (SPEC §3.13) |
+| studies | `GET /studies`, `GET /studies/{id}`, `POST /studies/{id}/attempt`; admin: `GET /admin/studies`, `POST /admin/studies/generate`, `POST /admin/studies/{id}/submit`, `POST /admin/studies/{id}/review` | — | ✅ S-43 | генерация SF+LLM, ревью teacher, публикация, попытка решения (SPEC §3.14) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -452,6 +453,41 @@ interface ProgressOut {
 - События выдачи пишутся в `audit_logs` (`achievements.award`, source
   `system`); аудит доступен teacher/admin/auditor (S-41).
 
+### 3.14. studies: этюды SF + LLM (S-43)
+
+```ts
+// GET /studies?page&pageSize → { items: StudyOut[], total, page, pageSize }
+// GET /studies/{id} → StudyOut (только published; иначе 404)
+// POST /studies/{id}/attempt { moveUci } → { correct, message, nextUci }
+interface StudyOut {
+  id: string; title: string; fen: string; conditionText: string;
+  theme: string; difficulty: string; status: string; createdAt: string;
+}
+// admin (teacher/admin; чтение — также auditor):
+// GET /admin/studies?status=draft|review|published|rejected&page&pageSize
+// POST /admin/studies/generate → 201 StudyAdminOut (draft)
+// POST /admin/studies/{id}/submit → StudyAdminOut (draft → review)
+// POST /admin/studies/{id}/review { decision: "approve"|"reject", note? }
+//   → StudyAdminOut (review → published|rejected)
+interface StudyAdminOut extends StudyOut {
+  solutionUci: string; solutionLine: string[]; source: string;
+  generatorMeta: Record<string, unknown>;
+  createdBy: string | null; reviewedBy: string | null;
+  reviewedAt: string | null; reviewNote: string | null;
+}
+```
+
+- Генератор: курируемая позиция-кандидат → SF-валидация (легальность,
+  лучший ход/PV; SF только worker) → LLM `chess_lab.study` формулирует
+  условие; черновик `draft`. `STUDY_DAILY_LIMIT=10` на пользователя/сутки
+  (429 `study_limit`).
+- Ревью: автор/teacher отправляет `draft → review`; teacher/admin
+  `approve/reject`; публичная лента только `published`; брак не виден.
+- Попытка: UCI-ход проверяется на легальность и совпадение с
+  `solution_uci`; неверный/нелегальный — `correct=false`/422.
+- Аудит: `studies.generate/submit/review/attempt` (S-41). Решение SF не
+  меняется LLM; условие не раскрывает ответ.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -549,6 +585,7 @@ Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfi
 | `chess_lab.next_moves` | объяснение топ-3 ходов | L2 | L2 |
 | `chess_lab.blunder` | объяснение плохого хода | L2 | L2 |
 | `chess_lab.commentary` | комментарий/беседа | L1 | **L2** |
+| `chess_lab.study` | условие шахматного этюда | L1 | L1 |
 | `bot_lab.coach` | советы по боту (вне матчей) | L2 | L2 |
 | `anticheat.judge_explain` | judge-сессия | **judge** | judge |
 | `reports.parent_summary` | абзацы PDF-отчёта | L1 | L1 |
@@ -632,6 +669,7 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 | `chess_lab.next_moves` | 0.3 | 400 | 1 |
 | `chess_lab.blunder` | 0.3 | 400 | 1 |
 | `chess_lab.commentary` | 0.5 | 500 | 1 |
+| `chess_lab.study` | 0.5 | 300 | 1 |
 | `bot_lab.coach` | 0.4 | 600 | 1 |
 | `anticheat.judge_explain` | 0.1 | 300 | 1 |
 | `reports.parent_summary` | 0.3 | 500 | 1 |
@@ -712,3 +750,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-40: classes ✅ - classes/class_members, invites, teacher dashboard, RBAC; UI кабинета | S-40 |
 | 2026-11-02 | S-41: audit ✅ - роль auditor (read-only), audit_logs, CSV/фильтры, логирование действий | S-41 |
 | 2026-11-02 | S-42: progress ✅ - py_progress/стрики, achievements/бейджи, age_group, UI профиля | S-42 |
+| 2026-11-02 | S-43: studies ✅ - SF+LLM генерация, draft→review→published, attempts, лимит/аудит | S-43 |

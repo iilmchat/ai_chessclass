@@ -165,6 +165,16 @@
 - Тесты: стрик/сброс/идемпотентность, age_group, прогресс после сдачи;
   backend 168, frontend 5, build OK.
 
+#### S-43 — Генерация этюдов «код + LLM» (2026-11-02)
+- Миграция `0019_studies`: `chess_studies` (FEN/условие/эталон/статус,
+  generator_meta, created_by/reviewed_by); индексы.
+- Генератор: `STUDY_CANDIDATES` → SF-валидация (легальность, лучший ход/PV)
+  → LLM `chess_lab.study` условие; `STUDY_DAILY_LIMIT=10`.
+- Поток: draft → submit → review (teacher/admin approve/reject) →
+  published; public list/attempt по UCI; брак не публикуется.
+- Аудит `studies.generate/submit/review/attempt`; тест 5 этюдов + reject;
+  backend 169, frontend 5, build OK.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

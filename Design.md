@@ -464,10 +464,13 @@ commentary), промпты (RU), config pattern, seed-контент.
 выбором SF (match rate, точность оценок); источники — партии, сыгранные
 вне платформы (upload PGN), и матчи ботов (`bot_match_moves`).
 
-### 6.5. Этюды «код + LLM» (v0.2)
+### 6.5. Этюды «код + LLM» (v0.2, S-43)
 
 Скрипт-генератор позиций + LLM-оформление задания; в v0.2 рассматриваются
 «авторы этюдов», валидация SF (легальность + мат), модерация учителем.
+Реализация: `chess_studies` (draft→review→published/rejected),
+`STUDY_CANDIDATES` + SF-лучший ход/PV, LLM `chess_lab.study`; лимит
+`STUDY_DAILY_LIMIT`; попытки — UCI-ход против эталона.
 
 ## 7. Лаборатория ботов (новое ядро)
 
@@ -836,6 +839,9 @@ user_achievements(user_id→users, achievement_id→achievements, awarded_at,
 chess_positions(id, user_id, fen, meta jsonb, created_at)
 chess_games(id, user_id, pgn, source, created_at)
 chess_analyses(id, game_id|position_id, sf jsonb, llm jsonb, status)
+chess_studies(id, title, fen, condition_text, theme, difficulty, solution_uci,
+              solution_line jsonb, status draft|review|published|rejected,
+              generator_meta jsonb, created_by, reviewed_by/at, review_note)  # S-43
 ```
 
 **Боты (bot_*)**
