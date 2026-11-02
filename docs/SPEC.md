@@ -46,6 +46,7 @@
 | tournaments-v2 | `POST /admin/tournaments` (202/queued), `GET /tournaments/{id}/events` (SSE), `POST /admin/tournaments/{id}/cancel`, `GET /tournaments/{id}/matches/{mid}/replay` | — | ✅ S-48 | async arq, replay, cancel/recovery, SF-античит (SPEC §3.19) |
 | lms | admin: `GET /admin/lms/status`, `POST /admin/lms/sync`, `GET /admin/lms/deliveries`, `GET /admin/lms/deliveries.csv` | — | ✅ S-49 | xAPI LRS, retry/идемпотентность, журнал (SPEC §3.20) |
 | telegram | `GET /telegram/status`, `POST /telegram/link`, `POST /telegram/link-code`, `POST /telegram/confirm`, `DELETE /telegram/link` | — | ✅ S-50 | consent, code/deep-link, outbox, graceful off (SPEC §3.21) |
+| pvp | `POST /pvp/rooms`, `POST /pvp/rooms/join`, `POST /pvp/quick-match`, `POST /pvp/rooms/{id}/start`, `GET /pvp/rooms/{id}/events`, replay, leaderboard, complaints | — | ✅ S-51 | PvP-комнаты, SSE, отдельный Elo (SPEC §3.22) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -653,6 +654,29 @@ interface TournamentDetailOut extends TournamentOut {
 - Интеграции: бейдж (progress), готовый PDF (reports); `streak`/`review` —
   через `enqueue(kind=...)`.
 
+### 3.22. PvP-матчи ботов (S-51)
+
+```ts
+// POST /pvp/rooms { botVersionId, rated? } → RoomOut (201)
+// POST /pvp/rooms/join { code, botVersionId } → RoomOut
+// POST /pvp/quick-match { botVersionId } → { room, matched }
+// POST /pvp/rooms/{id}/start → RoomOut (202/queued tournament)
+// GET  /pvp/rooms/{id}/events (SSE), /rooms/{id}/replay?matchId
+// GET  /pvp/leaderboard → [{ userId, elo, wins, losses, draws }]
+// POST /pvp/rooms/{id}/complaints { reason }; admin GET /admin/pvp/complaints
+```
+
+- `pvp_rooms`: code unique, host/guest + bot ids, waiting/ready/running/done/
+  cancelled/failed, rated, tournament_id; один активный room на пользователя.
+- quick-match ищет waiting-комнату с |ΔElo| ≤ 300, иначе создаёт; лимит
+  10 комнат/quick в минуту → 429.
+- start создаёт bracket-турнир из двух активных ботов и enqueue
+  `run_tournament_job`; SSE/replay — через турнирный канал/`tournament_moves`.
+- `pvp_ratings` — отдельно от `bot_stats` (лестница), Elo K=24, 1000 старт;
+  финализация после турнира обновляет рейтинг/статистику комнаты.
+- Жалобы участников `pvp_complaints` (open/reviewed/rejected); античит
+  наследуется из tournament SF-семплов.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -923,3 +947,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-48: tournaments-v2 ✅ - async arq/SSE, replay, cancel/recovery, SF-античит | S-48 |
 | 2026-11-02 | S-49: LMS LRS ✅ - xAPI queue/retry, scheduled sync, delivery journal/CSV | S-49 |
 | 2026-11-03 | S-50: Telegram ✅ - consent/link-code, outbox/retry, graceful off | S-50 |
+| 2026-11-03 | S-51: PvP ✅ - rooms/quick-match, SSE/replay, separate Elo | S-51 |

@@ -824,6 +824,13 @@ worker `lms_sync` каждые 15 мин; admin status/sync/deliveries/CSV.
 `telegram_deliver` minute=2/startup; rate-limit 20/сутки; без
 `TELEGRAM_BOT_TOKEN` — `disabled=1`. Интеграции: бейдж/PDF.
 
+### 10.9. PvP (S-51)
+
+`pvp_rooms` (код/участники/статус/rated/tournament_id) + отдельный
+`pvp_ratings` (Elo K=24) + `pvp_complaints`. Quick-match ±300 Elo; start
+создаёт bracket-турнир 2 ботов и arq-job; SSE/replay через турнир;
+tournament-job финализирует комнату/рейтинг.
+
 ## 11. Данные (PostgreSQL)
 
 ### 11.1. База и общие правила
@@ -860,6 +867,12 @@ lrs_deliveries(id, statement_id uq, payload jsonb, status, attempts,
 telegram_links(user_id→users, chat_id uq, consent, created_at, updated_at)  # S-50
 telegram_outbox(id, user_id→users, kind, text, status, attempts, last_error,
                 next_attempt_at, created_at, sent_at)  # S-50
+pvp_rooms(id, code uq, host_user_id→users, host_bot_id→bot_versions,
+          guest_user_id→users, guest_bot_id→bot_versions, status, rated,
+          tournament_id→tournaments, created_at, started_at, finished_at)  # S-51
+pvp_ratings(user_id→users pk, elo, wins, losses, draws, updated_at)  # S-51
+pvp_complaints(id, room_id→pvp_rooms, reporter_id→users, reason, status,
+               created_at)  # S-51
 ```
 
 **Python-домен (py_*)**
@@ -1065,6 +1078,8 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | Экспорт LMS | `/export` | skills.csv, xapi.json | teacher/admin/auditor |
 | LRS-доставка | `/admin/lms/*` | status/sync/журнал/CSV | admin |
 | Telegram | `/telegram/*` | link/consent/status/outbox | user |
+| PvP | `/pvp/*` | rooms/quick/SSE/replay/leaderboard | user |
+| PvP admin | `/admin/pvp/*` | жалобы | admin/auditor |
 | Наблюдаемость | `/ops` | метрики, стоимость, retention, алерты | admin/auditor |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
 | Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |

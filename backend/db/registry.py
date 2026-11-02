@@ -14,6 +14,7 @@ from domains.cognitive import models as _cognitive_models  # noqa: F401
 from domains.lms import models as _lms_models  # noqa: F401
 from domains.profile import models as _profile_models  # noqa: F401
 from domains.progress import models as _progress_models  # noqa: F401
+from domains.pvp import models as _pvp_models  # noqa: F401
 from domains.python_teacher import models as _py_models  # noqa: F401
 from domains.reports import models as _reports_models  # noqa: F401
 from domains.studies import models as _studies_models  # noqa: F401

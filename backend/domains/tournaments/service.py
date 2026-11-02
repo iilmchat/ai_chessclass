@@ -369,6 +369,16 @@ async def _run_round_robin(
             )
 
 
+async def _finalize_pvp(session: AsyncSession, tournament_id: int) -> None:
+    """Обновить PvP-комнату/рейтинг после турнира (S-51)."""
+    try:
+        from domains.pvp import service as pvp_svc
+
+        await pvp_svc.finalize_tournament(session, tournament_id)
+    except Exception as exc:  # noqa: BLE001 - PvP не должен ломать турнир
+        logger.warning("tournaments: pvp finalize skipped: %s", exc)
+
+
 async def _check_tournament_anticheat(
     session: AsyncSession, tournament_id: int
 ) -> None:
@@ -487,6 +497,8 @@ async def _run_job(
                 session, redis, tournament, bots, participants_by_bot, runner
             )
         if tournament.status == "cancelled":
+            await _finalize_pvp(session, tournament_id)
+            await session.commit()
             return tournament
         ranked = sorted(
             participants_by_bot.values(),
@@ -505,6 +517,8 @@ async def _run_job(
         await _check_tournament_anticheat(session, tournament_id)
         await session.commit()
         await _publish(redis, tournament)
+        await _finalize_pvp(session, tournament_id)
+        await session.commit()
         return tournament
     except Exception as exc:  # noqa: BLE001
         logger.exception("tournaments: job failed id=%s", tournament_id)
@@ -516,6 +530,8 @@ async def _run_job(
             fresh.finished_at = datetime.now(UTC)
             await session.commit()
             await _publish(redis, fresh)
+            await _finalize_pvp(session, tournament_id)
+            await session.commit()
             return fresh
         raise
 

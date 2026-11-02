@@ -64,6 +64,15 @@
 - Без `TELEGRAM_BOT_TOKEN` — graceful off (`disabled=1`), секреты не логируются;
   UI в профиле. Тесты на fake sender; backend 186.
 
+#### S-51 — PvP-матчи ботов (2026-11-03)
+- Миграция `0026_pvp`: `pvp_rooms` (код/участники/статус/rated),
+  `pvp_ratings` (отдельный Elo), `pvp_complaints`.
+- Комнаты/приглашения, join по коду, quick-match ±300 PvP Elo; лимиты
+  комнат/quick 10/мин; start создаёт bracket-турнир 2 ботов + arq-job.
+- SSE `/pvp/rooms/{id}/events`, replay, leaderboard, зрители; отдельный
+  PvP-Elo (K=24); финализация из tournament-job; жалобы + admin list.
+- Тесты: комната/join/start/рейтинг/leaderboard/жалобы/quick; backend 188.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено
