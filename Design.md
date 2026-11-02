@@ -572,12 +572,14 @@ def evaluate(position) -> float:    # опциональный контракт
 - `engine_likeliness` (бот): слишком идеальная игра против лестницы — далее
   семплы ходов (10 % ходов матча) и сравнение с топ-1 SF.
 
-### 7.8. Турниры ботов (S-45)
+### 7.8. Турниры ботов (S-45/S-48)
 
-`tournaments` + `tournament_participants` + `tournament_matches`: bracket
-(8 ботов → 7 матчей) или round-robin; ходы обоих ботов в песочнице, без
-LLM и без изменения Elo; лидерборд по очкам 3/1/0, экспорт CSV. UI
-`/tournaments`; создание — teacher/admin.
+`tournaments` + `tournament_participants` + `tournament_matches` +
+`tournament_moves`: bracket (8 ботов → 7 матчей) или round-robin; ходы обоих
+ботов в песочнице, без LLM и без изменения Elo. S-48: async arq-job + SSE,
+`progress/total_matches/job_id/cancel_requested/error`, replay, отмена,
+recovery-cron, SF-семплирование и `engine_likeliness`. UI `/tournaments`;
+создание — teacher/admin.
 
 ## 8. Единый LLM-шлюз (RouterAI)
 
@@ -869,11 +871,14 @@ bot_stats(user_id pk, elo numeric, wins/losses/draws by opponent, updated_at)
 bot_matches(id, version_id, opponent, result, plies, duration_ms, elo_delta, started_at, finished_at)
 bot_match_moves(id, match_id, ply, fen, uci, agent, think_ms, sf_sample bool)
 tournaments(id, name, format bracket|round_robin, status, created_by,
-            meta jsonb, created_at, started_at, finished_at)  # S-45
+            progress, total_matches, job_id, cancel_requested, error,
+            meta jsonb, created_at, started_at, finished_at)  # S-45/S-48
 tournament_participants(tournament_id, bot_version_id, user_id, seed,
                         wins/losses/draws/points, rank)  # S-45
 tournament_matches(id, tournament_id, round_no, match_no, bot_a_id, bot_b_id,
                    winner_id, result, moves_count, duration_ms)  # S-45
+tournament_moves(id, tournament_id, match_id, bot_version_id, ply, fen, uci,
+                 agent a|b, think_ms, sf_sample, created_at)  # S-48
 ```
 
 **Когнитивное ядро (shared)**

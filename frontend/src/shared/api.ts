@@ -458,6 +458,10 @@ export interface TournamentDto {
   name: string;
   format: string;
   status: string;
+  progress: number;
+  totalMatches: number;
+  cancelRequested: boolean;
+  error: string | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
@@ -478,6 +482,7 @@ export interface TournamentParticipantDto {
 }
 
 export interface TournamentMatchDto {
+  id: string;
   roundNo: number;
   matchNo: number;
   botAId: string;
@@ -486,6 +491,20 @@ export interface TournamentMatchDto {
   result: string;
   movesCount: number;
   durationMs: number;
+}
+
+export interface TournamentMoveDto {
+  ply: number;
+  fen: string;
+  uci: string;
+  agent: string;
+  thinkMs: number;
+  sfSample: boolean;
+}
+
+export interface TournamentReplayDto {
+  match: TournamentMatchDto;
+  moves: TournamentMoveDto[];
 }
 
 export interface TournamentDetailDto extends TournamentDto {
@@ -505,11 +524,22 @@ export function createTournament(payload: {
   name: string;
   format: string;
   botVersionIds: number[];
-}): Promise<TournamentDetailDto> {
+}): Promise<TournamentDto> {
   return apiFetch('/admin/tournaments', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export function cancelTournament(id: string): Promise<TournamentDto> {
+  return apiFetch(`/admin/tournaments/${id}/cancel`, { method: 'POST' });
+}
+
+export function fetchTournamentReplay(
+  tournamentId: string,
+  matchId: string,
+): Promise<TournamentReplayDto> {
+  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/replay`);
 }
 
 /** Скачать защищённый экспорт (CSV/JSON) через Bearer. */

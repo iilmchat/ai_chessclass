@@ -35,6 +35,16 @@
 - Security-тесты: RS256/JWKS, legacy HS256, alg=none/HS512, role/scope/
   anonymize; backend 179.
 
+#### S-48 — Турниры v2: async, replay и античит (2026-11-02)
+- Миграция `0023_tournament_v2`: `progress/total_matches/job_id/cancel_requested/
+  error`, `tournament_moves` (ply/fen/uci/agent/think_ms/sf_sample).
+- arq `run_tournament_job` + recovery-cron `resume_tournaments`; API create
+  возвращает 202/queued, SSE `/tournaments/{id}/events`; cancel endpoint.
+- Запись ходов и replay `/tournaments/{id}/matches/{matchId}/replay`;
+  SF-семплирование и `engine_likeliness` для турнирных ботов.
+- UI: polling прогресса, отмена, replay; bracket 8 ботов — 7 матчей.
+- Тесты: async job/replay/idempotency/cancel/SSE; backend 181.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

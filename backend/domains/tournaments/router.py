@@ -2,16 +2,18 @@
 
 import csv
 import io
+import json
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import Response, StreamingResponse
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.base import CamelModel
+from domains.audit import service as audit_svc
 from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
 from domains.profile.models import UserProfile
@@ -43,6 +45,10 @@ class TournamentOut(CamelModel):
     name: str
     format: str
     status: str
+    progress: int
+    total_matches: int
+    cancel_requested: bool
+    error: str | None
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
@@ -63,6 +69,7 @@ class ParticipantOut(CamelModel):
 
 
 class MatchOut(CamelModel):
+    id: str
     round_no: int
     match_no: int
     bot_a_id: str
@@ -71,6 +78,20 @@ class MatchOut(CamelModel):
     result: str
     moves_count: int
     duration_ms: int
+
+
+class MoveOut(CamelModel):
+    ply: int
+    fen: str
+    uci: str
+    agent: str
+    think_ms: int
+    sf_sample: bool
+
+
+class ReplayOut(CamelModel):
+    match: MatchOut
+    moves: list[MoveOut]
 
 
 class TournamentDetailOut(TournamentOut):
@@ -84,6 +105,10 @@ def _out(t: Tournament) -> TournamentOut:
         name=t.name,
         format=t.format,
         status=t.status,
+        progress=t.progress,
+        total_matches=t.total_matches,
+        cancel_requested=t.cancel_requested,
+        error=t.error,
         created_at=t.created_at,
         started_at=t.started_at,
         finished_at=t.finished_at,
@@ -136,6 +161,7 @@ async def _detail(
         ],
         matches=[
             MatchOut(
+                id=str(m.id),
                 round_no=m.round_no,
                 match_no=m.match_no,
                 bot_a_id=str(m.bot_a_id),
@@ -167,13 +193,13 @@ async def get_tournament(
     return await _detail(session, tournament, participants, matches)
 
 
-@admin_router.post("", status_code=201, response_model=TournamentDetailOut)
+@admin_router.post("", status_code=202, response_model=TournamentOut)
 async def create_tournament(
     body: TournamentCreateIn,
     teacher: TeacherOrAdmin,
     session: DbSession,
-) -> TournamentDetailOut:
-    tournament = await svc.run_tournament(
+) -> TournamentOut:
+    tournament = await svc.create_tournament(
         session,
         teacher,
         name=body.name,
@@ -181,10 +207,134 @@ async def create_tournament(
         bot_ids=body.bot_version_ids,
     )
     await session.commit()
-    tournament, participants, matches = await svc.get_tournament(
-        session, tournament.id
+    from arq.connections import RedisSettings, create_pool
+
+    from core.config import settings
+
+    pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+    try:
+        await pool.enqueue_job(
+            "run_tournament_job",
+            tournament.id,
+            _job_id=f"tournament:{tournament.id}",
+        )
+    finally:
+        await pool.aclose()
+    return _out(tournament)
+
+
+@admin_router.post("/{tournament_id}/cancel", response_model=TournamentOut)
+async def cancel_tournament(
+    tournament_id: int,
+    teacher: TeacherOrAdmin,
+    session: DbSession,
+    request: Request,
+) -> TournamentOut:
+    tournament = await svc.cancel_tournament(
+        session, tournament_id, request.app.state.redis
     )
-    return await _detail(session, tournament, participants, matches)
+    await audit_svc.record(
+        session,
+        teacher,
+        "tournaments.cancel",
+        target_type="tournament",
+        target_id=tournament_id,
+        request=request,
+    )
+    await session.commit()
+    return _out(tournament)
+
+
+@router.get("/{tournament_id}/events")
+async def tournament_events(
+    tournament_id: int,
+    _user: CurrentUser,
+    session: DbSession,
+    request: Request,
+) -> StreamingResponse:
+    tournament, _participants, _matches = await svc.get_tournament(
+        session, tournament_id
+    )
+    channel = f"tournaments:{tournament_id}"
+
+    async def stream():
+        pubsub = request.app.state.redis.pubsub()
+        await pubsub.subscribe(channel)
+        try:
+            initial = json.dumps(
+                {
+                    "status": tournament.status,
+                    "progress": tournament.progress,
+                    "total": tournament.total_matches,
+                }
+            )
+            yield f"event: status\ndata: {initial}\n\n"
+            if tournament.status in ("done", "cancelled", "failed"):
+                return
+            while True:
+                if await request.is_disconnected():
+                    break
+                message = await pubsub.get_message(
+                    ignore_subscribe_messages=True, timeout=5.0
+                )
+                if message and message.get("data"):
+                    payload = message["data"]
+                    if isinstance(payload, bytes):
+                        payload = payload.decode("utf-8")
+                    yield f"event: progress\ndata: {payload}\n\n"
+                    try:
+                        if json.loads(payload).get("status") in (
+                            "done",
+                            "cancelled",
+                            "failed",
+                        ):
+                            break
+                    except (ValueError, TypeError):
+                        continue
+        finally:
+            await pubsub.unsubscribe(channel)
+            await pubsub.aclose()
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+@router.get(
+    "/{tournament_id}/matches/{match_id}/replay",
+    response_model=ReplayOut,
+)
+async def tournament_replay(
+    tournament_id: int,
+    match_id: int,
+    _user: CurrentUser,
+    session: DbSession,
+) -> ReplayOut:
+    match, moves = await svc.get_replay(session, tournament_id, match_id)
+    return ReplayOut(
+        match=MatchOut(
+            id=str(match.id),
+            round_no=match.round_no,
+            match_no=match.match_no,
+            bot_a_id=str(match.bot_a_id),
+            bot_b_id=str(match.bot_b_id),
+            winner_id=(
+                str(match.winner_id) if match.winner_id is not None else None
+            ),
+            result=match.result,
+            moves_count=match.moves_count,
+            duration_ms=match.duration_ms,
+        ),
+        moves=[
+            MoveOut(
+                ply=move.ply,
+                fen=move.fen,
+                uci=move.uci,
+                agent=move.agent,
+                think_ms=move.think_ms,
+                sf_sample=move.sf_sample,
+            )
+            for move in moves
+        ],
+    )
 
 
 @admin_router.get("/{tournament_id}/export.csv")

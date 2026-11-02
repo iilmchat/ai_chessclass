@@ -15,7 +15,7 @@
 | `TODO_V0.3.md` | корень | 🔶 план | Спринты v0.3.0: S-46…S-57, этапы E-17…E-20 |
 | `docs/SPEC.md` | docs/ | ✅ живой (S-33) | Контракты: DDL, API-схемы, JSON-форматы, таблицы промптов/весов |
 | `docs/RULES.md` | docs/ | ✅ живой | Процесс: ветки, ревью, отчёт спринта по 7 пунктам, DoD |
-| `docs/CHANGELOG.md` | docs/ | ✅ живой (S-47) | Изменения по спринтам (формат Keep a Changelog) |
+| `docs/CHANGELOG.md` | docs/ | ✅ живой (S-48) | Изменения по спринтам (формат Keep a Changelog) |
 | `docs/sprint-reports/` | docs/ | по ходу | Отчёты спринтов (по 7 пунктам; шаблон в RULES) |
 | `docs/runbooks/` | docs/ | ✅ S-31/S-38 | Эксплуатация: LLM-шлюз, бэкапы, TLS, инциденты |
 

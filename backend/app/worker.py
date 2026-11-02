@@ -95,12 +95,40 @@ async def run_match(
             await redis.srem(active, match_id)
 
 
+async def run_tournament_job(ctx: dict, tournament_id: int) -> dict:
+    """Async-турнир: bracket/round-robin, replay, восстановление (S-48)."""
+    from domains.tournaments.service import run_tournament_job as run
+
+    logger.info("worker: tournament %s", tournament_id)
+    tournament = await run(tournament_id, ctx["redis"])
+    return {"tournamentId": tournament.id, "status": tournament.status}
+
+
+async def resume_tournaments(ctx: dict) -> dict:
+    """Cron/startup: подхватить queued/running турниры после рестарта."""
+    from domains.tournaments.service import resume_tournaments as resume
+
+    count = await resume(ctx["redis"])
+    logger.info("worker: resume_tournaments enqueued=%s", count)
+    return {"enqueued": count}
+
+
 class WorkerSettings:
-    functions = [heartbeat, analyze_position, analyze_game, scores_recalc, retention_run, run_match]
+    functions = [
+        heartbeat,
+        analyze_position,
+        analyze_game,
+        scores_recalc,
+        retention_run,
+        run_match,
+        run_tournament_job,
+        resume_tournaments,
+    ]
     #: nightly-пересчёт EMA (§10.3) — 03:40 UTC; retention — 04:10 UTC
     cron_jobs = [
         arq.cron("app.worker.scores_recalc", hour=3, minute=40, run_at_startup=False),
         arq.cron("app.worker.retention_run", hour=4, minute=10, run_at_startup=False),
+        arq.cron("app.worker.resume_tournaments", minute=5, run_at_startup=True),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     #: default queue — analyze/pdf; match workers получают WORKER_QUEUE из compose

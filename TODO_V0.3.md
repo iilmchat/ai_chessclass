@@ -9,7 +9,7 @@
 > документы. Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md`.
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 2/12 (S-46…S-47 ✅).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 3/12 (S-46…S-48 ✅).**
 Приоритет: **сначала надёжность и безопасность, затем интеграции, контент
 и релиз**. Все спринты — после стабилизации v0.2.x.
 
@@ -46,13 +46,19 @@
   backend 179, frontend 5.
 - **Отчёт:** `docs/sprint-reports/S-47-2026-11-02.md`.
 
-### S-48 ☐ Турниры v2: async, replay и античит
-- [ ] arq-job турнира + SSE-прогресс; round-robin без блокировки API
-- [ ] запись ходов турнира (`tournament_moves`), реплей, seed/ничьи
-- [ ] античит: семплирование SF, флаги `engine_likeliness` для турнирных ботов
-- [ ] лимиты/бюджет турнира, отмена и восстановление после рестарта
+### S-48 ✅ Турниры v2: async, replay и античит
+- [x] arq-job турнира + SSE-прогресс; round-robin без блокировки API
+- [x] запись ходов турнира (`tournament_moves`), реплей, seed/ничьи
+- [x] античит: семплирование SF, флаги `engine_likeliness` для турнирных ботов
+- [x] лимиты/бюджет турнира, отмена и восстановление после рестарта
 - **DoD:** турнир 8/16 ботов идёт асинхронно; реплей доступен; флаги
   появляются у teacher; рестарт не теряет турнир.
+- **Факт:** миграция `0023_tournament_v2` (`progress/total/job/cancel/error`,
+  `tournament_moves`); arq `run_tournament_job` + recovery-cron
+  `resume_tournaments`; SSE `/tournaments/{id}/events`; replay endpoint;
+  cancel; SF-семплы и `engine_likeliness`; UI polling/replay/cancel;
+  backend 181, frontend 5, build OK.
+- **Отчёт:** `docs/sprint-reports/S-48-2026-11-02.md`.
 
 ---
 

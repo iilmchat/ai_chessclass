@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from 'react';
 import type {
   TournamentDetailDto,
   TournamentDto,
+  TournamentReplayDto,
 } from '../shared/api';
 import {
   ApiError,
   apiFetch,
+  cancelTournament,
   createTournament,
   downloadFile,
   fetchTournament,
+  fetchTournamentReplay,
   fetchTournaments,
   getToken,
   logout,
@@ -22,6 +25,7 @@ export function TournamentsPage() {
   const [items, setItems] = useState<TournamentDto[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<TournamentDetailDto | null>(null);
+  const [replay, setReplay] = useState<TournamentReplayDto | null>(null);
   const [name, setName] = useState('');
   const [format, setFormat] = useState('bracket');
   const [botIds, setBotIds] = useState('');
@@ -67,6 +71,22 @@ export function TournamentsPage() {
       );
   }, [selectedId]);
 
+  useEffect(() => {
+    if (
+      !selectedId ||
+      !detail ||
+      !['queued', 'running'].includes(detail.status)
+    ) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      fetchTournament(selectedId)
+        .then(setDetail)
+        .catch(() => undefined);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [selectedId, detail?.status]);
+
   const act = useCallback(async (fn: () => Promise<void>, message = '') => {
     setBusy(true);
     setError('');
@@ -105,6 +125,17 @@ export function TournamentsPage() {
         `tournament-${id}.csv`,
       );
     }, 'Экспорт скачан');
+
+  const onCancel = (id: string) =>
+    act(async () => {
+      await cancelTournament(id);
+      setDetail(await fetchTournament(id));
+    }, 'Турнир отменён');
+
+  const onReplay = (tournamentId: string, matchId: string) =>
+    act(async () => {
+      setReplay(await fetchTournamentReplay(tournamentId, matchId));
+    });
 
   if (!authed) {
     return (
@@ -212,6 +243,20 @@ export function TournamentsPage() {
                 {detail.format} · {detail.status} · участников:{' '}
                 {detail.participants.length} · матчей: {detail.matches.length}
               </p>
+              <p className="link-hint">
+                прогресс: {detail.progress}/{detail.totalMatches}
+                {detail.error ? ` · ошибка: ${detail.error}` : ''}
+              </p>
+              {canManage && ['queued', 'running'].includes(detail.status) && (
+                <button
+                  className="retry-button"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onCancel(detail.id)}
+                >
+                  Отменить турнир
+                </button>
+              )}
               {canManage && (
                 <button
                   className="retry-button"
@@ -259,10 +304,31 @@ export function TournamentsPage() {
                 {detail.matches.map((match) => (
                   <li key={`${match.roundNo}-${match.matchNo}`}>
                     раунд {match.roundNo}.{match.matchNo}: {match.botAId} vs{' '}
-                    {match.botBId} → {match.result} ({match.movesCount} ходов)
+                    {match.botBId} → {match.result} ({match.movesCount} ходов){' '}
+                    <button
+                      className="link-button"
+                      type="button"
+                      onClick={() => onReplay(detail.id, match.id)}
+                    >
+                      replay
+                    </button>
                   </li>
                 ))}
               </ul>
+              {replay && (
+                <div className="verdict">
+                  <strong>Реплей:</strong> {replay.match.botAId} vs{' '}
+                  {replay.match.botBId} · {replay.match.result}
+                  <ul className="facts-list">
+                    {replay.moves.map((move) => (
+                      <li key={move.ply}>
+                        {move.ply}. {move.agent}: {move.uci}
+                        {move.sfSample ? ' · SF-семпл' : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </>
           )}
         </div>

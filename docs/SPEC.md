@@ -43,6 +43,7 @@
 | export | `GET /admin/export/skills.csv`, `GET /admin/export/xapi` | — | ✅ S-45 | LMS: CSV навыков + xAPI statements (SPEC §3.16) |
 | observability | `GET /metrics`; admin: `GET /admin/observability/summary|alerts|costs|costs.csv|retention/status`, `POST /admin/observability/retention/run` | — | ✅ S-46 | метрики, стоимость, retention/архив (SPEC §3.17) |
 | auth-hardening | `GET /auth/jwks`, `GET /.well-known/jwks.json`; admin: `PATCH /admin/users/{id}/role`, `PATCH /admin/users/{id}/auditor-scope`, `POST /admin/users/{id}/anonymize` | — | ✅ S-47 | RS256/JWKS, auditor scope, PII-анонимизация (SPEC §3.18) |
+| tournaments-v2 | `POST /admin/tournaments` (202/queued), `GET /tournaments/{id}/events` (SSE), `POST /admin/tournaments/{id}/cancel`, `GET /tournaments/{id}/matches/{mid}/replay` | — | ✅ S-48 | async arq, replay, cancel/recovery, SF-античит (SPEC §3.19) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -591,6 +592,26 @@ interface TournamentDetailOut extends TournamentOut {
 - Security: decode допускает только настроенный alg + legacy HS256; `none`/
   HS512/подмена подписи → 401; refresh reuse отзывает все сессии.
 
+### 3.19. tournaments-v2: async/SSE/replay (S-48)
+
+```ts
+// POST /admin/tournaments {name, format, botVersionIds} → 202 TournamentOut
+//   status=queued; job arq `run_tournament_job`
+// GET /tournaments/{id}/events → SSE status/progress (running/done/cancelled/failed)
+// POST /admin/tournaments/{id}/cancel → TournamentOut
+// GET /tournaments/{id}/matches/{matchId}/replay → { match, moves[] }
+```
+
+- `tournaments`: `progress`, `total_matches`, `job_id`, `cancel_requested`,
+  `error`; статусы `queued|running|done|cancelled|failed`.
+- `tournament_moves`: ply/fen/uci/agent (`a|b`)/bot_version_id/think_ms/
+  sf_sample; replay и античит.
+- Recovery: cron/startup `resume_tournaments` перезапускает queued/running
+  с `_job_id=tournament:{id}`; завершённые матчи не дублируются.
+- Античит: 10 % ходов помечаются `sf_sample`; после турнира SF-семплы
+  проверяются на top-1 rate; флаг `engine_likeliness` (domain=bot).
+- Лимит: 2–16 уникальных активных ботов; отмена — между матчами.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -858,3 +879,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-45: tournaments/export ✅ - 8-бот bracket без LLM, CSV/xAPI для LMS, UI | S-45 |
 | 2026-11-02 | S-46: observability/retention ✅ - voice_usage, gzip-архив, metrics, alerts, cost/UI | S-46 |
 | 2026-11-02 | S-47: auth-hardening ✅ - RS256/JWKS, audit логинов/ролей, auditor scope, PII | S-47 |
+| 2026-11-02 | S-48: tournaments-v2 ✅ - async arq/SSE, replay, cancel/recovery, SF-античит | S-48 |
