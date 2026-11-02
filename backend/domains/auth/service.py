@@ -17,7 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from core.errors import AppError
 from core.security import hash_password, parse_duration, verify_password
-from domains.auth.models import EmailToken, EmailTokenKind, RefreshSession, User
+from domains.auth.models import (
+    EmailToken,
+    EmailTokenKind,
+    RefreshSession,
+    User,
+    UserRole,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +184,50 @@ async def revoke_refresh_session(session: AsyncSession, raw_token: str) -> None:
         )
         .values(revoked_at=_now())
     )
+
+
+async def revoke_all_refresh_sessions(session: AsyncSession, user_id: int) -> None:
+    await session.execute(
+        update(RefreshSession)
+        .where(
+            RefreshSession.user_id == user_id,
+            RefreshSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=_now())
+    )
+
+
+async def change_user_role(
+    session: AsyncSession, user_id: int, role: UserRole
+) -> User:
+    user = await session.get(User, user_id)
+    if user is None:
+        raise AppError("user_not_found", "Пользователь не найден", 404)
+    user.role = role
+    await revoke_all_refresh_sessions(session, user_id)
+    await session.flush()
+    return user
+
+
+async def anonymize_user(session: AsyncSession, user_id: int) -> User:
+    """PII-анонимизация: email/пароль/профиль, деактивация, отзыв сессий."""
+    from domains.profile.models import AgeGroup, UserProfile
+
+    user = await session.get(User, user_id)
+    if user is None:
+        raise AppError("user_not_found", "Пользователь не найден", 404)
+    user.email = f"anon-{user.id}@invalid.local"
+    user.password_hash = hash_password(secrets.token_urlsafe(32))
+    user.is_active = False
+    user.email_verified_at = None
+    profile = await session.get(UserProfile, user_id)
+    if profile is not None:
+        profile.display_name = "Удалённый пользователь"
+        profile.age_group = AgeGroup.UNKNOWN
+        profile.prefs = {}
+    await revoke_all_refresh_sessions(session, user_id)
+    await session.flush()
+    return user
 
 
 async def request_password_reset(

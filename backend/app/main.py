@@ -12,8 +12,10 @@ from core.config import settings
 from core.db import engine
 from core.errors import register_exception_handlers
 from core.logging import new_request_id, request_id_var, setup_logging
+from core.security import jwks
 from domains.anticheat.router import router as anticheat_router
 from domains.audit.router import router as audit_router
+from domains.auth.router import admin_router as auth_admin_router
 from domains.auth.router import router as auth_router
 from domains.bot_lab.router import admin_router as bot_admin_router
 from domains.bot_lab.router import router as bots_router
@@ -99,6 +101,11 @@ async def request_id_middleware(request: Request, call_next) -> Response:
 
 register_exception_handlers(app)
 
+
+@app.get("/.well-known/jwks.json", include_in_schema=False)
+async def well_known_jwks() -> dict:
+    return jwks()
+
 # healthz — и от корня (Design §15.3: GET /healthz), и под /api/v1 (для прокси фронтенда)
 app.include_router(healthz.router, tags=["health"])
 app.include_router(healthz.router, prefix="/api/v1", include_in_schema=False)
@@ -107,6 +114,7 @@ app.include_router(readyz.router, prefix="/api/v1", include_in_schema=False)
 
 # домены API v1 (Design §12.2)
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(auth_admin_router, prefix="/api/v1")
 app.include_router(profile_router, prefix="/api/v1")
 app.include_router(progress_router, prefix="/api/v1")
 app.include_router(py_router, prefix="/api/v1")

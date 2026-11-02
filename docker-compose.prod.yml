@@ -89,6 +89,7 @@ services:
       - chessclass_reports:/srv/reports
       - chessclass_voice:/srv/voice_cache
       - chessclass_archive:/srv/archive
+      - ./deploy/jwt:/srv/jwt:ro
     depends_on:
       db:
         condition: service_healthy

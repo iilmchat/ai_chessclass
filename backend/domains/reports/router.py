@@ -8,7 +8,7 @@ from fastapi.responses import Response
 
 from core.errors import AppError
 from domains.audit import service as audit_svc
-from domains.auth.deps import DbSession, require_role
+from domains.auth.deps import DbSession, require_role, require_scope
 from domains.auth.models import User, UserRole
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -20,10 +20,7 @@ def _teacher() -> User:
 
 
 TeacherOrAdmin = Annotated[User, Depends(require_role(UserRole.TEACHER, UserRole.ADMIN))]
-AuditorOrTeacher = Annotated[
-    User,
-    Depends(require_role(UserRole.TEACHER, UserRole.ADMIN, UserRole.AUDITOR)),
-]
+AuditorOrTeacher = Annotated[User, Depends(require_scope("reports"))]
 
 
 @router.post("/pdf/{student_id}", status_code=201)

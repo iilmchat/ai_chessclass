@@ -153,3 +153,24 @@ docker compose -f docker-compose.prod.yml restart edge
   админ-дашборд `/ops`; алерты: DB/Redis, диск, очередь, LLM-cost, TLS,
   устаревший retention.
 - Проверка после retention: `restore-test` на свежем бэкапе (S-38).
+
+## 9. JWT-ключи и PII (S-47)
+
+- HS256 по умолчанию (`JWT_SECRET`); для RS256:
+  `.\scripts\gen-jwt-keys.ps1 -Force` → `deploy/jwt/{private,public}.pem`,
+  затем `JWT_ALGORITHM=RS256`, `JWT_PRIVATE_KEY_PATH=/srv/jwt/private.pem`,
+  `JWT_PUBLIC_KEY_PATH=/srv/jwt/public.pem`, `JWT_KID=v1`.
+  Перезапустить api; JWKS: `/api/v1/auth/jwks`,
+  `/.well-known/jwks.json`. `JWT_LEGACY_HS256=true` — переходный период.
+- Ротация: новый `kid`/ключи, оставить старый public key на время TTL
+  (15 мин), затем убрать; ключи не коммитить (`.gitignore`).
+- Аудит: `auth.login.success/failed`, `auth.role.change`,
+  `auth.auditor_scope.change`, `auth.user.anonymize` — в `audit_logs`.
+- Auditor scope: `flags|audit|reports|observability`; admin —
+  `PATCH /admin/users/{id}/auditor-scope`; teacher/admin не ограничены.
+- PII/право на забвение: `POST /admin/users/{id}/anonymize` — anon-email,
+  случайный пароль, display_name «Удалённый пользователь», age_group
+  unknown, refresh отозваны; учебные записи сохраняются для аудита.
+  `age_group` — только самооценка/teacher, без даты рождения.
+- Security-проверки: `python -m pytest tests/test_auth_hardening.py -q`;
+  refresh reuse уже покрыт `test_auth_flow.py`.

@@ -3,10 +3,13 @@
 Refresh — HttpOnly-cookie c path=/api/v1/auth; rate-limit — Redis (§13.1).
 """
 
+import hashlib
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 
+from core.base import CamelModel
 from core.config import settings
 from core.errors import AppError
 from core.ratelimit import (
@@ -14,10 +17,11 @@ from core.ratelimit import (
     is_locked_out,
     register_auth_failure,
 )
-from core.security import create_access_token, parse_duration
+from core.security import create_access_token, jwks, parse_duration
+from domains.audit import service as audit_svc
 from domains.auth import service as svc
-from domains.auth.deps import CurrentUser, DbSession
-from domains.auth.models import EmailTokenKind
+from domains.auth.deps import CurrentUser, DbSession, require_role
+from domains.auth.models import EmailTokenKind, User, UserRole
 from domains.auth.schemas import (
     AuthOut,
     LoginIn,
@@ -36,9 +40,23 @@ from domains.profile import service as profile_svc
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
 REFRESH_COOKIE = settings.refresh_cookie_name
 COOKIE_PATH = "/api/v1/auth"
+AdminOnly = Annotated[User, Depends(require_role(UserRole.ADMIN))]
+
+
+class RoleUpdateIn(CamelModel):
+    role: UserRole
+
+
+class AuditorScopeIn(CamelModel):
+    scopes: dict[str, bool]
+
+
+def _email_hash(email: str) -> str:
+    return hashlib.sha256(email.encode()).hexdigest()
 
 
 def _client_ip(request: Request) -> str:
@@ -86,6 +104,14 @@ async def register(
     await profile_svc.ensure_profile(session, user.id)  # novice/free по умолчанию
     token = await svc.issue_email_token(session, user, EmailTokenKind.VERIFY)
     _send_email(user.email, kind="verify", token=token)
+    await audit_svc.record(
+        session,
+        user,
+        "auth.register",
+        target_type="user",
+        target_id=user.id,
+        request=request,
+    )
     return RegisterOut(
         id=str(user.id),
         email=user.email,
@@ -119,12 +145,28 @@ async def login(
     except AppError as exc:
         if exc.code == "auth_invalid_credentials":
             await register_auth_failure(redis, ip)
+        await audit_svc.record(
+            session,
+            None,
+            "auth.login.failed",
+            source="api",
+            meta={"emailHash": _email_hash(body.email.strip().lower())},
+            request=request,
+        )
         raise
     raw = await svc.create_refresh_session(
         session, user, request.headers.get("user-agent")
     )
     _set_refresh_cookie(response, raw)
     profile = await profile_svc.ensure_profile(session, user.id)
+    await audit_svc.record(
+        session,
+        user,
+        "auth.login.success",
+        target_type="user",
+        target_id=user.id,
+        request=request,
+    )
     return AuthOut(
         accessToken=_access_token(user.id, user.role.value, profile.level.value),
         user=user_out(user),
@@ -143,6 +185,14 @@ async def refresh(
     )
     _set_refresh_cookie(response, new_raw)
     profile = await profile_svc.ensure_profile(session, user.id)
+    await audit_svc.record(
+        session,
+        user,
+        "auth.refresh",
+        target_type="user",
+        target_id=user.id,
+        request=request,
+    )
     return TokenOut(
         accessToken=_access_token(user.id, user.role.value, profile.level.value)
     )
@@ -162,6 +212,83 @@ async def logout(
 @router.get("/me", response_model=UserOut)
 async def me(user: CurrentUser) -> UserOut:
     return user_out(user)
+
+
+@router.get("/jwks")
+async def jwks_endpoint() -> dict:
+    return jwks()
+
+
+@admin_router.patch("/users/{user_id}/role", response_model=UserOut)
+async def change_role(
+    user_id: int,
+    body: RoleUpdateIn,
+    admin: AdminOnly,
+    session: DbSession,
+    request: Request,
+) -> UserOut:
+    target = await session.get(User, user_id)
+    if target is None:
+        raise AppError("user_not_found", "Пользователь не найден", 404)
+    old_role = target.role
+    target = await svc.change_user_role(session, user_id, body.role)
+    await audit_svc.record(
+        session,
+        admin,
+        "auth.role.change",
+        target_type="user",
+        target_id=user_id,
+        meta={"from": old_role.value, "to": body.role.value},
+        request=request,
+    )
+    return user_out(target)
+
+
+@admin_router.patch("/users/{user_id}/auditor-scope", response_model=MessageOut)
+async def set_auditor_scope(
+    user_id: int,
+    body: AuditorScopeIn,
+    admin: AdminOnly,
+    session: DbSession,
+    request: Request,
+) -> MessageOut:
+    target = await session.get(User, user_id)
+    if target is None:
+        raise AppError("user_not_found", "Пользователь не найден", 404)
+    profile = await profile_svc.ensure_profile(session, user_id)
+    prefs = dict(profile.prefs or {})
+    prefs["auditor_scope"] = body.scopes
+    profile.prefs = prefs
+    await session.flush()
+    await audit_svc.record(
+        session,
+        admin,
+        "auth.auditor_scope.change",
+        target_type="user",
+        target_id=user_id,
+        meta={"scopes": body.scopes},
+        request=request,
+    )
+    return MessageOut(ok=True)
+
+
+@admin_router.post("/users/{user_id}/anonymize", response_model=MessageOut)
+async def anonymize(
+    user_id: int,
+    admin: AdminOnly,
+    session: DbSession,
+    request: Request,
+) -> MessageOut:
+    await svc.anonymize_user(session, user_id)
+    await audit_svc.record(
+        session,
+        admin,
+        "auth.user.anonymize",
+        target_type="user",
+        target_id=user_id,
+        request=request,
+    )
+    return MessageOut(ok=True)
 
 
 @router.post("/password-reset", status_code=202, response_model=MessageOut)

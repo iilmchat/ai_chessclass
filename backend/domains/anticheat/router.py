@@ -8,16 +8,13 @@ from pydantic import Field
 from core.base import CamelModel
 from domains.anticheat.models import AnticheatFlag
 from domains.audit import service as audit_svc
-from domains.auth.deps import CurrentUser, DbSession, require_role
+from domains.auth.deps import CurrentUser, DbSession, require_role, require_scope
 from domains.auth.models import User, UserRole
 
 router = APIRouter(prefix="/admin/anticheat", tags=["anticheat"])
 
 TeacherOrAdmin = Annotated[User, Depends(require_role(UserRole.TEACHER, UserRole.ADMIN))]
-AuditorOrTeacher = Annotated[
-    User,
-    Depends(require_role(UserRole.TEACHER, UserRole.ADMIN, UserRole.AUDITOR)),
-]
+AuditorOrTeacher = Annotated[User, Depends(require_scope("flags"))]
 
 
 class FlagOut(CamelModel):

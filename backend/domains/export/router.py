@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from core.base import CamelModel
 from domains.audit import service as audit_svc
-from domains.auth.deps import DbSession, require_role
+from domains.auth.deps import DbSession, require_scope
 from domains.auth.models import User, UserRole
 from domains.bot_lab.models import BotStats
 from domains.cognitive import service as cognitive_svc
@@ -20,10 +20,7 @@ from domains.progress.models import PyProgress
 
 router = APIRouter(prefix="/admin/export", tags=["export"])
 
-ReadRoles = Annotated[
-    User,
-    Depends(require_role(UserRole.TEACHER, UserRole.ADMIN, UserRole.AUDITOR)),
-]
+ReadRoles = Annotated[User, Depends(require_scope("audit"))]
 
 
 class XapiStatement(CamelModel):

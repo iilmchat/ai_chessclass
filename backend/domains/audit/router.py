@@ -16,15 +16,12 @@ from fastapi.responses import Response
 from core.base import CamelModel
 from domains.audit import service as audit_svc
 from domains.audit.models import AuditLog
-from domains.auth.deps import DbSession, require_role
-from domains.auth.models import User, UserRole
+from domains.auth.deps import DbSession, require_scope
+from domains.auth.models import User
 
 router = APIRouter(prefix="/admin/audit", tags=["audit"])
 
-ReadRoles = Annotated[
-    User,
-    Depends(require_role(UserRole.TEACHER, UserRole.ADMIN, UserRole.AUDITOR)),
-]
+ReadRoles = Annotated[User, Depends(require_scope("audit"))]
 
 
 class AuditLogOut(CamelModel):

@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     # --- auth (S-02)
     jwt_secret: str = "dev-secret-change-me-please-0123456789abcdef"
     jwt_algorithm: str = "HS256"
+    jwt_private_key: str = ""
+    jwt_public_key: str = ""
+    jwt_private_key_path: str = ""
+    jwt_public_key_path: str = ""
+    jwt_kid: str = "v1"
+    jwt_legacy_hs256: bool = True
     jwt_ttl: str = "15m"
     refresh_ttl: str = "30d"
     refresh_cookie_name: str = "cc_refresh"

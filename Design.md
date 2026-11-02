@@ -968,8 +968,9 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 ### 13.1. Аутентификация и сессии
 
 - Пароли — **Argon2id** (salt/time-cost по config); в логи не попадают.
-- Access JWT — TTL 15 мин, `sub`, `role`, `level`; алгоритм HS256 (v0.1),
-  rotate key через env; RS256/`JWKS` — v0.2.
+- Access JWT — TTL 15 мин, `sub`, `role`, `level`; HS256 по умолчанию,
+  RS256 + `JWKS` (S-47) через `JWT_ALGORITHM`/ключи/`JWT_KID`;
+  переходный legacy HS256.
 - Refresh — HttpOnly+Secure+SameSite=Lax cookie, TTL 30 дней, ротация при
   использовании; `refresh_sessions` хранит только hash; logout отзывает.
 - Email-верификация: одноразовый токен 24 ч; письма — SMTP через env
@@ -996,8 +997,12 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 
 - Минимум PII: имя, email (+ age_group v0.2), никакой геолокации.
 - LLM-промпты не включают email/пароли; в логах — user_id, не PII.
-- Мягкое удаление: `is_active=false`; «право на забвение» — функция админа
-  с anon-именем (v0.1.x).
+- Мягкое удаление: `is_active=false`; «право на забвение» (S-47) —
+  `POST /admin/users/{id}/anonymize`: anon-email/пароль, display_name
+  «Удалённый пользователь», age_group unknown, отзыв refresh; учебные
+  записи сохраняются для аудита.
+- Auditor scope (S-47): `flags`, `audit`, `reports`, `observability`;
+  задаётся admin через `PATCH /admin/users/{id}/auditor-scope`.
 
 ### 13.4. Прочее
 
@@ -1106,7 +1111,7 @@ MAX_PLIES=60  BOT_MATCH_BUDGET_S=120  BOT_PERMOVE_TIMEOUT_S=1.0
 # match workers: WORKER_QUEUE=arq:matches:<kind>, WORKER_MAX_JOBS=2/1/1/1 (S-37)
 
 # приложения
-JWT_SECRET=change-me  JWT_TTL=15m  REFRESH_TTL=30d  EMBEDDING_DIM=768
+JWT_SECRET=change-me  JWT_ALGORITHM=HS256  JWT_KID=v1  JWT_TTL=15m  REFRESH_TTL=30d  EMBEDDING_DIM=768
 
 # интеграции (backlog)
 ELEVENLABS_API_KEY=   # v0.2, озвучка

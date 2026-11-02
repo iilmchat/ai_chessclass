@@ -12,7 +12,7 @@ from core.base import CamelModel
 from core.config import settings
 from core.errors import AppError
 from domains.audit import service as audit_svc
-from domains.auth.deps import DbSession, require_role
+from domains.auth.deps import DbSession, require_role, require_scope
 from domains.auth.models import User, UserRole
 from domains.observability import service as svc
 from domains.retention import service as retention_svc
@@ -21,10 +21,7 @@ admin_router = APIRouter(prefix="/admin/observability", tags=["observability"])
 metrics_router = APIRouter(tags=["observability"])
 
 AdminOnly = Annotated[User, Depends(require_role(UserRole.ADMIN))]
-AdminOrAuditor = Annotated[
-    User,
-    Depends(require_role(UserRole.ADMIN, UserRole.AUDITOR)),
-]
+AdminOrAuditor = Annotated[User, Depends(require_scope("observability"))]
 
 
 class SummaryOut(CamelModel):

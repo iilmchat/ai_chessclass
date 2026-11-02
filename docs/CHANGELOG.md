@@ -21,6 +21,20 @@
 - Тесты: архив/удаление/сохранение published, dry-run, metrics/costs/retention;
   backend 176.
 
+#### S-47 — Auth-hardening и приватность (2026-11-02)
+- RS256/JWKS: `JWT_ALGORITHM`, private/public keys/paths, `JWT_KID`,
+  `JWT_LEGACY_HS256`; `/api/v1/auth/jwks` и `/.well-known/jwks.json`;
+  `scripts/gen-jwt-keys.ps1` + `deploy/jwt`.
+- Аудит `auth.login.success/failed`, `auth.role.change`,
+  `auth.auditor_scope.change`, `auth.user.anonymize`; admin endpoints
+  role/scope/anonymize.
+- Auditor scope: `flags`, `audit`, `reports`, `observability` (admin
+  управляет через `/admin/users/{id}/auditor-scope`).
+- PII: анонимизация email/пароля/профиля, деактивация и отзыв refresh;
+  age_group/PII-политика в SPEC/runbook.
+- Security-тесты: RS256/JWKS, legacy HS256, alg=none/HS512, role/scope/
+  anonymize; backend 179.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

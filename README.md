@@ -56,6 +56,8 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
 - **Турниры и LMS (S-45)** — bracket/round-robin без LLM, CSV/xAPI-экспорт.
 - **Наблюдаемость/retention (S-46)** — метрики, cost-per-student, алерты,
   gzip-архив журналов/voice-кэша.
+- **Auth-hardening (S-47)** — RS256/JWKS, аудит логинов/ролей, auditor scope,
+  PII-анонимизация.
 - **Prod** — edge TLS/HSTS, бэкапы/restore, runbook (S-38).
 
 ---

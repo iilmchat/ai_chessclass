@@ -56,3 +56,28 @@ def require_role(
         return user
 
     return checker
+
+
+def require_scope(scope: str) -> Callable[..., Awaitable[User]]:
+    """RBAC + auditor scope (S-47).
+
+    teacher/admin проходят всегда; auditor проверяется по
+    `user_profiles.prefs["auditor_scope"]` (отсутствует → разрешено).
+    """
+
+    async def checker(user: CurrentUser, session: DbSession) -> User:
+        if user.role in (UserRole.ADMIN, UserRole.TEACHER):
+            return user
+        if user.role is not UserRole.AUDITOR:
+            raise AppError("auth_forbidden", "Недостаточно прав", 403)
+        from domains.profile.models import UserProfile
+
+        profile = await session.get(UserProfile, user.id)
+        scopes = (profile.prefs or {}).get("auditor_scope", {}) if profile else {}
+        if scopes.get(scope) is False:
+            raise AppError(
+                "auth_forbidden", f"Нет scope auditor: {scope}", 403
+            )
+        return user
+
+    return checker

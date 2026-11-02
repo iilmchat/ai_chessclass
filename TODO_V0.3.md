@@ -9,7 +9,7 @@
 > документы. Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md`.
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 1/12 (S-46 ✅).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 2/12 (S-46…S-47 ✅).**
 Приоритет: **сначала надёжность и безопасность, затем интеграции, контент
 и релиз**. Все спринты — после стабилизации v0.2.x.
 
@@ -31,13 +31,20 @@
   UI `/ops`; retention тест + observability тест; backend 176, frontend 5.
 - **Отчёт:** `docs/sprint-reports/S-46-2026-11-02.md`.
 
-### S-47 ☐ Auth-hardening и приватность
-- [ ] RS256/JWKS (ротация ключей), совместимость HS256 на переходный период
-- [ ] аудит логинов/смены ролей; ограничение доступа auditor по scope
-- [ ] валидация `age_group`/PII, политика удаления/анонимизации ученика
-- [ ] security-тесты: token confusion, refresh reuse, role escalation
+### S-47 ✅ Auth-hardening и приватность
+- [x] RS256/JWKS (ротация ключей), совместимость HS256 на переходный период
+- [x] аудит логинов/смены ролей; ограничение доступа auditor по scope
+- [x] валидация `age_group`/PII, политика удаления/анонимизации ученика
+- [x] security-тесты: token confusion, refresh reuse, role escalation
 - **DoD:** RS256 включается конфигом; старые токены не ломаются; PII-политика
   зафиксирована в SPEC/runbook.
+- **Факт:** `jwt_algorithm=RS256` + private/public keys/paths, `kid`,
+  legacy HS256; JWKS `/api/v1/auth/jwks` + `/.well-known/jwks.json`;
+  `auth.login.success/failed`, `auth.role.change`, `auth.auditor_scope.change`,
+  `auth.user.anonymize` в audit; admin role/scope/anonymize endpoints;
+  scope auditor (flags/audit/reports/observability); `gen-jwt-keys.ps1`;
+  backend 179, frontend 5.
+- **Отчёт:** `docs/sprint-reports/S-47-2026-11-02.md`.
 
 ### S-48 ☐ Турниры v2: async, replay и античит
 - [ ] arq-job турнира + SSE-прогресс; round-robin без блокировки API

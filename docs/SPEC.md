@@ -42,6 +42,7 @@
 | tournaments | `GET /tournaments`, `GET /tournaments/{id}`; admin: `POST /admin/tournaments`, `GET /admin/tournaments/{id}/export.csv` | — | ✅ S-45 | bracket/round-robin без LLM, лидерборд, CSV (SPEC §3.16) |
 | export | `GET /admin/export/skills.csv`, `GET /admin/export/xapi` | — | ✅ S-45 | LMS: CSV навыков + xAPI statements (SPEC §3.16) |
 | observability | `GET /metrics`; admin: `GET /admin/observability/summary|alerts|costs|costs.csv|retention/status`, `POST /admin/observability/retention/run` | — | ✅ S-46 | метрики, стоимость, retention/архив (SPEC §3.17) |
+| auth-hardening | `GET /auth/jwks`, `GET /.well-known/jwks.json`; admin: `PATCH /admin/users/{id}/role`, `PATCH /admin/users/{id}/auditor-scope`, `POST /admin/users/{id}/anonymize` | — | ✅ S-47 | RS256/JWKS, auditor scope, PII-анонимизация (SPEC §3.18) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -568,6 +569,28 @@ interface TournamentDetailOut extends TournamentOut {
 - `voice_usage` — фактическое использование (включая cache-hit cost=0);
   cost-per-student = `llm_calls` + `voice_usage`.
 
+### 3.18. auth-hardening: RS256/JWKS, auditor scope, PII (S-47)
+
+```ts
+// GET /api/v1/auth/jwks | /.well-known/jwks.json → { keys: [JWK] }
+// PATCH /admin/users/{id}/role { role } → UserOut (admin)
+// PATCH /admin/users/{id}/auditor-scope { scopes: Record<string, boolean> } → {ok}
+// POST /admin/users/{id}/anonymize → {ok}
+```
+
+- JWT: `JWT_ALGORITHM=HS256|RS256`; RS256 — `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`
+  или `_PATH`, `JWT_KID`; `JWT_LEGACY_HS256=true` принимает старые HS256
+  токены при переходе. JWKS отдаёт публичный ключ.
+- Audit: `auth.login.success/failed` (failed — emailHash, без PII),
+  `auth.role.change`, `auth.auditor_scope.change`, `auth.user.anonymize`.
+- Auditor scope (prefs `auditor_scope`): `flags`, `audit`, `reports`,
+  `observability`; admin выставляет; teacher/admin не ограничены.
+- PII: `age_group` — только самооценка/teacher; анонимизация меняет
+  email/пароль/display_name/age_group, деактивирует и отзывает refresh;
+  исходные учебные записи сохраняются для аудита.
+- Security: decode допускает только настроенный alg + legacy HS256; `none`/
+  HS512/подмена подписи → 401; refresh reuse отзывает все сессии.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -834,3 +857,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-44: voice ✅ - ElevenLabs TTS, cache/voice_audio, quota, UI-плеер, text fallback | S-44 |
 | 2026-11-02 | S-45: tournaments/export ✅ - 8-бот bracket без LLM, CSV/xAPI для LMS, UI | S-45 |
 | 2026-11-02 | S-46: observability/retention ✅ - voice_usage, gzip-архив, metrics, alerts, cost/UI | S-46 |
+| 2026-11-02 | S-47: auth-hardening ✅ - RS256/JWKS, audit логинов/ролей, auditor scope, PII | S-47 |
