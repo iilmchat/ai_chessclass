@@ -4,7 +4,7 @@
 лаборатория с разбором партий, конструктор ботов с лестницей Elo и когнитивный
 дашборд навыков — **один профиль, один уровень, один LLM-ассистент** на все домены.
 
-**Версия:** v0.1.0 (29/29 спринтов, тег `v0.1.0`) · **Следующая:** v0.2.0
+**Версия:** v0.2.0 (16/16 спринтов, тег `v0.2.0`) · **Предыдущая:** v0.1.0
 ([TODO_V0.2.md](TODO_V0.2.md)) · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
@@ -18,18 +18,18 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
 
 ---
 
-## Возможности v0.1.0
+## Возможности v0.2.0
 
 - **Инфраструктура** — docker-compose dev-стек: PostgreSQL 17 (+pgvector) :5438,
   Redis :6384, FastAPI :8020, arq-воркер, Vite-фронтенд :3200; `/healthz` и
-  `/readyz` (готовность + сверка ревизии миграций); 14 миграций Alembic.
+  `/readyz` (готовность + сверка ревизии миграций); 21 миграция Alembic.
 - **Аутентификация** — регистрация/логин, Argon2id, access-JWT (15 мин) +
   refresh в HttpOnly-cookie (30 дней) с ротацией и защитой от reuse, email-
   верификация, rate-limit/lockout, сброс пароля.
 - **Профиль и уровни** — единый уровень `novice | intermediate | advanced`
   с маппингом доменных уровней (ADR-002), JWT-клейм, RBAC `student/teacher/admin`,
   пагинация; 11 навыков и 5 кросс-доменных связей.
-- **LLM-шлюз RouterAI** — 10 маршрутов × уровни L1/L2/L3/judge, квоты и бюджеты
+- **LLM-шлюз RouterAI** — 11 маршрутов × уровни L1/L2/L3/judge, квоты и бюджеты
   (free 50k / pro 500k токенов/день), fallback cloud → LM Studio → echo,
   FinOps (`llm_calls`, `usage_daily`, цены ₽/1M).
 - **Python-домен** — 16 заданий с assert-тестами, RestrictedPython-песочница
@@ -44,6 +44,17 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
 - **Когнитивный дашборд** — 11 навыков, недельные EMA (α=0.3), spider-график,
   рекомендации по skill_links.
 - **PDF родителям** — fpdf2 + DejaVuSans (кириллица), фоновая генерация.
+- **Классы и учитель (S-40)** — `classes`/`class_members`, инвайт-коды,
+  групповой дашборд (навыки/флаги/матчи), RBAC owner-teacher.
+- **Аудит и auditor (S-41)** — роль read-only, `audit_logs`, фильтры и CSV,
+  запись действий классов/античита/PDF.
+- **Прогресс и бейджи (S-42)** — `py_progress`, стрики, 6 достижений,
+  `age_group`, UI профиля.
+- **Этюды SF + LLM (S-43)** — генерация, ревью teacher, публикация,
+  попытки решения; лимит генераций.
+- **Озвучка ElevenLabs (S-44)** — TTS с кэшем/квотой и текстовым fallback.
+- **Турниры и LMS (S-45)** — bracket/round-robin без LLM, CSV/xAPI-экспорт.
+- **Prod** — edge TLS/HSTS, бэкапы/restore, runbook (S-38).
 
 ---
 
@@ -98,15 +109,15 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v0.1.0** (2026-11-01, тег `v0.1.0`, коммит `316fce9`) |
-| Спринты | **29/29** (S-01…S-29), этапы E-01…E-10 ✅ |
-| Тесты backend | **159 passed** (юнит + интеграционные + e2e-journey) |
+| Версия | **v0.2.0** (2026-11-02, тег `v0.2.0`) |
+| Спринты | **16/16** (S-30…S-45), этапы E-11…E-16 ✅ |
+| Тесты backend | **174 passed** (юнит + интеграционные + e2e-journey) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **7 passed** (Playwright: полный journey) |
-| Миграции | Alembic head **0014_reports** (14) |
+| Миграции | Alembic head **0021_tournaments** (21) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
-| Seed-данные | 3 пользователя + 11 навыков + 5 skill_links + 16 заданий |
-| Следующий этап | **v0.2.0** — S-30…S-45 ✅ (все спринты v0.2 завершены) |
+| Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 13 RAG-док |
+| Следующий этап | **v0.3** — backlog Design §2.2 (PvP, Telegram, LMS-адаптеры) |
 
 ---
 
