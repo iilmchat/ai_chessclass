@@ -9,7 +9,7 @@
 > документы. Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md`.
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 4/12 (S-46…S-49 ✅).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 5/12 (S-46…S-50 ✅).**
 Приоритет: **сначала надёжность и безопасность, затем интеграции, контент
 и релиз**. Все спринты — после стабилизации v0.2.x.
 
@@ -76,12 +76,18 @@
   mapping — стандартные activity id (skills/bot-elo); backend 183, frontend 5.
 - **Отчёт:** `docs/sprint-reports/S-49-2026-11-02.md`.
 
-### S-50 ☐ Telegram-бот: уведомления ученику/учителю
-- [ ] привязка Telegram к профилю (код/ deep link), consent
-- [ ] уведомления: бейдж, стрик, проверка учителем, PDF готов
-- [ ] rate-limit/отписка; без токена — graceful off
+### S-50 ✅ Telegram-бот: уведомления ученику/учителю
+- [x] привязка Telegram к профилю (код/ deep link), consent
+- [x] уведомления: бейдж, стрик, проверка учителем, PDF готов
+- [x] rate-limit/отписка; без токена — graceful off
 - **DoD:** уведомление приходит при привязке; отписка работает; секреты не
   логируются.
+- **Факт:** миграция `0025_telegram` (`telegram_links`, `telegram_outbox`);
+  direct link + code/deep-link confirm, consent; outbox retry/backoff;
+  worker `telegram_deliver` (minute=2); `/telegram/{status,link,link-code,confirm}`,
+  DELETE link; уведомления при бейдже и готовом PDF; UI в профиле;
+  без `TELEGRAM_BOT_TOKEN` — disabled, тесты на fake sender; backend 186.
+- **Отчёт:** `docs/sprint-reports/S-50-2026-11-03.md`.
 
 ### S-51 ☐ PvP-матчи ботов
 - [ ] комнаты/приглашения, матчмейкинг по Elo, лимиты

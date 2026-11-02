@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ProgressDto, ProfileDto } from '../shared/api';
+import type {
+  ProgressDto,
+  ProfileDto,
+  TelegramStatusDto,
+} from '../shared/api';
 import {
   ApiError,
+  createTelegramCode,
   fetchMyProfile,
   fetchMyProgress,
+  fetchTelegramStatus,
   getToken,
+  linkTelegram,
   logout,
+  unlinkTelegram,
   updateMyProfile,
 } from '../shared/api';
 import { LoginGate } from '../shared/LoginGate';
@@ -29,21 +37,28 @@ export function ProfilePage() {
   const [authed, setAuthed] = useState<boolean>(Boolean(getToken()));
   const [profile, setProfile] = useState<ProfileDto | null>(null);
   const [progress, setProgress] = useState<ProgressDto | null>(null);
+  const [telegram, setTelegram] = useState<TelegramStatusDto | null>(null);
   const [ageGroup, setAgeGroup] = useState('unknown');
+  const [chatId, setChatId] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [telegramCode, setTelegramCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [telegramBusy, setTelegramBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
     setError('');
     try {
-      const [me, snapshot] = await Promise.all([
+      const [me, snapshot, tg] = await Promise.all([
         fetchMyProfile(),
         fetchMyProgress(),
+        fetchTelegramStatus(),
       ]);
       setProfile(me);
       setAgeGroup(me.ageGroup);
       setProgress(snapshot);
+      setTelegram(tg);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Ошибка загрузки');
     }
@@ -68,6 +83,60 @@ export function ProfilePage() {
       setBusy(false);
     }
   }, [ageGroup]);
+
+  const linkChat = useCallback(async () => {
+    setTelegramBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const result = await linkTelegram(chatId, consent);
+      setTelegram((prev) => ({
+        linked: result.linked,
+        consent: result.consent,
+        configured: result.configured,
+        counts: prev?.counts ?? {},
+      }));
+      setNotice('Telegram привязан: уведомления включены');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Ошибка привязки');
+    } finally {
+      setTelegramBusy(false);
+    }
+  }, [chatId, consent]);
+
+  const unlinkChat = useCallback(async () => {
+    setTelegramBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await unlinkTelegram();
+      setTelegram((prev) => ({
+        linked: false,
+        consent: false,
+        configured: prev?.configured ?? false,
+        counts: prev?.counts ?? {},
+      }));
+      setNotice('Telegram отвязан, уведомления отключены');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Ошибка отписки');
+    } finally {
+      setTelegramBusy(false);
+    }
+  }, []);
+
+  const makeCode = useCallback(async () => {
+    setTelegramBusy(true);
+    setError('');
+    try {
+      const result = await createTelegramCode();
+      setTelegramCode(result.code);
+      setNotice(`Код: ${result.code} (действует ${result.expiresInS} с)`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Ошибка кода');
+    } finally {
+      setTelegramBusy(false);
+    }
+  }, []);
 
   if (!authed) {
     return (
@@ -143,6 +212,70 @@ export function ProfilePage() {
             <p className="link-hint">
               По умолчанию — «не указан»; данные видны только вам и учителю.
             </p>
+          </div>
+
+          <div className="panel">
+            <h2>Telegram</h2>
+            <p className="class-meta">
+              {telegram?.linked
+                ? 'Уведомления включены'
+                : 'Уведомления не подключены'}
+              {telegram && !telegram.configured
+                ? ' · бот не настроен на сервере'
+                : ''}
+            </p>
+            <div className="class-actions">
+              <input
+                className="field"
+                value={chatId}
+                onChange={(e) => setChatId(e.target.value)}
+                placeholder="chat_id из Telegram"
+                aria-label="Telegram chat_id"
+              />
+              <button
+                className="retry-button"
+                type="button"
+                disabled={telegramBusy || !chatId || !consent}
+                onClick={linkChat}
+              >
+                Привязать
+              </button>
+              {telegram?.linked && (
+                <button
+                  className="retry-button"
+                  type="button"
+                  disabled={telegramBusy}
+                  onClick={unlinkChat}
+                >
+                  Отписаться
+                </button>
+              )}
+            </div>
+            <label className="class-meta">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+              />{' '}
+              Согласен получать уведомления в Telegram
+            </label>
+            <p className="link-hint">
+              Бейджи, стрики, проверка учителем и готовый PDF. Можно отписаться
+              в любой момент.
+            </p>
+            {telegramCode && (
+              <p className="link-hint">
+                Код для бота: <code>{telegramCode}</code>
+              </p>
+            )}
+            <button
+              className="retry-button"
+              type="button"
+              disabled={telegramBusy}
+              onClick={makeCode}
+            >
+              Получить код привязки
+            </button>
           </div>
 
           <div className="panel">

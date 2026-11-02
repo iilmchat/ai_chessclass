@@ -125,6 +125,18 @@ async def lms_sync(ctx: dict) -> dict:
     return result
 
 
+async def telegram_deliver(ctx: dict) -> dict:
+    """Cron: доставка Telegram outbox с retry."""
+    from core.db import session_factory
+    from domains.telegram import service as telegram_svc
+
+    logger.info("worker: telegram_deliver")
+    async with session_factory() as session:
+        result = await telegram_svc.deliver_pending(session)
+        await session.commit()
+    return result
+
+
 class WorkerSettings:
     functions = [
         heartbeat,
@@ -136,6 +148,7 @@ class WorkerSettings:
         run_tournament_job,
         resume_tournaments,
         lms_sync,
+        telegram_deliver,
     ]
     #: nightly-пересчёт EMA (§10.3) — 03:40 UTC; retention — 04:10 UTC
     cron_jobs = [
@@ -143,6 +156,7 @@ class WorkerSettings:
         arq.cron("app.worker.retention_run", hour=4, minute=10, run_at_startup=False),
         arq.cron("app.worker.resume_tournaments", minute=5, run_at_startup=True),
         arq.cron("app.worker.lms_sync", minute=15, run_at_startup=True),
+        arq.cron("app.worker.telegram_deliver", minute=2, run_at_startup=True),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     #: default queue — analyze/pdf; match workers получают WORKER_QUEUE из compose

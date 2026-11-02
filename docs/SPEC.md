@@ -45,6 +45,7 @@
 | auth-hardening | `GET /auth/jwks`, `GET /.well-known/jwks.json`; admin: `PATCH /admin/users/{id}/role`, `PATCH /admin/users/{id}/auditor-scope`, `POST /admin/users/{id}/anonymize` | — | ✅ S-47 | RS256/JWKS, auditor scope, PII-анонимизация (SPEC §3.18) |
 | tournaments-v2 | `POST /admin/tournaments` (202/queued), `GET /tournaments/{id}/events` (SSE), `POST /admin/tournaments/{id}/cancel`, `GET /tournaments/{id}/matches/{mid}/replay` | — | ✅ S-48 | async arq, replay, cancel/recovery, SF-античит (SPEC §3.19) |
 | lms | admin: `GET /admin/lms/status`, `POST /admin/lms/sync`, `GET /admin/lms/deliveries`, `GET /admin/lms/deliveries.csv` | — | ✅ S-49 | xAPI LRS, retry/идемпотентность, журнал (SPEC §3.20) |
+| telegram | `GET /telegram/status`, `POST /telegram/link`, `POST /telegram/link-code`, `POST /telegram/confirm`, `DELETE /telegram/link` | — | ✅ S-50 | consent, code/deep-link, outbox, graceful off (SPEC §3.21) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -631,6 +632,27 @@ interface TournamentDetailOut extends TournamentOut {
 - Mapping: `https://chessclass.local/skills/{slug}` и
   `https://chessclass.local/bots/{userId}`; LMS-курсы — внешний адаптер.
 
+### 3.21. Telegram-уведомления (S-50)
+
+```ts
+// GET /telegram/status → { linked, consent, configured, counts }
+// POST /telegram/link { chatId, consent } → { linked, consent, configured }
+// POST /telegram/link-code → { code, deepLink, expiresInS }
+// POST /telegram/confirm { code, chatId } → { linked, consent, configured }
+// DELETE /telegram/link → { linked: false, consent: false, configured }
+```
+
+- `telegram_links`: user_id PK, chat_id unique, consent; consent обязателен
+  (422 `telegram_consent_required`), отписка удаляет привязку.
+- `telegram_outbox`: kind/text/status/attempts/next_attempt_at/sent_at;
+  retry/backoff до 1 ч; worker `telegram_deliver` minute=2/startup.
+- Код привязки — Redis TTL 600 с, deep link `t.me/chessclass_bot?start=...`;
+  rate-limit link/code 5/мин, уведомления 20/сутки на пользователя.
+- `TELEGRAM_BOT_TOKEN/API_BASE/LINK_TTL_S/BATCH`; без токена — `disabled=1`,
+  отправка не вызывается; токен не логируется.
+- Интеграции: бейдж (progress), готовый PDF (reports); `streak`/`review` —
+  через `enqueue(kind=...)`.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -900,3 +922,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-47: auth-hardening ✅ - RS256/JWKS, audit логинов/ролей, auditor scope, PII | S-47 |
 | 2026-11-02 | S-48: tournaments-v2 ✅ - async arq/SSE, replay, cancel/recovery, SF-античит | S-48 |
 | 2026-11-02 | S-49: LMS LRS ✅ - xAPI queue/retry, scheduled sync, delivery journal/CSV | S-49 |
+| 2026-11-03 | S-50: Telegram ✅ - consent/link-code, outbox/retry, graceful off | S-50 |

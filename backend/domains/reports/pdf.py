@@ -113,5 +113,13 @@ async def generate_for_student(
     )
     session.add(record)
     await session.flush()
+    from domains.telegram import service as telegram_svc
+
+    await telegram_svc.enqueue(
+        session,
+        student_id,
+        "report",
+        "PDF-отчёт готов в ChessClass",
+    )
     logger.info("reports: PDF %s (%d байт)", out_path, len(pdf_bytes))
     return {"reportId": record.id, "path": str(out_path), "sizeBytes": len(pdf_bytes)}

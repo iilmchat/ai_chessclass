@@ -54,6 +54,16 @@
   `/admin/lms/{status,sync,deliveries,deliveries.csv}`; журнал доставки.
 - Тесты: повтор не дублирует, retry после 500, status/CSV/sync; backend 183.
 
+#### S-50 — Telegram-бот: уведомления (2026-11-03)
+- Миграция `0025_telegram`: `telegram_links` (chat_id/consent) и
+  `telegram_outbox` (status/attempts/next_attempt/sent_at).
+- `/telegram/status|link|link-code|confirm`, DELETE `/link`; consent обязателен,
+  код/deep-link через Redis TTL; отписка удаляет привязку.
+- Outbox: бейджи, стрики, проверка/PDF; retry/backoff; rate-limit 20/сутки;
+  worker `telegram_deliver` (minute=2/startup).
+- Без `TELEGRAM_BOT_TOKEN` — graceful off (`disabled=1`), секреты не логируются;
+  UI в профиле. Тесты на fake sender; backend 186.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

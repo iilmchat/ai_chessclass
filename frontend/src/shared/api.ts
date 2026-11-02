@@ -413,6 +413,59 @@ export function fetchMyProgress(): Promise<ProgressDto> {
   return apiFetch('/progress/me');
 }
 
+// --- Telegram (S-50)
+
+export interface TelegramStatusDto {
+  linked: boolean;
+  consent: boolean;
+  configured: boolean;
+  counts: Record<string, number>;
+}
+
+export interface TelegramLinkDto {
+  linked: boolean;
+  consent: boolean;
+  configured: boolean;
+}
+
+export interface TelegramCodeDto {
+  code: string;
+  deepLink: string;
+  expiresInS: number;
+}
+
+export function fetchTelegramStatus(): Promise<TelegramStatusDto> {
+  return apiFetch('/telegram/status');
+}
+
+export function linkTelegram(
+  chatId: string,
+  consent: boolean,
+): Promise<TelegramLinkDto> {
+  return apiFetch('/telegram/link', {
+    method: 'POST',
+    body: JSON.stringify({ chatId, consent }),
+  });
+}
+
+export function unlinkTelegram(): Promise<TelegramLinkDto> {
+  return apiFetch('/telegram/link', { method: 'DELETE' });
+}
+
+export function createTelegramCode(): Promise<TelegramCodeDto> {
+  return apiFetch('/telegram/link-code', { method: 'POST' });
+}
+
+export function confirmTelegram(
+  code: string,
+  chatId: string,
+): Promise<TelegramLinkDto> {
+  return apiFetch('/telegram/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code, chatId }),
+  });
+}
+
 // --- voice (S-44)
 
 export interface VoiceStatusDto {

@@ -817,6 +817,13 @@ Seed-миграция заполняет связи:
 worker `lms_sync` каждые 15 мин; admin status/sync/deliveries/CSV.
 Без endpoint — только локальный CSV (`disabled=1`).
 
+### 10.8. Telegram (S-50)
+
+`telegram_links` (chat_id/consent) + `telegram_outbox` (kind/text/retry);
+код привязки в Redis TTL 600 с, deep link; consent обязателен. Worker
+`telegram_deliver` minute=2/startup; rate-limit 20/сутки; без
+`TELEGRAM_BOT_TOKEN` — `disabled=1`. Интеграции: бейдж/PDF.
+
 ## 11. Данные (PostgreSQL)
 
 ### 11.1. База и общие правила
@@ -850,6 +857,9 @@ voice_audio(id, text_hash uq, voice_id, model_id, path, chars, cost,
 voice_usage(id, user_id→users, chars, cost, cached, created_at)  # S-46
 lrs_deliveries(id, statement_id uq, payload jsonb, status, attempts,
                response_status, last_error, next_attempt_at, sent_at)  # S-49
+telegram_links(user_id→users, chat_id uq, consent, created_at, updated_at)  # S-50
+telegram_outbox(id, user_id→users, kind, text, status, attempts, last_error,
+                next_attempt_at, created_at, sent_at)  # S-50
 ```
 
 **Python-домен (py_*)**
@@ -1054,6 +1064,7 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | Турниры | `/tournaments` | bracket/round-robin, лидерборд, экспорт CSV | все (создание — teacher/admin) |
 | Экспорт LMS | `/export` | skills.csv, xapi.json | teacher/admin/auditor |
 | LRS-доставка | `/admin/lms/*` | status/sync/журнал/CSV | admin |
+| Telegram | `/telegram/*` | link/consent/status/outbox | user |
 | Наблюдаемость | `/ops` | метрики, стоимость, retention, алерты | admin/auditor |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
 | Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |

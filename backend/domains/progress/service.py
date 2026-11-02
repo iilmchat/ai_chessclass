@@ -83,6 +83,14 @@ async def _award_achievements(
             meta={"code": achievement.code},
             request=request,
         )
+        from domains.telegram import service as telegram_svc
+
+        await telegram_svc.enqueue(
+            session,
+            user.id,
+            "achievement",
+            f"Новый бейдж: {achievement.title_ru}",
+        )
         awards.append(achievement)
     return awards
 

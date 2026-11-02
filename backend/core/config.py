@@ -139,6 +139,11 @@ class Settings(BaseSettings):
     lrs_secret: str = ""
     lrs_timeout_s: float = 15.0
     lms_sync_batch: int = 50
+    # --- Telegram (S-50)
+    telegram_bot_token: str = ""
+    telegram_api_base: str = "https://api.telegram.org"
+    telegram_link_ttl_s: int = 600
+    telegram_batch: int = 50
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"
