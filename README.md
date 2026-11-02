@@ -4,7 +4,7 @@
 лаборатория с разбором партий, конструктор ботов с лестницей Elo и когнитивный
 дашборд навыков — **один профиль, один уровень, один LLM-ассистент** на все домены.
 
-**Версия:** v0.2.1 (16/16 спринтов, патч после prod-приёмки) · **Предыдущая:** v0.2.0
+**Версия:** v0.3.0 RC (S-46…S-55) · **Предыдущая:** v0.2.1
 ([TODO_V0.2.md](TODO_V0.2.md)) · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
@@ -62,6 +62,7 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
 - **Этюды v2 (S-53)** — random-playout, дедуп FEN, PV-solver, авто-ревью.
 - **RAG-редактор (S-54)** — версии/лицензии, hybrid FTS+vector, PDF/MD.
 - **Качество (S-55)** — load smoke p95, a11y skip-link/focus, security headers.
+- **RC v0.3.0 (S-56)** — e2e/smoke/backup, runbook `docs/runbooks/release-v0.3.0.md`.
 - **Наблюдаемость/retention (S-46)** — метрики, cost-per-student, алерты,
   gzip-архив журналов/voice-кэша.
 - **Auth-hardening (S-47)** — RS256/JWKS, аудит логинов/ролей, auditor scope,
@@ -121,7 +122,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v0.2.1** (2026-11-02, патч prod-приёмки) |
+| Версия | **v0.3.0** (2026-11-03, RC) |
 | Спринты | **16/16** (S-30…S-45), этапы E-11…E-16 ✅ |
 | Тесты backend | **174 passed** (юнит + интеграционные + e2e-journey) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |

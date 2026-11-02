@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="ChessClass API",
-    version="0.2.1",
+    version="0.3.0",
     description=(
         "Единая экосистема «Шахматно-программистский класс» (ChessClass). "
         "Архитектура — Design.md; контракты — docs/SPEC.md."

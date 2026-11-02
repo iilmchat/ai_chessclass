@@ -113,6 +113,14 @@
   OWASP-ревью в docs/security-review.
 - Тест security headers; backend 195.
 
+#### S-56 — Release candidate v0.3.0 (2026-11-03)
+- Версии backend/frontend/API → 0.3.0; UI brand v0.3.
+- RC acceptance: миграции head 0028, seed/e2e setup; backup+restore
+  (sha256/users/alembic) на dev; e2e 7/7; smoke healthz/readyz/SPA; load
+  p95 76 мс; backend 195; frontend build; prod compose config OK.
+- Live LLM/voice — echo/hash fallback (ключей нет), зафиксировано.
+- Runbook `docs/runbooks/release-v0.3.0.md`; known limitations.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

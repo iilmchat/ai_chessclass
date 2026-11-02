@@ -751,6 +751,16 @@ interface TournamentDetailOut extends TournamentOut {
 - `pip-audit` (после upgrade pip) — no known; secrets scan tracked files —
   чисто; OWASP-чеклист docs/security-review; critical/high нет.
 
+### 3.27. Release candidate v0.3.0 (S-56)
+
+- Версии: backend/frontend/API 0.3.0; UI brand v0.3.
+- Acceptance: migrations head `0028_rag_editor`; backup/restore (sha256,
+  users, alembic); e2e 7/7; smoke healthz/readyz/SPA; load p95 76 мс;
+  backend 195; frontend build; prod compose config.
+- Live LLM/voice — echo/hash fallback (ключей нет); known limitations:
+  Telegram/LRS off без токена/endpoint, PvP/RAG UI API-only, CSP/axe/hash-lock.
+- Runbook: `docs/runbooks/release-v0.3.0.md`; отчёт S-56.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -1026,3 +1036,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-03 | S-53: studies-v2 ✅ - playout/dedup, PV solver, auto-review | S-53 |
 | 2026-11-03 | S-54: RAG editor ✅ - versions/license, hybrid FTS, import/eval | S-54 |
 | 2026-11-03 | S-55: quality ✅ - load p95, a11y, security headers/audit | S-55 |
+| 2026-11-03 | S-56: RC ✅ - migrations/backup/e2e/smoke, versions 0.3.0 | S-56 |

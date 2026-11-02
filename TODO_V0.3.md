@@ -9,7 +9,7 @@
 > документы. Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md`.
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 10/12 (S-46…S-55 ✅).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 11/12 (S-46…S-56 ✅).**
 Приоритет: **сначала надёжность и безопасность, затем интеграции, контент
 и релиз**. Все спринты — после стабилизации v0.2.x.
 
@@ -158,11 +158,16 @@
   known, secrets scan чисто; `docs/security-review.md`; backend 195.
 - **Отчёт:** `docs/sprint-reports/S-55-2026-11-03.md`.
 
-### S-56 ☐ Release candidate v0.3.0
-- [ ] все миграции/seed/backup/restore на prod-контуре
-- [ ] e2e + smoke + live LLM/voice (или явный echo/fallback)
-- [ ] документация/CHANGELOG/README/SPEC/runbook актуальны
+### S-56 ✅ Release candidate v0.3.0
+- [x] все миграции/seed/backup/restore на prod-контуре
+- [x] e2e + smoke + live LLM/voice (или явный echo/fallback)
+- [x] документация/CHANGELOG/README/SPEC/runbook актуальны
 - **DoD:** RC проходит приёмку; известные ограничения зафиксированы.
+- **Факт:** head `0028_rag_editor`; backup/restore sha256/users/alembic OK;
+  e2e 7/7; smoke healthz/readyz/SPA OK; load p95 76 мс; backend 195;
+  frontend build; prod compose config OK; версии 0.3.0; live LLM/voice —
+  echo/hash fallback (ключей нет); runbook `docs/runbooks/release-v0.3.0.md`.
+- **Отчёт:** `docs/sprint-reports/S-56-2026-11-03.md`.
 
 ### S-57 ☐ Релиз v0.3.0
 - [ ] тег `v0.3.0`, GitHub Release, отчёт

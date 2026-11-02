@@ -857,6 +857,12 @@ headers (nosniff/frame/referrer/permissions/HSTS prod), pip upgrade,
 pip-audit/secrets scan. Детали — docs/load-profile, docs/a11y-audit,
 docs/security-review.
 
+### 10.14. RC v0.3.0 (S-56)
+
+Версии 0.3.0; migrations head 0028; backup/restore, e2e/smoke/load;
+runbook docs/runbooks/release-v0.3.0; известные ограничения — Telegram/LRS
+без ключей, live LLM/voice fallback, CSP/axe/hash-lock.
+
 ## 11. Данные (PostgreSQL)
 
 ### 11.1. База и общие правила
