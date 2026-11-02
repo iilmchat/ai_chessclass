@@ -112,6 +112,7 @@ async def register(
         target_id=user.id,
         request=request,
     )
+    await session.commit()
     return RegisterOut(
         id=str(user.id),
         email=user.email,
@@ -153,6 +154,7 @@ async def login(
             meta={"emailHash": _email_hash(body.email.strip().lower())},
             request=request,
         )
+        await session.commit()
         raise
     raw = await svc.create_refresh_session(
         session, user, request.headers.get("user-agent")
@@ -167,6 +169,7 @@ async def login(
         target_id=user.id,
         request=request,
     )
+    await session.commit()
     return AuthOut(
         accessToken=_access_token(user.id, user.role.value, profile.level.value),
         user=user_out(user),
@@ -193,6 +196,7 @@ async def refresh(
         target_id=user.id,
         request=request,
     )
+    await session.commit()
     return TokenOut(
         accessToken=_access_token(user.id, user.role.value, profile.level.value)
     )
