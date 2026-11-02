@@ -99,6 +99,7 @@ async def _cleanup():
             keys += [f"auth:fail:{ip}", f"auth:lock:{ip}"]
         keys += await redis.keys("rl:*")
         keys += await redis.keys("quota:*")
+        keys += await redis.keys("voice:*")
         if keys:
             await redis.delete(*keys)
     finally:

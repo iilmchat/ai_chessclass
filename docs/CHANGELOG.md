@@ -175,6 +175,18 @@
 - Аудит `studies.generate/submit/review/attempt`; тест 5 этюдов + reject;
   backend 169, frontend 5, build OK.
 
+#### S-44 — Озвучка ответов ElevenLabs (2026-11-02)
+- Миграция `0020_voice`: `voice_audio` (text_hash uq, voice/model, path,
+  chars, cost, provider); prod volume `chessclass_voice`.
+- `domains/voice`: ElevenLabs TTS, кэш по `sha256(voice|model|text)`,
+  Redis-квота `VOICE_DAILY_CHARS`, стоимость `VOICE_COST_PER_1K_RUB`,
+  аудит `voice.speak`; без ключа — 503 `voice_unavailable`.
+- `GET /voice/status`, `POST /voice/speak` → audio/mpeg (+ cached/chars
+  headers); UI `VoicePlayer` в инсайте/блюндере/дашборде, текст остаётся
+  при 503.
+- Тесты: кэш (провайдер вызван один раз), квота, fallback без ключа;
+  backend 172, frontend 5, build OK.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

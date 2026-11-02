@@ -424,6 +424,35 @@ body {
   font-family: monospace;
 }
 
+.voice-player {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.voice-button {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.voice-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.voice-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .link-button {
   background: none;
   border: none;

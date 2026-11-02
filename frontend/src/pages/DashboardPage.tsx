@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { InsightOut } from '../shared/api';
 import { ApiError, apiFetch, fetchHealth, getToken, logout } from '../shared/api';
 import { LoginGate } from '../shared/LoginGate';
+import { VoicePlayer } from '../shared/VoicePlayer';
 
 interface Snapshot {
   skills: { slug: string; titleRu: string; score: number }[];
@@ -121,6 +122,7 @@ export function DashboardPage() {
               {insight.factsText.map((f) => <li key={f}>{f}</li>)}
             </ul>
             <p className="statement">{insight.explanation}</p>
+            <VoicePlayer text={insight.explanation} />
             <p className="link-hint">модель: {insight.modelUsed} · уровень: {insight.level}</p>
           </>
         ) : (

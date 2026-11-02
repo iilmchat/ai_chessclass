@@ -472,6 +472,14 @@ commentary), промпты (RU), config pattern, seed-контент.
 `STUDY_CANDIDATES` + SF-лучший ход/PV, LLM `chess_lab.study`; лимит
 `STUDY_DAILY_LIMIT`; попытки — UCI-ход против эталона.
 
+### 6.6. Озвучка ответов (S-44)
+
+`domains/voice` + ElevenLabs TTS (`voice.speak` — HTTP, не LLM-маршрут):
+`POST /voice/speak` → audio/mpeg; кэш `voice_audio` по
+`sha256(voice|model|text)`, дневная квота символов в Redis, стоимость
+`VOICE_COST_PER_1K_RUB`; без `VOICE_API_KEY` — 503 и текстовый fallback в UI.
+UI: `VoicePlayer` в инсайте/блюндере/дашборде.
+
 ## 7. Лаборатория ботов (новое ядро)
 
 ### 7.1. Суть
@@ -821,6 +829,8 @@ classes(id, name, teacher_id→users, invite_code uq, created_at)  # S-40
 class_members(class_id→classes, user_id→users, joined_at, pk(class_id,user_id))
 audit_logs(id, actor_id→users SET NULL, actor_email, actor_role, action,
            target_type, target_id, source, meta jsonb, request_id, created_at)  # S-41
+voice_audio(id, text_hash uq, voice_id, model_id, path, chars, cost,
+            provider, created_at)  # S-44
 ```
 
 **Python-домен (py_*)**

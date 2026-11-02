@@ -412,3 +412,41 @@ export function updateMyProfile(payload: {
 export function fetchMyProgress(): Promise<ProgressDto> {
   return apiFetch('/progress/me');
 }
+
+// --- voice (S-44)
+
+export interface VoiceStatusDto {
+  configured: boolean;
+  provider: string;
+  modelId: string;
+  voiceId: string;
+}
+
+export function fetchVoiceStatus(): Promise<VoiceStatusDto> {
+  return apiFetch('/voice/status');
+}
+
+/** POST /voice/speak → audio/mpeg (Blob); 503 = озвучка не настроена. */
+export async function speakText(text: string): Promise<Blob> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  const response = await fetch(`${BASE}/voice/speak`, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify({ text }),
+  });
+  if (!response.ok) {
+    const problem = (await response.json().catch(() => null)) as ProblemDetails | null;
+    throw new ApiError(
+      response.status,
+      problem?.code ?? 'voice_error',
+      problem?.detail ?? 'Озвучка недоступна',
+    );
+  }
+  return response.blob();
+}

@@ -38,6 +38,7 @@
 | audit | `GET /admin/audit/logs`, `GET /admin/audit/export.csv` | — | ✅ S-41 | read-only журнал: teacher/admin/auditor; CSV + фильтры (SPEC §3.12) |
 | progress | `GET /progress/me`, `GET /progress/{user}` (teacher/admin) | — | ✅ S-42 | стрики, темы, бейджи; age_group в профиле (SPEC §3.13) |
 | studies | `GET /studies`, `GET /studies/{id}`, `POST /studies/{id}/attempt`; admin: `GET /admin/studies`, `POST /admin/studies/generate`, `POST /admin/studies/{id}/submit`, `POST /admin/studies/{id}/review` | — | ✅ S-43 | генерация SF+LLM, ревью teacher, публикация, попытка решения (SPEC §3.14) |
+| voice | `GET /voice/status`, `POST /voice/speak` | — | ✅ S-44 | ElevenLabs TTS, кэш/квота; 503 без ключа — UI остаётся текстовым (SPEC §3.15) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -488,6 +489,26 @@ interface StudyAdminOut extends StudyOut {
 - Аудит: `studies.generate/submit/review/attempt` (S-41). Решение SF не
   меняется LLM; условие не раскрывает ответ.
 
+### 3.15. voice: озвучка ElevenLabs (S-44)
+
+```ts
+// GET /voice/status → { configured, provider, modelId, voiceId }
+// POST /voice/speak { text: string (1..2000), voiceId? } → audio/mpeg
+//   headers: X-Voice-Cached: 0|1, X-Voice-Chars, X-Voice-Id
+```
+
+- `VOICE_API_KEY` пуст → 503 `voice_unavailable`; UI показывает текст без
+  плеера (graceful fallback), остальные функции не ломаются.
+- Кэш: ключ `sha256(voice|model|text)`, файл в `VOICE_CACHE_DIR`, запись
+  `voice_audio` (chars/cost/provider); повторный запрос читает файл и не
+  вызывает провайдера.
+- Квота: Redis `voice:chars:{user}:{UTC-date}` ≤ `VOICE_DAILY_CHARS`
+  (429 `voice_quota`); стоимость — `VOICE_COST_PER_1K_RUB` (Numeric).
+- Провайдер: `POST {VOICE_BASE_URL}/v1/text-to-speech/{voice_id}`,
+  `xi-api-key`, `model_id`; таймаут `VOICE_TIMEOUT_S`; ошибка → 502.
+- Аудит `voice.speak` (chars/cached); ключ не логируется. Кэш в prod —
+  volume `chessclass_voice`.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -751,3 +772,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-41: audit ✅ - роль auditor (read-only), audit_logs, CSV/фильтры, логирование действий | S-41 |
 | 2026-11-02 | S-42: progress ✅ - py_progress/стрики, achievements/бейджи, age_group, UI профиля | S-42 |
 | 2026-11-02 | S-43: studies ✅ - SF+LLM генерация, draft→review→published, attempts, лимит/аудит | S-43 |
+| 2026-11-02 | S-44: voice ✅ - ElevenLabs TTS, cache/voice_audio, quota, UI-плеер, text fallback | S-44 |

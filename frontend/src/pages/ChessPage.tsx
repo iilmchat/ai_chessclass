@@ -22,6 +22,7 @@ import {
   uploadGame,
 } from '../shared/api';
 import { LoginGate } from '../shared/LoginGate';
+import { VoicePlayer } from '../shared/VoicePlayer';
 import type { EventStreamEvent } from '../shared/useEventStream';
 import { useEventStream } from '../shared/useEventStream';
 import { usePrefersDark } from '../shared/usePrefersDark';
@@ -707,6 +708,7 @@ export function ChessPage() {
                 <span className="level-tag">{insight.modelUsed}</span>
               </h3>
               <p className="statement">{insight.explanation}</p>
+              <VoicePlayer text={insight.explanation} />
               {(insight.knowledge?.length ?? 0) > 0 && (
                 <>
                   <h3>Полезные знания</h3>
@@ -807,6 +809,7 @@ export function ChessPage() {
                     {explanation && (
                       <p className="statement">{explanation}</p>
                     )}
+                    {explanation && <VoicePlayer text={explanation} />}
                     {(blunderKnowledge[blunder.ply]?.length ?? 0) > 0 && (
                       <ul className="facts-list">
                         {blunderKnowledge[blunder.ply].map((item) => (

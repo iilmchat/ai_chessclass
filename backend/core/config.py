@@ -104,6 +104,15 @@ class Settings(BaseSettings):
     # --- reports (S-25; §20.2 порт: системный TTF с кириллицей)
     reports_font_path: str = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     reports_dir: str = "/srv/reports"
+    # --- voice (S-44; ElevenLabs; без ключа — graceful text fallback)
+    voice_api_key: str = ""
+    voice_base_url: str = "https://api.elevenlabs.io"
+    voice_model_id: str = "eleven_multilingual_v2"
+    voice_id: str = "21m00Tcm4TlvDq8ikWAM"
+    voice_daily_chars: int = 20_000
+    voice_cost_per_1k_rub: float = 0.0
+    voice_timeout_s: float = 30.0
+    voice_cache_dir: str = "/srv/voice_cache"
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"

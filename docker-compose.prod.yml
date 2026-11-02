@@ -87,6 +87,7 @@ services:
       - "${API_BIND:-127.0.0.1}:${API_PORT:-8020}:8020"
     volumes:
       - chessclass_reports:/srv/reports
+      - chessclass_voice:/srv/voice_cache
     depends_on:
       db:
         condition: service_healthy
@@ -285,6 +286,8 @@ volumes:
     name: chessclass_prod_redisdata
   chessclass_reports:
     name: chessclass_prod_reports
+  chessclass_voice:
+    name: chessclass_prod_voice
   chessclass_certbot:
     name: chessclass_prod_certbot
 
