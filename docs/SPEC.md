@@ -740,6 +740,17 @@ interface TournamentDetailOut extends TournamentOut {
 - Eval: 3 эталонных запроса, сравнение vector/hybrid; passed = hybrid ≥
   baseline; деградация видна администратору.
 
+### 3.26. Качество, нагрузка и безопасность (S-55)
+
+- `backend/scripts/load_smoke.py`: p50/p95 health под concurrency; dev
+  30/5 → p95 76 мс; `/readyz` ~500 мс (DB/Redis); цели в docs/load-profile.
+- A11y: skip-link, `:focus-visible`, aria-label/consent; чеклист
+  docs/a11y-audit; axe/aria-live — известные gaps.
+- Security headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options:
+  DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, HSTS prod.
+- `pip-audit` (после upgrade pip) — no known; secrets scan tracked files —
+  чисто; OWASP-чеклист docs/security-review; critical/high нет.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -1014,3 +1025,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-03 | S-52: review ✅ - SM-2 cards, error integrations, daily cap | S-52 |
 | 2026-11-03 | S-53: studies-v2 ✅ - playout/dedup, PV solver, auto-review | S-53 |
 | 2026-11-03 | S-54: RAG editor ✅ - versions/license, hybrid FTS, import/eval | S-54 |
+| 2026-11-03 | S-55: quality ✅ - load p95, a11y, security headers/audit | S-55 |

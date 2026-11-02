@@ -103,6 +103,16 @@
 - Teacher/admin доступ; тесты draft→publish→versions→rollback/import/eval;
   backend 194.
 
+#### S-55 — Нагрузка, доступность и безопасность (2026-11-03)
+- `backend/scripts/load_smoke.py`: health p50/p95, concurrency, exit code;
+  dev 30/5 → p95 76 мс, readyz ~500 мс; профиль/цели в docs/load-profile.
+- A11y: skip-link, `:focus-visible`, aria-label/consent; чеклист в
+  docs/a11y-audit (known gaps: aria-live/axe/контраст).
+- Security: headers (`nosniff`, frame DENY, referrer, permissions, HSTS prod);
+  pip upgrade в Dockerfile; `pip-audit` no known; secrets scan чисто;
+  OWASP-ревью в docs/security-review.
+- Тест security headers; backend 195.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

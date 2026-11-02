@@ -104,6 +104,23 @@ async def request_id_middleware(request: Request, call_next) -> Response:
     return response
 
 
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next) -> Response:
+    """S-55: базовые security-заголовки (OWASP secure headers)."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault(
+        "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
+    )
+    if settings.app_env == "prod":
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+
 register_exception_handlers(app)
 
 

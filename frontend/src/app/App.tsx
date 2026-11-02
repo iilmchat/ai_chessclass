@@ -49,7 +49,10 @@ export function App() {
           ))}
         </nav>
       </header>
-      <main className="main">
+      <a className="skip-link" href="#main">
+        Перейти к содержимому
+      </a>
+      <main className="main" id="main">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/python" element={<PythonPage />} />

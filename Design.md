@@ -850,6 +850,13 @@ draft→publish/archive/rollback, teacher/admin; retrieval только publishe
 Гибрид 0.7 vector + 0.3 FTS (russian); import .md/.txt/.pdf (pypdf);
 eval vector vs hybrid.
 
+### 10.13. Качество/безопасность (S-55)
+
+Load smoke (`backend/scripts/load_smoke.py`), a11y skip-link/focus, security
+headers (nosniff/frame/referrer/permissions/HSTS prod), pip upgrade,
+pip-audit/secrets scan. Детали — docs/load-profile, docs/a11y-audit,
+docs/security-review.
+
 ## 11. Данные (PostgreSQL)
 
 ### 11.1. База и общие правила
@@ -1108,6 +1115,7 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | Review | `/review/*` | queue/cards/answer/stats | user |
 | Studies v2 | `/admin/studies/generate-batch`, `/admin/studies/generator/metrics`, `/studies/{id}/attempt-line` | batch/PV/метрики | teacher/admin |
 | RAG editor | `/admin/rag/documents/*`, `/admin/rag/import`, `/admin/rag/eval` | версии/лицензии/hybrid | teacher/admin |
+| Quality | `/healthz`, `/readyz`, security headers | load/a11y/security | ops |
 | Наблюдаемость | `/ops` | метрики, стоимость, retention, алерты | admin/auditor |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
 | Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |
