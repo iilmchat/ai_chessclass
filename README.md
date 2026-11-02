@@ -58,6 +58,7 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
 - **LMS LRS (S-49)** — xAPI-очередь, retry/идемпотентность, журнал доставки.
 - **Telegram (S-50)** — consent/код привязки, outbox уведомлений, отписка.
 - **PvP (S-51)** — комнаты/quick-match, SSE/replay, отдельный PvP-Elo.
+- **Повторение (S-52)** — SM-2 карточки ошибок Python/шахмат, дневной лимит.
 - **Наблюдаемость/retention (S-46)** — метрики, cost-per-student, алерты,
   gzip-архив журналов/voice-кэша.
 - **Auth-hardening (S-47)** — RS256/JWKS, аудит логинов/ролей, auditor scope,

@@ -466,6 +466,62 @@ export function confirmTelegram(
   });
 }
 
+// --- spaced repetition (S-52)
+
+export interface ReviewCardDto {
+  id: string;
+  sourceType: 'manual' | 'python' | 'chess';
+  sourceRef: string | null;
+  front: string;
+  back: string;
+  ease: number;
+  intervalDays: number;
+  repetitions: number;
+  lapses: number;
+  dueAt: string;
+  suspended: boolean;
+}
+
+export interface ReviewQueueDto {
+  cards: ReviewCardDto[];
+  dueCount: number;
+  dailyLimit: number;
+}
+
+export interface ReviewStatsDto {
+  total: number;
+  due: number;
+  reviewsToday: number;
+  retention: number | null;
+  dailyLimit: number;
+  sm2: Record<string, unknown>;
+}
+
+export function fetchReviewQueue(): Promise<ReviewQueueDto> {
+  return apiFetch('/review/queue');
+}
+
+export function fetchReviewStats(): Promise<ReviewStatsDto> {
+  return apiFetch('/review/stats');
+}
+
+export function answerReview(
+  cardId: string,
+  rating: 'again' | 'hard' | 'good' | 'easy',
+): Promise<ReviewCardDto> {
+  return apiFetch(`/review/cards/${cardId}/answer`, {
+    method: 'POST',
+    body: JSON.stringify({ rating }),
+  });
+}
+
+export function createReviewCard(front: string, back: string): Promise<ReviewCardDto> {
+  return apiFetch('/review/cards', {
+    method: 'POST',
+    body: JSON.stringify({ front, back }),
+  });
+}
+
 // --- voice (S-44)
 
 export interface VoiceStatusDto {

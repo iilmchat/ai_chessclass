@@ -47,6 +47,7 @@
 | lms | admin: `GET /admin/lms/status`, `POST /admin/lms/sync`, `GET /admin/lms/deliveries`, `GET /admin/lms/deliveries.csv` | — | ✅ S-49 | xAPI LRS, retry/идемпотентность, журнал (SPEC §3.20) |
 | telegram | `GET /telegram/status`, `POST /telegram/link`, `POST /telegram/link-code`, `POST /telegram/confirm`, `DELETE /telegram/link` | — | ✅ S-50 | consent, code/deep-link, outbox, graceful off (SPEC §3.21) |
 | pvp | `POST /pvp/rooms`, `POST /pvp/rooms/join`, `POST /pvp/quick-match`, `POST /pvp/rooms/{id}/start`, `GET /pvp/rooms/{id}/events`, replay, leaderboard, complaints | — | ✅ S-51 | PvP-комнаты, SSE, отдельный Elo (SPEC §3.22) |
+| review | `GET /review/queue`, `POST /review/cards`, `POST /review/cards/{id}/answer`, `GET /review/stats` | — | ✅ S-52 | SM-2, автокарточки ошибок, дневной лимит (SPEC §3.23) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -677,6 +678,26 @@ interface TournamentDetailOut extends TournamentOut {
 - Жалобы участников `pvp_complaints` (open/reviewed/rejected); античит
   наследуется из tournament SF-семплов.
 
+### 3.23. Spaced repetition (S-52)
+
+```ts
+// GET /review/queue?limit → { cards, dueCount, dailyLimit }
+// POST /review/cards { front, back } → CardOut (201)
+// POST /review/cards/{id}/answer { rating: again|hard|good|easy } → CardOut
+// GET /review/stats → { total, due, reviewsToday, retention, dailyLimit, sm2 }
+```
+
+- `review_cards`: source_type manual|python|chess, source_ref unique в рамках
+  пользователя; ease/interval_days/repetitions/lapses/due_at.
+- SM-2: again → interval 1, repetitions 0, lapses+1; good → 1/6/interval*ease;
+  ease ≥ 1.3; `review_events` хранит качество/интервалы.
+- Дневной лимит `REVIEW_DAILY_LIMIT` (20); очередь — due_at ≤ now, порядок
+  due_at/id; данные в PostgreSQL, переживают рестарт.
+- Автокарточки: failed Python-сабмит (source_ref `py:{assignmentId}`) и
+  chess-blunder (до 5, `chess:{gameId}:{ply}`), дедупликация.
+- UI `/review`: front/back, 4 оценки, статистика; напоминания — через
+  Telegram outbox (kind review) при наличии привязки.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -948,3 +969,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-49: LMS LRS ✅ - xAPI queue/retry, scheduled sync, delivery journal/CSV | S-49 |
 | 2026-11-03 | S-50: Telegram ✅ - consent/link-code, outbox/retry, graceful off | S-50 |
 | 2026-11-03 | S-51: PvP ✅ - rooms/quick-match, SSE/replay, separate Elo | S-51 |
+| 2026-11-03 | S-52: review ✅ - SM-2 cards, error integrations, daily cap | S-52 |

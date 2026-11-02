@@ -464,6 +464,18 @@ async def analyze_game_job(game_id: int, redis) -> dict:
                     weight=WEIGHT_BLUNDER_EVENT,
                     meta={"gameId": game_id, "ply": blunder["ply"]},
                 )
+            from domains.review import service as review_svc
+
+            for blunder in blunders[:5]:
+                await review_svc.create_from_chess(
+                    session,
+                    game.user_id,
+                    game_id=game_id,
+                    ply=int(blunder["ply"]),
+                    fen=str(blunder["fenBefore"]),
+                    best_san=str(blunder["bestSan"]),
+                    played_san=str(blunder["playedSan"]),
+                )
             await session.flush()
             analysis.sf = {
                 "moves": move_analyses,

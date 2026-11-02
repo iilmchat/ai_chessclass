@@ -831,6 +831,12 @@ worker `lms_sync` каждые 15 мин; admin status/sync/deliveries/CSV.
 создаёт bracket-турнир 2 ботов и arq-job; SSE/replay через турнир;
 tournament-job финализирует комнату/рейтинг.
 
+### 10.10. Spaced repetition (S-52)
+
+`review_cards` (SM-2: ease/interval/repetitions/lapses/due_at, source) +
+`review_events`. Очередь `/review/queue`, дневной лимит 20; автокарточки
+failed Python/chess-blunder; UI `/review`; PostgreSQL.
+
 ## 11. Данные (PostgreSQL)
 
 ### 11.1. База и общие правила
@@ -873,6 +879,10 @@ pvp_rooms(id, code uq, host_user_id→users, host_bot_id→bot_versions,
 pvp_ratings(user_id→users pk, elo, wins, losses, draws, updated_at)  # S-51
 pvp_complaints(id, room_id→pvp_rooms, reporter_id→users, reason, status,
                created_at)  # S-51
+review_cards(id, user_id→users, source_type, source_ref, front, back, ease,
+             interval_days, repetitions, lapses, due_at, suspended, timestamps)  # S-52
+review_events(id, card_id→review_cards, user_id→users, rating, quality,
+              interval_before, interval_after, ease_after, created_at)  # S-52
 ```
 
 **Python-домен (py_*)**
@@ -1080,6 +1090,7 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | Telegram | `/telegram/*` | link/consent/status/outbox | user |
 | PvP | `/pvp/*` | rooms/quick/SSE/replay/leaderboard | user |
 | PvP admin | `/admin/pvp/*` | жалобы | admin/auditor |
+| Review | `/review/*` | queue/cards/answer/stats | user |
 | Наблюдаемость | `/ops` | метрики, стоимость, retention, алерты | admin/auditor |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
 | Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |

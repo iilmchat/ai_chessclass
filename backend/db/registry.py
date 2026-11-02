@@ -17,6 +17,7 @@ from domains.progress import models as _progress_models  # noqa: F401
 from domains.pvp import models as _pvp_models  # noqa: F401
 from domains.python_teacher import models as _py_models  # noqa: F401
 from domains.reports import models as _reports_models  # noqa: F401
+from domains.review import models as _review_models  # noqa: F401
 from domains.studies import models as _studies_models  # noqa: F401
 from domains.telegram import models as _telegram_models  # noqa: F401
 from domains.tournaments import models as _tournaments_models  # noqa: F401

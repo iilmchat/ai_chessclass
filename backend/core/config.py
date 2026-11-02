@@ -144,6 +144,8 @@ class Settings(BaseSettings):
     telegram_api_base: str = "https://api.telegram.org"
     telegram_link_ttl_s: int = 600
     telegram_batch: int = 50
+    # --- spaced repetition (S-52)
+    review_daily_limit: int = 20
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"

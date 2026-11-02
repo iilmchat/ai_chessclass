@@ -73,6 +73,17 @@
   PvP-Elo (K=24); финализация из tournament-job; жалобы + admin list.
 - Тесты: комната/join/start/рейтинг/leaderboard/жалобы/quick; backend 188.
 
+#### S-52 — Spaced-repetition тренажёр (2026-11-03)
+- Миграция `0027_review`: `review_cards` (ease/interval/repetitions/lapses/
+  due_at/source) и `review_events`.
+- SM-2 (again/hard/good/easy), дневной лимит `REVIEW_DAILY_LIMIT=20`;
+  очередь `/review/queue`, ответы, статистика усвоения.
+- Автокарточки: failed Python-сабмит и chess-blunder (до 5 за игру);
+  дедупликация по `source_ref`; данные в PostgreSQL.
+- UI `/review`: карточка, показ ответа, 4 оценки, стрик/удержание.
+- Тесты: интервалы/сброс при again, очередь/лимит, дедупликация,
+  интеграции Python/chess; backend 190.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

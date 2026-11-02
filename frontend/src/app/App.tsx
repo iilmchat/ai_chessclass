@@ -7,12 +7,14 @@ import { ExportPage } from '../pages/ExportPage';
 import { ObservabilityPage } from '../pages/ObservabilityPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { PythonPage } from '../pages/PythonPage';
+import { ReviewPage } from '../pages/ReviewPage';
 import { SkillsPage } from '../pages/SkillsPage';
 import { TournamentsPage } from '../pages/TournamentsPage';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Дашборд', end: true },
   { to: '/python', label: 'Python-курс' },
+  { to: '/review', label: 'Повторение' },
   { to: '/chess', label: 'Шахматы' },
   { to: '/bots', label: 'Боты' },
   { to: '/tournaments', label: 'Турниры' },
@@ -51,6 +53,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/python" element={<PythonPage />} />
+          <Route path="/review" element={<ReviewPage />} />
           <Route path="/chess" element={<ChessPage />} />
           <Route path="/bots" element={<BotsPage />} />
           <Route path="/skills" element={<SkillsPage />} />

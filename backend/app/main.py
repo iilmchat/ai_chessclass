@@ -32,6 +32,7 @@ from domains.pvp.router import admin_router as pvp_admin_router
 from domains.pvp.router import router as pvp_router
 from domains.python_teacher.router import router as py_router
 from domains.reports.router import router as reports_router
+from domains.review.router import router as review_router
 from domains.studies.router import admin_router as studies_admin_router
 from domains.studies.router import router as studies_router
 from domains.telegram.router import router as telegram_router
@@ -137,6 +138,7 @@ app.include_router(studies_admin_router, prefix="/api/v1")
 app.include_router(telegram_router, prefix="/api/v1")
 app.include_router(pvp_router, prefix="/api/v1")
 app.include_router(pvp_admin_router, prefix="/api/v1")
+app.include_router(review_router, prefix="/api/v1")
 app.include_router(tournaments_router, prefix="/api/v1")
 app.include_router(tournaments_admin_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")

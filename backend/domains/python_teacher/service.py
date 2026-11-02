@@ -479,6 +479,17 @@ async def submit(
                 assignment.id,
                 request=request,
             )
+        else:
+            from domains.review import service as review_svc
+
+            await review_svc.create_from_python(
+                session,
+                user.id,
+                assignment_id=assignment.id,
+                assignment_title=assignment.title,
+                topic=assignment.topic,
+                failed_test=grade.failed_test,
+            )
 
     logger.info(
         "py: сдача user_id=%s assignment=%s → %s (%d/%d)",
