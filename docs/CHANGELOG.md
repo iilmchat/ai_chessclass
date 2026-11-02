@@ -2,11 +2,19 @@
 
 Формат — по мотивам [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/);
 версии соответствуют этапам дорожной карты (`TODO_V0.1.md` — архив,
-`TODO_V0.2.md` — активный план). Детали спринтов — в `docs/sprint-reports/`.
+`TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0). Детали — в
+`docs/sprint-reports/`.
 
-## [Unreleased] — v0.3.0
+## [v0.3.0] — 2026-11-03
 
 ### Добавлено
+
+#### S-57 — Релиз v0.3.0 (2026-11-03)
+- Тег `v0.3.0`, GitHub Release, release-notes; CI backend/frontend/e2e
+  зелёный.
+- Demo-обход по e2e/тестам/API: ученик, учитель, родитель, auditor, admin;
+  известные ограничения зафиксированы.
+- Backlog v0.4 — в release-notes.
 
 #### S-46 — Retention, наблюдаемость и стоимость (2026-11-02)
 - Миграция `0022_observability`: `voice_usage` (кто/сколько/стоимость,

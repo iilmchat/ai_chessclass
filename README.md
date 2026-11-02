@@ -4,7 +4,7 @@
 лаборатория с разбором партий, конструктор ботов с лестницей Elo и когнитивный
 дашборд навыков — **один профиль, один уровень, один LLM-ассистент** на все домены.
 
-**Версия:** v0.3.0 RC (S-46…S-55) · **Предыдущая:** v0.2.1
+**Версия:** v0.3.0 (12/12 спринтов, релиз) · **Предыдущая:** v0.2.1
 ([TODO_V0.2.md](TODO_V0.2.md)) · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
@@ -122,7 +122,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v0.3.0** (2026-11-03, RC) |
+| Версия | **v0.3.0** (2026-11-03, релиз) |
 | Спринты | **16/16** (S-30…S-45), этапы E-11…E-16 ✅ |
 | Тесты backend | **174 passed** (юнит + интеграционные + e2e-journey) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |

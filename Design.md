@@ -863,6 +863,10 @@ docs/security-review.
 runbook docs/runbooks/release-v0.3.0; известные ограничения — Telegram/LRS
 без ключей, live LLM/voice fallback, CSP/axe/hash-lock.
 
+### 10.15. Релиз v0.3.0 (S-57)
+
+Тег `v0.3.0`, GitHub Release, demo-обход, backlog v0.4; отчёт S-57.
+
 ## 11. Данные (PostgreSQL)
 
 ### 11.1. База и общие правила

@@ -9,7 +9,7 @@
 > документы. Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md`.
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 11/12 (S-46…S-56 ✅).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 12/12 (S-46…S-57 ✅).**
 Приоритет: **сначала надёжность и безопасность, затем интеграции, контент
 и релиз**. Все спринты — после стабилизации v0.2.x.
 
@@ -169,11 +169,15 @@
   echo/hash fallback (ключей нет); runbook `docs/runbooks/release-v0.3.0.md`.
 - **Отчёт:** `docs/sprint-reports/S-56-2026-11-03.md`.
 
-### S-57 ☐ Релиз v0.3.0
-- [ ] тег `v0.3.0`, GitHub Release, отчёт
-- [ ] демо-обход: ученик → учитель → родитель → auditor → админ
-- [ ] план следующего этапа (v0.4/backlog)
+### S-57 ✅ Релиз v0.3.0
+- [x] тег `v0.3.0`, GitHub Release, отчёт
+- [x] демо-обход: ученик → учитель → родитель → auditor → админ
+- [x] план следующего этапа (v0.4/backlog)
 - **DoD:** тег и release созданы; CI зелёный; demo-обход без блокеров.
+- **Факт:** тег `v0.3.0` на release-коммите; GitHub Release с
+  release-notes; CI (backend/frontend/e2e) зелёный; demo-обход по
+  e2e/тестам/API; backlog v0.4 — в release-notes.
+- **Отчёт:** `docs/sprint-reports/S-57-2026-11-03.md`.
 
 ---
 
@@ -197,6 +201,7 @@
 
 - 12/12 спринтов ✅, отчёты и CHANGELOG актуальны.
 - backend + frontend + Playwright зелёные; ruff/mypy/tsc 0.
-- миграции head соответствует SPEC; backup/restore и HTTPS проверены.
+- миграции head соответствует SPEC; backup/restore проверены; HTTPS
+  проверяется на prod-контуре (в RC — compose config + runbook).
 - live LLM/voice или явный fallback; retention/алерты работают.
 - demo-обход ученик → учитель → родитель → auditor → админ.

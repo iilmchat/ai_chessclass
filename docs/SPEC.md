@@ -761,6 +761,15 @@ interface TournamentDetailOut extends TournamentOut {
   Telegram/LRS off без токена/endpoint, PvP/RAG UI API-only, CSP/axe/hash-lock.
 - Runbook: `docs/runbooks/release-v0.3.0.md`; отчёт S-56.
 
+### 3.28. Релиз v0.3.0 (S-57)
+
+- Тег `v0.3.0` (annotated), GitHub Release с release-notes; CI
+  backend/frontend/e2e зелёный.
+- Demo-обход: ученик → учитель → родитель → auditor → admin (e2e/тесты/API);
+  известные ограничения — в release-notes.
+- Backlog v0.4: LMS mapping/LRS OAuth2, Telegram webhook, PvP UI, RAG eval/OCR,
+  CSP/egress, hash-lock, axe, staging load, live LLM/voice.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -1037,3 +1046,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-03 | S-54: RAG editor ✅ - versions/license, hybrid FTS, import/eval | S-54 |
 | 2026-11-03 | S-55: quality ✅ - load p95, a11y, security headers/audit | S-55 |
 | 2026-11-03 | S-56: RC ✅ - migrations/backup/e2e/smoke, versions 0.3.0 | S-56 |
+| 2026-11-03 | S-57: release v0.3.0 ✅ - tag/release/demo/backlog | S-57 |
