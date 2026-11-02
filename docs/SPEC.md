@@ -49,6 +49,7 @@
 | pvp | `POST /pvp/rooms`, `POST /pvp/rooms/join`, `POST /pvp/quick-match`, `POST /pvp/rooms/{id}/start`, `GET /pvp/rooms/{id}/events`, replay, leaderboard, complaints | — | ✅ S-51 | PvP-комнаты, SSE, отдельный Elo (SPEC §3.22) |
 | review | `GET /review/queue`, `POST /review/cards`, `POST /review/cards/{id}/answer`, `GET /review/stats` | — | ✅ S-52 | SM-2, автокарточки ошибок, дневной лимит (SPEC §3.23) |
 | studies-v2 | admin `POST /admin/studies/generate-batch`, `GET /admin/studies/generator/metrics`; `POST /studies/{id}/attempt-line` | — | ✅ S-53 | playout/дедуп FEN, PV-solver, авто-ревью (SPEC §3.24) |
+| rag-editor | admin `GET/POST/PATCH /admin/rag/documents`, publish/archive/versions/rollback, `POST /admin/rag/import`, `GET /admin/rag/eval` | — | ✅ S-54 | версии/лицензии, hybrid FTS+vector, PDF/MD (SPEC §3.25) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -718,6 +719,27 @@ interface TournamentDetailOut extends TournamentOut {
 - Batch-лимит 1–20 + общий `study_daily_limit`; метрики — generated,
   autoReviewed, defects, defectRate, duplicateFens.
 
+### 3.25. RAG/контент-редактура (S-54)
+
+```ts
+// GET/POST /admin/rag/documents; PATCH /admin/rag/documents/{id}
+// POST /admin/rag/documents/{id}/publish|archive|rollback/{version}
+// GET  /admin/rag/documents/{id}/versions
+// POST /admin/rag/import { filename, contentBase64, license, ... }
+// GET  /admin/rag/eval → { baseline, hybrid, passed, cases }
+```
+
+- `rag_documents`: license/status (draft|published|archived)/version;
+  `rag_document_versions` — история, created_by; retrieval только published.
+- Редактор teacher/admin: create draft, publish/archive, update → new version,
+  rollback → восстановление + новая версия; чанки/эмбеддинги пересоздаются.
+- Гибрид: 0.7×cosine + 0.3×`ts_rank_cd` (russian), domains/status фильтры;
+  `mode=vector` — baseline для eval.
+- Импорт: `.md/.markdown/.txt/.pdf` (pypdf) через base64; source=filename,
+  license сохраняется.
+- Eval: 3 эталонных запроса, сравнение vector/hybrid; passed = hybrid ≥
+  baseline; деградация видна администратору.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -991,3 +1013,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-03 | S-51: PvP ✅ - rooms/quick-match, SSE/replay, separate Elo | S-51 |
 | 2026-11-03 | S-52: review ✅ - SM-2 cards, error integrations, daily cap | S-52 |
 | 2026-11-03 | S-53: studies-v2 ✅ - playout/dedup, PV solver, auto-review | S-53 |
+| 2026-11-03 | S-54: RAG editor ✅ - versions/license, hybrid FTS, import/eval | S-54 |

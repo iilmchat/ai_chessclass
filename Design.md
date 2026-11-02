@@ -843,6 +843,13 @@ Curated + random-playout кандидаты, batch с `exclude_fens`; auto-revie
 FEN/PV, сложность по SF score; многоходовый `attempt-line`; метрики
 брака/дублей. Без новой схемы — `generator_meta`.
 
+### 10.12. RAG-редактор (S-54)
+
+`rag_documents` (license/status/version) + `rag_document_versions`;
+draft→publish/archive/rollback, teacher/admin; retrieval только published.
+Гибрид 0.7 vector + 0.3 FTS (russian); import .md/.txt/.pdf (pypdf);
+eval vector vs hybrid.
+
 ## 11. Данные (PostgreSQL)
 
 ### 11.1. База и общие правила
@@ -889,6 +896,8 @@ review_cards(id, user_id→users, source_type, source_ref, front, back, ease,
              interval_days, repetitions, lapses, due_at, suspended, timestamps)  # S-52
 review_events(id, card_id→review_cards, user_id→users, rating, quality,
               interval_before, interval_after, ease_after, created_at)  # S-52
+rag_document_versions(id, document_id→rag_documents, version, title_ru, source,
+                      domain, kind, text, license, created_by→users, created_at)  # S-54
 ```
 
 **Python-домен (py_*)**
@@ -1098,6 +1107,7 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | PvP admin | `/admin/pvp/*` | жалобы | admin/auditor |
 | Review | `/review/*` | queue/cards/answer/stats | user |
 | Studies v2 | `/admin/studies/generate-batch`, `/admin/studies/generator/metrics`, `/studies/{id}/attempt-line` | batch/PV/метрики | teacher/admin |
+| RAG editor | `/admin/rag/documents/*`, `/admin/rag/import`, `/admin/rag/eval` | версии/лицензии/hybrid | teacher/admin |
 | Наблюдаемость | `/ops` | метрики, стоимость, retention, алерты | admin/auditor |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
 | Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |

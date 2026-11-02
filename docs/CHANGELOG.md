@@ -93,6 +93,16 @@
   `/admin/studies/generate-batch|generator/metrics`.
 - Тесты: 6 уникальных FEN, метрики, полная/неверная линия; backend 192.
 
+#### S-54 — RAG/контент-редактура (2026-11-03)
+- Миграция `0028_rag_editor`: `license/status/version/updated_at` +
+  `rag_document_versions` (история, created_by).
+- Редактор: draft → publish/archive, PATCH (новая версия), rollback;
+  retrieval видит только published; версии/лицензии в API.
+- Гибридный поиск FTS (`ts_rank_cd`)+vector (0.7/0.3); eval baseline
+  vector vs hybrid; импорт `.md/.txt/.pdf` (pypdf, base64).
+- Teacher/admin доступ; тесты draft→publish→versions→rollback/import/eval;
+  backend 194.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

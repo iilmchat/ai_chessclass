@@ -9,7 +9,7 @@
 > документы. Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md`.
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 8/12 (S-46…S-53 ✅).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 9/12 (S-46…S-54 ✅).**
 Приоритет: **сначала надёжность и безопасность, затем интеграции, контент
 и релиз**. Все спринты — после стабилизации v0.2.x.
 
@@ -129,12 +129,18 @@
   score; `/admin/studies/generate-batch|generator/metrics`; backend 192.
 - **Отчёт:** `docs/sprint-reports/S-53-2026-11-03.md`.
 
-### S-54 ☐ RAG/контент-редактура
-- [ ] админ-редактор документов/версий, публикация и откат
-- [ ] полнотекстовый + векторный гибрид, eval ≥ baseline
-- [ ] источники/лицензии, импорт PDF/Markdown
+### S-54 ✅ RAG/контент-редактура
+- [x] админ-редактор документов/версий, публикация и откат
+- [x] полнотекстовый + векторный гибрид, eval ≥ baseline
+- [x] источники/лицензии, импорт PDF/Markdown
 - **DoD:** учитель добавляет материал без деплоя; eval не деградирует;
   версии/лицензии видны.
+- **Факт:** миграция `0028_rag_editor` (`license/status/version/updated_at`,
+  `rag_document_versions`); draft→publish/archive, rollback, versions;
+  hybrid FTS+vector (status=published); import .md/.txt/.pdf (pypdf);
+  `/admin/rag/{documents,import,versions,eval,search}`; teacher/admin;
+  backend 194, frontend build OK.
+- **Отчёт:** `docs/sprint-reports/S-54-2026-11-03.md`.
 
 ---
 

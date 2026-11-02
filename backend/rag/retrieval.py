@@ -1,4 +1,4 @@
-"""Retrieval: топ-k чанков по косинусу (pgvector <=>)."""
+"""Retrieval: top-k гибрид vector + FTS (S-54)."""
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,10 +9,31 @@ from rag.embeddings import EmbeddingProvider
 _TOP_K_SQL = text(
     """
     SELECT c.id, c.text, c.document_id, d.title_ru,
-           1 - (c.embed <=> :query_vec) AS similarity
+           1 - (c.embed <=> :query_vec) AS similarity,
+           ts_rank_cd(d.tsv, plainto_tsquery('russian', :query)) AS lexical
     FROM rag_chunks c
     JOIN rag_documents d ON d.id = c.document_id
     WHERE d.domain = ANY(:domains)
+      AND d.status = 'published'
+    ORDER BY (
+        0.7 * (1 - (c.embed <=> :query_vec))
+        + 0.3 * COALESCE(
+            ts_rank_cd(d.tsv, plainto_tsquery('russian', :query)), 0
+        )
+    ) DESC, c.embed <=> :query_vec
+    LIMIT :k
+    """
+)
+
+_VECTOR_SQL = text(
+    """
+    SELECT c.id, c.text, c.document_id, d.title_ru,
+           1 - (c.embed <=> :query_vec) AS similarity,
+           0.0 AS lexical
+    FROM rag_chunks c
+    JOIN rag_documents d ON d.id = c.document_id
+    WHERE d.domain = ANY(:domains)
+      AND d.status = 'published'
     ORDER BY c.embed <=> :query_vec
     LIMIT :k
     """
@@ -20,17 +41,24 @@ _TOP_K_SQL = text(
 
 
 async def search(
-    session: AsyncSession, query: str, *, k: int | None = None, domains: list[str] | None = None
+    session: AsyncSession,
+    query: str,
+    *,
+    k: int | None = None,
+    domains: list[str] | None = None,
+    mode: str = "hybrid",
 ) -> list[dict]:
-    """Топ-k релевантных чанков (косинус; домены — фильтр, пусто = все)."""
+    """Top-k поиск: гибрид vector + FTS (mode=vector — baseline)."""
     provider = EmbeddingProvider()
     [query_vec], _mode = await provider.embed([query])
     limit = k or settings.rag_top_k
+    sql = _VECTOR_SQL if mode == "vector" else _TOP_K_SQL
     rows = (
         await session.execute(
-            _TOP_K_SQL,
+            sql,
             {
                 "query_vec": str(query_vec),
+                "query": query,
                 "domains": domains or ["python", "chess", "general"],
                 "k": limit,
             },
@@ -43,6 +71,7 @@ async def search(
             "titleRu": row[3],
             "text": row[1],
             "similarity": round(float(row[4]), 4),
+            "lexical": round(float(row[5]), 4),
         }
         for row in rows
     ]

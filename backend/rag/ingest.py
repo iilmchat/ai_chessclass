@@ -46,15 +46,18 @@ async def ingest_document(
     domain: str,
     kind: str,
     text: str,
+    license: str = "unknown",
+    status: str = "published",
+    created_by: int | None = None,
 ) -> dict:
     """Документ → чанки → embeddings → запись; повторный title = замена."""
-    from rag.models import RagChunk, RagDocument
+    from rag.models import RagChunk, RagDocument, RagDocumentVersion
 
     existing = (
         await session.execute(select(RagDocument).where(RagDocument.title_ru == title_ru))
     ).scalar_one_or_none()
     if existing is not None:
-        await session.delete(existing)  # чанки каскадом
+        await session.delete(existing)  # чанки/версии каскадом
         await session.flush()
 
     provider = EmbeddingProvider()
@@ -67,10 +70,26 @@ async def ingest_document(
         domain=domain,
         kind=kind,
         text=text,
+        license=license,
+        status=status,
+        version=1,
         embed=vectors[0],
     )
     session.add(document)
     await session.flush()
+    session.add(
+        RagDocumentVersion(
+            document_id=document.id,
+            version=1,
+            title_ru=title_ru,
+            source=source,
+            domain=domain,
+            kind=kind,
+            text=text,
+            license=license,
+            created_by=created_by,
+        )
+    )
     for idx, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True)):
         session.add(
             RagChunk(document_id=document.id, idx=idx, text=chunk, embed=vector)

@@ -60,6 +60,7 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
 - **PvP (S-51)** — комнаты/quick-match, SSE/replay, отдельный PvP-Elo.
 - **Повторение (S-52)** — SM-2 карточки ошибок Python/шахмат, дневной лимит.
 - **Этюды v2 (S-53)** — random-playout, дедуп FEN, PV-solver, авто-ревью.
+- **RAG-редактор (S-54)** — версии/лицензии, hybrid FTS+vector, PDF/MD.
 - **Наблюдаемость/retention (S-46)** — метрики, cost-per-student, алерты,
   gzip-архив журналов/voice-кэша.
 - **Auth-hardening (S-47)** — RS256/JWKS, аудит логинов/ролей, auditor scope,
