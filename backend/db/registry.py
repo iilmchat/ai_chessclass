@@ -11,6 +11,7 @@ from domains.bot_lab import models as _bot_models  # noqa: F401
 from domains.chess_lab import models as _chess_models  # noqa: F401
 from domains.classes import models as _classes_models  # noqa: F401
 from domains.cognitive import models as _cognitive_models  # noqa: F401
+from domains.lms import models as _lms_models  # noqa: F401
 from domains.profile import models as _profile_models  # noqa: F401
 from domains.progress import models as _progress_models  # noqa: F401
 from domains.python_teacher import models as _py_models  # noqa: F401

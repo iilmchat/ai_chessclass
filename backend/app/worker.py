@@ -113,6 +113,18 @@ async def resume_tournaments(ctx: dict) -> dict:
     return {"enqueued": count}
 
 
+async def lms_sync(ctx: dict) -> dict:
+    """Cron: xAPI statements → LRS (идемпотентно, retry)."""
+    from core.db import session_factory
+    from domains.lms import service as lms_svc
+
+    logger.info("worker: lms_sync")
+    async with session_factory() as session:
+        result = await lms_svc.sync(session)
+        await session.commit()
+    return result
+
+
 class WorkerSettings:
     functions = [
         heartbeat,
@@ -123,12 +135,14 @@ class WorkerSettings:
         run_match,
         run_tournament_job,
         resume_tournaments,
+        lms_sync,
     ]
     #: nightly-пересчёт EMA (§10.3) — 03:40 UTC; retention — 04:10 UTC
     cron_jobs = [
         arq.cron("app.worker.scores_recalc", hour=3, minute=40, run_at_startup=False),
         arq.cron("app.worker.retention_run", hour=4, minute=10, run_at_startup=False),
         arq.cron("app.worker.resume_tournaments", minute=5, run_at_startup=True),
+        arq.cron("app.worker.lms_sync", minute=15, run_at_startup=True),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     #: default queue — analyze/pdf; match workers получают WORKER_QUEUE из compose

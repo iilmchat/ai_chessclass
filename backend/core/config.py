@@ -132,6 +132,13 @@ class Settings(BaseSettings):
     obs_queue_alert_depth: int = 50
     obs_llm_cost_alert_rub: float = 1000.0
     obs_tls_cert_path: str = ""
+    # --- LMS LRS (S-49)
+    lrs_enabled: bool = False
+    lrs_endpoint: str = ""
+    lrs_key: str = ""
+    lrs_secret: str = ""
+    lrs_timeout_s: float = 15.0
+    lms_sync_batch: int = 50
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"

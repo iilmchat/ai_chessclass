@@ -810,6 +810,13 @@ Seed-миграция заполняет связи:
   `LLM_EMBED_MODEL` — детерминированный hash-фолбэк (dev/eval), prod
   задаёт 768-мерную модель явно.
 
+### 10.7. LMS LRS (S-49)
+
+`lrs_deliveries` + xAPI builder (skills/bot-elo), UUID5 за день для
+идемпотентности; `LRS_ENABLED/ENDPOINT/KEY/SECRET`; retry/backoff;
+worker `lms_sync` каждые 15 мин; admin status/sync/deliveries/CSV.
+Без endpoint — только локальный CSV (`disabled=1`).
+
 ## 11. Данные (PostgreSQL)
 
 ### 11.1. База и общие правила
@@ -841,6 +848,8 @@ audit_logs(id, actor_id→users SET NULL, actor_email, actor_role, action,
 voice_audio(id, text_hash uq, voice_id, model_id, path, chars, cost,
             provider, created_at)  # S-44
 voice_usage(id, user_id→users, chars, cost, cached, created_at)  # S-46
+lrs_deliveries(id, statement_id uq, payload jsonb, status, attempts,
+               response_status, last_error, next_attempt_at, sent_at)  # S-49
 ```
 
 **Python-домен (py_*)**
@@ -1044,6 +1053,7 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | Боты | `/bots`, `/bots/:id`, `/bots/:id/match/:matchId` | редактор, лестница, реплей матчей | все |
 | Турниры | `/tournaments` | bracket/round-robin, лидерборд, экспорт CSV | все (создание — teacher/admin) |
 | Экспорт LMS | `/export` | skills.csv, xapi.json | teacher/admin/auditor |
+| LRS-доставка | `/admin/lms/*` | status/sync/журнал/CSV | admin |
 | Наблюдаемость | `/ops` | метрики, стоимость, retention, алерты | admin/auditor |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
 | Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |

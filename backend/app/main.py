@@ -23,6 +23,7 @@ from domains.chess_lab.router import router as chess_router
 from domains.classes.router import router as classes_router
 from domains.cognitive.router import router as skills_router
 from domains.export.router import router as export_router
+from domains.lms.router import router as lms_router
 from domains.observability.router import admin_router as observability_admin_router
 from domains.observability.router import metrics_router
 from domains.profile.router import router as profile_router
@@ -133,6 +134,7 @@ app.include_router(studies_admin_router, prefix="/api/v1")
 app.include_router(tournaments_router, prefix="/api/v1")
 app.include_router(tournaments_admin_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
+app.include_router(lms_router, prefix="/api/v1")
 app.include_router(observability_admin_router, prefix="/api/v1")
 app.include_router(voice_router, prefix="/api/v1")
 app.include_router(metrics_router)

@@ -45,6 +45,15 @@
 - UI: polling прогресса, отмена, replay; bracket 8 ботов — 7 матчей.
 - Тесты: async job/replay/idempotency/cancel/SSE; backend 181.
 
+#### S-49 — LMS LRS-адаптер и scheduled export (2026-11-02)
+- Миграция `0024_lms`: `lrs_deliveries` (unique statement_id, payload,
+  status/attempts/next_attempt/sent_at).
+- xAPI builder по ученикам/навыкам/бот-Elo; идемпотентная очередь
+  (UUID5 за день), retry/backoff; `LRS_ENABLED/ENDPOINT/KEY/SECRET`.
+- Worker `lms_sync` (minute=15, startup); admin
+  `/admin/lms/{status,sync,deliveries,deliveries.csv}`; журнал доставки.
+- Тесты: повтор не дублирует, retry после 500, status/CSV/sync; backend 183.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

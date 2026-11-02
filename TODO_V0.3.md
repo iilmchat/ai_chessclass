@@ -9,7 +9,7 @@
 > документы. Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md`.
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 3/12 (S-46…S-48 ✅).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 4/12 (S-46…S-49 ✅).**
 Приоритет: **сначала надёжность и безопасность, затем интеграции, контент
 и релиз**. Все спринты — после стабилизации v0.2.x.
 
@@ -64,12 +64,17 @@
 
 ## E-18 · Интеграции и вовлечение (S-49…S-51)
 
-### S-49 ☐ LMS: xAPI LRS-адаптер и расписание экспорта
-- [ ] коннектор LRS (endpoint/key), retry/идемпотентность statements
-- [ ] scheduled export (cron/arq), журнал доставки, статус в админке
-- [ ] настройка маппинга навыков/классов на LMS-курсы
+### S-49 ✅ LMS: xAPI LRS-адаптер и расписание экспорта
+- [x] коннектор LRS (endpoint/key), retry/идемпотентность statements
+- [x] scheduled export (cron/arq), журнал доставки, статус в админке
+- [x] настройка маппинга навыков/классов на LMS-курсы
 - **DoD:** statements доходят до тестового LRS; повтор не дублирует; сбой
   виден администратору.
+- **Факт:** миграция `0024_lms` (`lrs_deliveries`, unique statement_id);
+  xAPI builder + идемпотентная очередь, retry/backoff; worker `lms_sync`
+  (minute=15); `/admin/lms/{status,sync,deliveries,deliveries.csv}`;
+  mapping — стандартные activity id (skills/bot-elo); backend 183, frontend 5.
+- **Отчёт:** `docs/sprint-reports/S-49-2026-11-02.md`.
 
 ### S-50 ☐ Telegram-бот: уведомления ученику/учителю
 - [ ] привязка Telegram к профилю (код/ deep link), consent

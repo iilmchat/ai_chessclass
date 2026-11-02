@@ -44,6 +44,7 @@
 | observability | `GET /metrics`; admin: `GET /admin/observability/summary|alerts|costs|costs.csv|retention/status`, `POST /admin/observability/retention/run` | — | ✅ S-46 | метрики, стоимость, retention/архив (SPEC §3.17) |
 | auth-hardening | `GET /auth/jwks`, `GET /.well-known/jwks.json`; admin: `PATCH /admin/users/{id}/role`, `PATCH /admin/users/{id}/auditor-scope`, `POST /admin/users/{id}/anonymize` | — | ✅ S-47 | RS256/JWKS, auditor scope, PII-анонимизация (SPEC §3.18) |
 | tournaments-v2 | `POST /admin/tournaments` (202/queued), `GET /tournaments/{id}/events` (SSE), `POST /admin/tournaments/{id}/cancel`, `GET /tournaments/{id}/matches/{mid}/replay` | — | ✅ S-48 | async arq, replay, cancel/recovery, SF-античит (SPEC §3.19) |
+| lms | admin: `GET /admin/lms/status`, `POST /admin/lms/sync`, `GET /admin/lms/deliveries`, `GET /admin/lms/deliveries.csv` | — | ✅ S-49 | xAPI LRS, retry/идемпотентность, журнал (SPEC §3.20) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -612,6 +613,24 @@ interface TournamentDetailOut extends TournamentOut {
   проверяются на top-1 rate; флаг `engine_likeliness` (domain=bot).
 - Лимит: 2–16 уникальных активных ботов; отмена — между матчами.
 
+### 3.20. LMS LRS (S-49)
+
+```ts
+// GET /admin/lms/status → { configured, endpoint, counts, lastDelivery }
+// POST /admin/lms/sync → { queued, sent, failed, pending, disabled }
+// GET /admin/lms/deliveries?status&limit → DeliveryOut[]
+// GET /admin/lms/deliveries.csv?status → CSV
+```
+
+- xAPI statements: actor mbox, verb experienced/achieved, object skill/bot-elo,
+  result score; `statement_id` — UUID5(actor|object|day) → идемпотентность.
+- `lrs_deliveries`: payload/status/attempts/response_status/next_attempt_at;
+  retry с экспоненциальным backoff (до 1 ч); `sent` не отправляется повторно.
+- `LRS_ENABLED/ENDPOINT/KEY/SECRET`; без конфигурации — только локальный
+  CSV, `disabled=1`; worker `lms_sync` каждые 15 мин/на старте.
+- Mapping: `https://chessclass.local/skills/{slug}` и
+  `https://chessclass.local/bots/{userId}`; LMS-курсы — внешний адаптер.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -880,3 +899,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-46: observability/retention ✅ - voice_usage, gzip-архив, metrics, alerts, cost/UI | S-46 |
 | 2026-11-02 | S-47: auth-hardening ✅ - RS256/JWKS, audit логинов/ролей, auditor scope, PII | S-47 |
 | 2026-11-02 | S-48: tournaments-v2 ✅ - async arq/SSE, replay, cancel/recovery, SF-античит | S-48 |
+| 2026-11-02 | S-49: LMS LRS ✅ - xAPI queue/retry, scheduled sync, delivery journal/CSV | S-49 |
