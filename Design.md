@@ -837,6 +837,12 @@ tournament-job финализирует комнату/рейтинг.
 `review_events`. Очередь `/review/queue`, дневной лимит 20; автокарточки
 failed Python/chess-blunder; UI `/review`; PostgreSQL.
 
+### 10.11. Генератор этюдов v2 (S-53)
+
+Curated + random-playout кандидаты, batch с `exclude_fens`; auto-review
+FEN/PV, сложность по SF score; многоходовый `attempt-line`; метрики
+брака/дублей. Без новой схемы — `generator_meta`.
+
 ## 11. Данные (PostgreSQL)
 
 ### 11.1. База и общие правила
@@ -1091,6 +1097,7 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | PvP | `/pvp/*` | rooms/quick/SSE/replay/leaderboard | user |
 | PvP admin | `/admin/pvp/*` | жалобы | admin/auditor |
 | Review | `/review/*` | queue/cards/answer/stats | user |
+| Studies v2 | `/admin/studies/generate-batch`, `/admin/studies/generator/metrics`, `/studies/{id}/attempt-line` | batch/PV/метрики | teacher/admin |
 | Наблюдаемость | `/ops` | метрики, стоимость, retention, алерты | admin/auditor |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
 | Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |

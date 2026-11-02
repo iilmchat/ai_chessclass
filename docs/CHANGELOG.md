@@ -84,6 +84,15 @@
 - Тесты: интервалы/сброс при again, очередь/лимит, дедупликация,
   интеграции Python/chess; backend 190.
 
+#### S-53 — Генератор этюдов v2 (2026-11-03)
+- Random-playout + curated-база; batch 1–20 с `exclude_fens`, метриками
+  uniqueFens/skipped/defectRate; дедупликация в рамках батча.
+- `autoReview` (FEN/легальность PV) в `generator_meta`; сложность по SF
+  score; брак → rejected.
+- Многоходовый `attempt-line`: проверка PV/префикса, failedPly/nextUci;
+  `/admin/studies/generate-batch|generator/metrics`.
+- Тесты: 6 уникальных FEN, метрики, полная/неверная линия; backend 192.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

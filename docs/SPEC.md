@@ -48,6 +48,7 @@
 | telegram | `GET /telegram/status`, `POST /telegram/link`, `POST /telegram/link-code`, `POST /telegram/confirm`, `DELETE /telegram/link` | — | ✅ S-50 | consent, code/deep-link, outbox, graceful off (SPEC §3.21) |
 | pvp | `POST /pvp/rooms`, `POST /pvp/rooms/join`, `POST /pvp/quick-match`, `POST /pvp/rooms/{id}/start`, `GET /pvp/rooms/{id}/events`, replay, leaderboard, complaints | — | ✅ S-51 | PvP-комнаты, SSE, отдельный Elo (SPEC §3.22) |
 | review | `GET /review/queue`, `POST /review/cards`, `POST /review/cards/{id}/answer`, `GET /review/stats` | — | ✅ S-52 | SM-2, автокарточки ошибок, дневной лимит (SPEC §3.23) |
+| studies-v2 | admin `POST /admin/studies/generate-batch`, `GET /admin/studies/generator/metrics`; `POST /studies/{id}/attempt-line` | — | ✅ S-53 | playout/дедуп FEN, PV-solver, авто-ревью (SPEC §3.24) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -698,6 +699,25 @@ interface TournamentDetailOut extends TournamentOut {
 - UI `/review`: front/back, 4 оценки, статистика; напоминания — через
   Telegram outbox (kind review) при наличии привязки.
 
+### 3.24. Генератор этюдов v2 (S-53)
+
+```ts
+// POST /admin/studies/generate-batch { count: 1..20 } → BatchOut
+// GET  /admin/studies/generator/metrics → generated/autoReviewed/defects/...
+// POST /studies/{id}/attempt-line { moves: string[] } → AttemptLineOut
+```
+
+- Кандидаты: curated-база + random-playout из начальной позиции; batch
+  передаёт `exclude_fens`, поэтому 20 этюдов без дублей FEN.
+- Auto-review: FEN/легальность solution_uci и PV; результат в
+  `generator_meta.autoReview`; invalid → `rejected`; брак < 20 %.
+- Сложность: по `score_cp` SF (≥250 novice, ≥80 intermediate, иначе
+  advanced), `engineDifficulty` в meta.
+- `attempt-line` проверяет линию/префикс PV, возвращает failedPly/nextUci;
+  `attempt` (первый ход) сохранён для обратной совместимости.
+- Batch-лимит 1–20 + общий `study_daily_limit`; метрики — generated,
+  autoReviewed, defects, defectRate, duplicateFens.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -970,3 +990,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-03 | S-50: Telegram ✅ - consent/link-code, outbox/retry, graceful off | S-50 |
 | 2026-11-03 | S-51: PvP ✅ - rooms/quick-match, SSE/replay, separate Elo | S-51 |
 | 2026-11-03 | S-52: review ✅ - SM-2 cards, error integrations, daily cap | S-52 |
+| 2026-11-03 | S-53: studies-v2 ✅ - playout/dedup, PV solver, auto-review | S-53 |

@@ -67,10 +67,32 @@ class AttemptIn(CamelModel):
     move_uci: str = Field(pattern=r"^[a-h][1-8][a-h][1-8][qrbn]?$")
 
 
+class AttemptLineIn(CamelModel):
+    moves: list[str] = Field(min_length=1, max_length=20)
+
+
 class AttemptOut(CamelModel):
     correct: bool
     message: str
     next_uci: str | None
+
+
+class AttemptLineOut(AttemptOut):
+    failed_ply: int | None
+
+
+class BatchIn(CamelModel):
+    count: int = Field(default=5, ge=1, le=20)
+
+
+class BatchOut(CamelModel):
+    requested: int
+    created: int
+    skipped: int
+    defects: int
+    defect_rate: float
+    unique_fens: int
+    items: list[StudyAdminOut]
 
 
 def _out(study: ChessStudy) -> StudyOut:
@@ -137,6 +159,17 @@ async def attempt(
     return AttemptOut(**result)
 
 
+@router.post("/{study_id}/attempt-line", response_model=AttemptLineOut)
+async def attempt_line(
+    study_id: int,
+    body: AttemptLineIn,
+    user: CurrentUser,
+    session: DbSession,
+) -> AttemptLineOut:
+    result = await svc.attempt_line(session, user, study_id, body.moves)
+    return AttemptLineOut(**result)
+
+
 @admin_router.get("", response_model=StudyAdminPageOut)
 async def list_for_review(
     _guard: ReadRoles,
@@ -175,6 +208,38 @@ async def generate(
     )
     await session.commit()
     return _admin_out(study)
+
+
+@admin_router.post("/generate-batch", status_code=201, response_model=BatchOut)
+async def generate_batch(
+    body: BatchIn,
+    teacher: TeacherOrAdmin,
+    session: DbSession,
+    request: Request,
+) -> BatchOut:
+    result = await svc.generate_batch(
+        session,
+        request.app.state.redis,
+        teacher,
+        count=body.count,
+    )
+    await session.commit()
+    return BatchOut(
+        requested=result["requested"],
+        created=len(result["created"]),
+        skipped=result["skipped"],
+        defects=result["defects"],
+        defect_rate=result["defectRate"],
+        unique_fens=result["uniqueFens"],
+        items=[_admin_out(study) for study in result["created"]],
+    )
+
+
+@admin_router.get("/generator/metrics")
+async def generator_metrics(
+    _guard: TeacherOrAdmin, session: DbSession
+) -> dict:
+    return await svc.generator_metrics(session)
 
 
 @admin_router.post("/{study_id}/submit", response_model=StudyAdminOut)
