@@ -17,7 +17,7 @@ x-backend-env: &backend-env
   LLM_MODEL_L3: ${LLM_MODEL_L3:-beam-1.0-501b}
   LLM_MODEL_L3_ALT: ${LLM_MODEL_L3_ALT:-claude-sonnet-5.5}
   LLM_MODEL_JUDGE: ${LLM_MODEL_JUDGE:-decider-flash-v1.2}
-  LLM_EMBED_MODEL: ${LLM_EMBED_MODEL:-nomic-embed-text-v1.5}
+  LLM_EMBED_MODEL: ${LLM_EMBED_MODEL:-}
   WEB_BASE_URL: ${WEB_BASE_URL:-http://localhost:3200}
   REPORTS_DIR: /srv/reports
 

@@ -4,7 +4,7 @@
 лаборатория с разбором партий, конструктор ботов с лестницей Elo и когнитивный
 дашборд навыков — **один профиль, один уровень, один LLM-ассистент** на все домены.
 
-**Версия:** v0.2.0 (16/16 спринтов, тег `v0.2.0`) · **Предыдущая:** v0.1.0
+**Версия:** v0.2.1 (16/16 спринтов, патч после prod-приёмки) · **Предыдущая:** v0.2.0
 ([TODO_V0.2.md](TODO_V0.2.md)) · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
@@ -109,7 +109,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v0.2.0** (2026-11-02, тег `v0.2.0`) |
+| Версия | **v0.2.1** (2026-11-02, патч prod-приёмки) |
 | Спринты | **16/16** (S-30…S-45), этапы E-11…E-16 ✅ |
 | Тесты backend | **174 passed** (юнит + интеграционные + e2e-journey) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
@@ -117,7 +117,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Миграции | Alembic head **0021_tournaments** (21) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 13 RAG-док |
-| Следующий этап | **v0.3** — backlog Design §2.2 (PvP, Telegram, LMS-адаптеры) |
+| Следующий этап | **v0.3** — backlog Design §2.2 (PvP, Telegram, LMS-адаптеры), план — [TODO_V0.3.md](TODO_V0.3.md) |
 
 ---
 
@@ -128,7 +128,8 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [Design.md](Design.md) — архитектура и решения (источник истины, 20 разделов, ADR)
 - [docs/SPEC.md](docs/SPEC.md) — контракты API v1 (эндпоинты, DTO, коды ошибок)
 - [docs/RULES.md](docs/RULES.md) — процесс: спринты, git, docker-безопасность, отчёт
-- [TODO_V0.2.md](TODO_V0.2.md) — активный план v0.2.0 (S-30…S-45)
+- [TODO_V0.2.md](TODO_V0.2.md) — завершённый план v0.2.0 (S-30…S-45)
+- [TODO_V0.3.md](TODO_V0.3.md) — план v0.3.0 (S-46…S-57)
 - [TODO_V0.1.md](TODO_V0.1.md) — архив плана v0.1.0 (S-01…S-29)
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — изменения по спринтам
 - [docs/runbooks/llm-gateway.md](docs/runbooks/llm-gateway.md) — LLM-шлюз: ключи, health, fallback
