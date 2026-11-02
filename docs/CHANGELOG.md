@@ -4,6 +4,23 @@
 версии соответствуют этапам дорожной карты (`TODO_V0.1.md` — архив,
 `TODO_V0.2.md` — активный план). Детали спринтов — в `docs/sprint-reports/`.
 
+## [Unreleased] — v0.3.0
+
+### Добавлено
+
+#### S-46 — Retention, наблюдаемость и стоимость (2026-11-02)
+- Миграция `0022_observability`: `voice_usage` (кто/сколько/стоимость,
+  cache-hit) для cost-per-student.
+- `domains/retention`: gzip-архив + удаление `audit_logs`, `llm_calls`,
+  `voice_audio` (+файлы), `voice_usage`, старых draft/rejected `chess_studies`;
+  dry-run; worker cron 04:10 UTC.
+- `/metrics` Prometheus (DB/Redis, очереди, LLM/voice cost, диск);
+  `/admin/observability/summary|alerts|costs|costs.csv|retention/*`;
+  UI `/ops` (стоимость, алерты, retention).
+- `METRICS_TOKEN`/retention env; prod volume `chessclass_archive`.
+- Тесты: архив/удаление/сохранение published, dry-run, metrics/costs/retention;
+  backend 176.
+
 ## [v0.2.1] — 2026-11-02
 
 ### Исправлено

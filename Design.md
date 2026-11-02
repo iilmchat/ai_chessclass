@@ -838,6 +838,7 @@ audit_logs(id, actor_id→users SET NULL, actor_email, actor_role, action,
            target_type, target_id, source, meta jsonb, request_id, created_at)  # S-41
 voice_audio(id, text_hash uq, voice_id, model_id, path, chars, cost,
             provider, created_at)  # S-44
+voice_usage(id, user_id→users, chars, cost, cached, created_at)  # S-46
 ```
 
 **Python-домен (py_*)**
@@ -1033,6 +1034,7 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | Боты | `/bots`, `/bots/:id`, `/bots/:id/match/:matchId` | редактор, лестница, реплей матчей | все |
 | Турниры | `/tournaments` | bracket/round-robin, лидерборд, экспорт CSV | все (создание — teacher/admin) |
 | Экспорт LMS | `/export` | skills.csv, xapi.json | teacher/admin/auditor |
+| Наблюдаемость | `/ops` | метрики, стоимость, retention, алерты | admin/auditor |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
 | Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |
 | Классы | `/classes` | классы, инвайты, групповой дашборд | teacher/admin (join — student) |
@@ -1122,6 +1124,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   миграций, версия, детали. SF/LLM-проверки — S-31.
 - Бэкапы: скрипт `backend/scripts/backup.sh` (pg_dump, retention 14 дн);
   cron/restore-проверка — S-38.
+- Retention (S-46): audit 365, llm_calls 180, voice 30, draft/rejected studies
+  90; gzip-архив в `RETENTION_ARCHIVE_DIR`, dry-run, cron 04:10 UTC.
+- Наблюдаемость (S-46): `/metrics` (DB/Redis, очереди, LLM/voice cost, диск),
+  `/admin/observability/{summary,alerts,costs,costs.csv,retention/*}`;
+  алерты по бюджету/диску/очередям/TLS; UI `/ops`.
 - KI-001: не запускать команды `docker stop/delete` на чужих контейнерах;
   перед любым действием — сначала `docker ps`, сверяя имена контейнеров.
 

@@ -41,6 +41,7 @@
 | voice | `GET /voice/status`, `POST /voice/speak` | — | ✅ S-44 | ElevenLabs TTS, кэш/квота; 503 без ключа — UI остаётся текстовым (SPEC §3.15) |
 | tournaments | `GET /tournaments`, `GET /tournaments/{id}`; admin: `POST /admin/tournaments`, `GET /admin/tournaments/{id}/export.csv` | — | ✅ S-45 | bracket/round-robin без LLM, лидерборд, CSV (SPEC §3.16) |
 | export | `GET /admin/export/skills.csv`, `GET /admin/export/xapi` | — | ✅ S-45 | LMS: CSV навыков + xAPI statements (SPEC §3.16) |
+| observability | `GET /metrics`; admin: `GET /admin/observability/summary|alerts|costs|costs.csv|retention/status`, `POST /admin/observability/retention/run` | — | ✅ S-46 | метрики, стоимость, retention/архив (SPEC §3.17) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -543,6 +544,30 @@ interface TournamentDetailOut extends TournamentOut {
   xAPI — statements с actor mbox, verb (`experienced|achieved`), object
   skill/bot-elo, result score; аудит `export.skills`/`export.xapi`.
 
+### 3.17. observability / retention (S-46)
+
+```ts
+// GET /metrics → text/plain (Prometheus); METRICS_TOKEN → Bearer
+// GET /admin/observability/summary → SummaryOut (admin/auditor)
+// GET /admin/observability/alerts → AlertOut[]
+// GET /admin/observability/costs?days=30 → { days, items: CostRowOut[] } (admin)
+// GET /admin/observability/costs.csv?days=30 → CSV (admin)
+// GET /admin/observability/retention/status → { policies, lastRun }
+// POST /admin/observability/retention/run { dryRun? } → RetentionResultOut[]
+```
+
+- Retention: `audit_logs` 365 дн., `llm_calls` 180, `voice_audio`/`voice_usage`
+  30, draft/rejected `chess_studies` 90; gzip-JSONL в `RETENTION_ARCHIVE_DIR`
+  перед удалением; published studies не удаляются; dry-run без записи.
+- `/metrics`: DB/Redis, глубины очередей, active-матчи, LLM/voice cost/tokens,
+  свободный диск. `METRICS_TOKEN` защищает endpoint; в prod — только
+  внутренний scrape.
+- Alerts: DB/Redis down, диск < `OBS_DISK_MIN_FREE_GB`, очередь >
+  `OBS_QUEUE_ALERT_DEPTH`, LLM cost > `OBS_LLM_COST_ALERT_RUB`, TLS < 30 дн.
+  (если `OBS_TLS_CERT_PATH`), retention не запускался > 2 дней.
+- `voice_usage` — фактическое использование (включая cache-hit cost=0);
+  cost-per-student = `llm_calls` + `voice_usage`.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -808,3 +833,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-43: studies ✅ - SF+LLM генерация, draft→review→published, attempts, лимит/аудит | S-43 |
 | 2026-11-02 | S-44: voice ✅ - ElevenLabs TTS, cache/voice_audio, quota, UI-плеер, text fallback | S-44 |
 | 2026-11-02 | S-45: tournaments/export ✅ - 8-бот bracket без LLM, CSV/xAPI для LMS, UI | S-45 |
+| 2026-11-02 | S-46: observability/retention ✅ - voice_usage, gzip-архив, metrics, alerts, cost/UI | S-46 |

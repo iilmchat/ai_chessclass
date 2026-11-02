@@ -114,6 +114,18 @@ class Settings(BaseSettings):
     voice_cost_per_1k_rub: float = 0.0
     voice_timeout_s: float = 30.0
     voice_cache_dir: str = "/srv/voice_cache"
+    # --- retention / observability (S-46)
+    audit_retention_days: int = 365
+    llm_calls_retention_days: int = 180
+    voice_retention_days: int = 30
+    studies_retention_days: int = 90
+    retention_archive_dir: str = "/srv/archive"
+    retention_batch_size: int = 10_000
+    metrics_token: str = ""
+    obs_disk_min_free_gb: float = 5.0
+    obs_queue_alert_depth: int = 50
+    obs_llm_cost_alert_rub: float = 1000.0
+    obs_tls_cert_path: str = ""
 
     # --- seeds (S-03)
     seed_admin_email: str = "admin@chessclass.dev"

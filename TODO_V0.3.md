@@ -9,7 +9,7 @@
 > документы. Отчёт — `docs/sprint-reports/S-XX-YYYY-MM-DD.md`.
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 0/12.**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 1/12 (S-46 ✅).**
 Приоритет: **сначала надёжность и безопасность, затем интеграции, контент
 и релиз**. Все спринты — после стабилизации v0.2.x.
 
@@ -17,14 +17,19 @@
 
 ## E-17 · Надёжность, безопасность и эксплуатация (S-46…S-48)
 
-### S-46 ☐ Retention, наблюдаемость и стоимость
-- [ ] retention/архив для `audit_logs`, `voice_audio`, `chess_studies`,
+### S-46 ✅ Retention, наблюдаемость и стоимость
+- [x] retention/архив для `audit_logs`, `voice_audio`, `chess_studies`,
       `llm_calls` (политика, cron/arq, отчёт)
-- [ ] метрики Prometheus/health: очереди, LLM/voice расход, ошибки, p95;
+- [x] метрики Prometheus/health: очереди, LLM/voice расход, ошибки, p95;
       алерты по бюджету/диску/сертификату
-- [ ] дашборд «стоимость на ученика» (LLM + voice), экспорт для администратора
+- [x] дашборд «стоимость на ученика» (LLM + voice), экспорт для администратора
 - **DoD:** журналы/кэш не растут бесконечно; есть дашборд и алерты; retention
   не ломает restore (S-38).
+- **Факт:** миграция `0022_observability` (`voice_usage`); `domains/retention`
+  (gzip-архив + удаление, dry-run), worker cron 04:10 UTC; `/metrics`,
+  `/admin/observability/{summary,alerts,costs,costs.csv,retention/*}`;
+  UI `/ops`; retention тест + observability тест; backend 176, frontend 5.
+- **Отчёт:** `docs/sprint-reports/S-46-2026-11-02.md`.
 
 ### S-47 ☐ Auth-hardening и приватность
 - [ ] RS256/JWKS (ротация ключей), совместимость HS256 на переходный период

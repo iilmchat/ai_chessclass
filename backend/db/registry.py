@@ -18,6 +18,7 @@ from domains.reports import models as _reports_models  # noqa: F401
 from domains.studies import models as _studies_models  # noqa: F401
 from domains.tournaments import models as _tournaments_models  # noqa: F401
 from domains.voice import models as _voice_models  # noqa: F401
+from domains.voice.usage import VoiceUsage as _voice_usage_model  # noqa: F401
 from llm import models as _llm_models  # noqa: F401
 from rag import models as _rag_models  # noqa: F401
 

@@ -16,6 +16,7 @@ from core.errors import AppError
 from domains.audit import service as audit_svc
 from domains.auth.models import User
 from domains.voice.models import VoiceAudio
+from domains.voice.usage import VoiceUsage
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,15 @@ async def synthesize(
     if cached is not None:
         path = Path(cached.path)
         if path.is_file():
+            session.add(
+                VoiceUsage(
+                    user_id=user.id,
+                    chars=len(clean),
+                    cost=Decimal("0"),
+                    cached=True,
+                )
+            )
+            await session.flush()
             await audit_svc.record(
                 session,
                 user,
@@ -151,6 +161,15 @@ async def synthesize(
             provider="elevenlabs",
         )
         session.add(row)
+    await session.flush()
+    session.add(
+        VoiceUsage(
+            user_id=user.id,
+            chars=len(clean),
+            cost=cost,
+            cached=False,
+        )
+    )
     await session.flush()
     await audit_svc.record(
         session,

@@ -538,3 +538,78 @@ export async function downloadFile(path: string, filename: string): Promise<void
   link.click();
   URL.revokeObjectURL(url);
 }
+
+// --- observability / retention (S-46)
+
+export interface ObsSummaryDto {
+  db: boolean;
+  redis: boolean;
+  queues: Record<string, number>;
+  activeMatches: Record<string, number>;
+  llmCostTodayRub: number;
+  llmTokensToday: number;
+  voiceCharsToday: number;
+  voiceCostTodayRub: number;
+  diskFreeGb: number;
+  retentionLastRun: string | null;
+}
+
+export interface ObsAlertDto {
+  code: string;
+  severity: string;
+  message: string;
+}
+
+export interface CostRowDto {
+  userId: string;
+  email: string | null;
+  llmCostRub: number;
+  voiceChars: number;
+  voiceCostRub: number;
+  totalCostRub: number;
+  tokensIn: number;
+  tokensOut: number;
+}
+
+export interface RetentionResultDto {
+  policy: string;
+  cutoff: string;
+  rows: number;
+  archived: number;
+  deleted: number;
+  archivePath: string | null;
+  dryRun: boolean;
+}
+
+export interface RetentionStatusDto {
+  policies: {
+    policy: string;
+    retentionDays: number;
+    cutoff: string;
+    rows: number;
+  }[];
+  lastRun: Record<string, unknown> | null;
+}
+
+export function fetchObsSummary(): Promise<ObsSummaryDto> {
+  return apiFetch('/admin/observability/summary');
+}
+
+export function fetchObsAlerts(): Promise<ObsAlertDto[]> {
+  return apiFetch('/admin/observability/alerts');
+}
+
+export function fetchCosts(days = 30): Promise<{ days: number; items: CostRowDto[] }> {
+  return apiFetch(`/admin/observability/costs?days=${days}`);
+}
+
+export function fetchRetentionStatus(): Promise<RetentionStatusDto> {
+  return apiFetch('/admin/observability/retention/status');
+}
+
+export function runRetention(dryRun: boolean): Promise<RetentionResultDto[]> {
+  return apiFetch('/admin/observability/retention/run', {
+    method: 'POST',
+    body: JSON.stringify({ dryRun }),
+  });
+}

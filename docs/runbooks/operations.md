@@ -139,3 +139,17 @@ docker compose -f docker-compose.prod.yml restart edge
   `GET /admin/llm/health`.
 - Перед релизом: backend CI (ruff/mypy/pytest), frontend build, Playwright
   e2e (`.\scripts\e2e.ps1 test`), prod smoke.
+
+## 8. Retention и наблюдаемость (S-46)
+
+- Retention (cron 04:10 UTC / вручную):
+  `POST /admin/observability/retention/run` (`{"dryRun": true}` — проверка).
+  Политики: audit 365 дн., llm_calls 180, voice 30, draft/rejected studies 90;
+  перед удалением — gzip-архив в `RETENTION_ARCHIVE_DIR` (prod volume
+  `chessclass_archive`). Published studies не удаляются.
+- `GET /metrics` — Prometheus (DB/Redis, очереди, LLM/voice cost, диск).
+  В prod задайте `METRICS_TOKEN` и scrape только из внутренней сети.
+- `GET /admin/observability/summary|alerts|costs|costs.csv|retention/status` —
+  админ-дашборд `/ops`; алерты: DB/Redis, диск, очередь, LLM-cost, TLS,
+  устаревший retention.
+- Проверка после retention: `restore-test` на свежем бэкапе (S-38).

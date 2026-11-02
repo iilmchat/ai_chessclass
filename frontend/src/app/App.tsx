@@ -4,6 +4,7 @@ import { ChessPage } from '../pages/ChessPage';
 import { ClassesPage } from '../pages/ClassesPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { ExportPage } from '../pages/ExportPage';
+import { ObservabilityPage } from '../pages/ObservabilityPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { PythonPage } from '../pages/PythonPage';
 import { SkillsPage } from '../pages/SkillsPage';
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { to: '/classes', label: 'Классы' },
   { to: '/profile', label: 'Профиль' },
   { to: '/export', label: 'Экспорт' },
+  { to: '/ops', label: 'Наблюдаемость' },
 ];
 
 export function App() {
@@ -56,6 +58,7 @@ export function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/tournaments" element={<TournamentsPage />} />
           <Route path="/export" element={<ExportPage />} />
+          <Route path="/ops" element={<ObservabilityPage />} />
         </Routes>
       </main>
     </div>

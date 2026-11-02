@@ -88,6 +88,7 @@ services:
     volumes:
       - chessclass_reports:/srv/reports
       - chessclass_voice:/srv/voice_cache
+      - chessclass_archive:/srv/archive
     depends_on:
       db:
         condition: service_healthy
@@ -118,6 +119,7 @@ services:
       APP_ROLE: worker
     volumes:
       - chessclass_reports:/srv/reports
+      - chessclass_archive:/srv/archive
     depends_on:
       db:
         condition: service_healthy
@@ -288,6 +290,8 @@ volumes:
     name: chessclass_prod_reports
   chessclass_voice:
     name: chessclass_prod_voice
+  chessclass_archive:
+    name: chessclass_prod_archive
   chessclass_certbot:
     name: chessclass_prod_certbot
 

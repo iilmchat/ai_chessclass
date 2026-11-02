@@ -54,6 +54,8 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
   попытки решения; лимит генераций.
 - **Озвучка ElevenLabs (S-44)** — TTS с кэшем/квотой и текстовым fallback.
 - **Турниры и LMS (S-45)** — bracket/round-robin без LLM, CSV/xAPI-экспорт.
+- **Наблюдаемость/retention (S-46)** — метрики, cost-per-student, алерты,
+  gzip-архив журналов/voice-кэша.
 - **Prod** — edge TLS/HSTS, бэкапы/restore, runbook (S-38).
 
 ---

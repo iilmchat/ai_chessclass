@@ -56,6 +56,23 @@ async def scores_recalc(ctx: dict) -> dict:
     return {"users": len(user_ids), "updatedRows": updated}
 
 
+async def retention_run(ctx: dict) -> dict:
+    """Nightly: архивировать/удалить устаревшие журналы и кэш (S-46)."""
+    from core.db import session_factory
+    from domains.retention import service as retention_svc
+
+    logger.info("worker: retention_run (nightly)")
+    async with session_factory() as session:
+        results = await retention_svc.run_retention(session)
+        await session.commit()
+    return {
+        "policies": {
+            item.policy: {"rows": item.rows, "deleted": item.deleted}
+            for item in results
+        }
+    }
+
+
 async def run_match(
     ctx: dict, bot_version_id: int, opponent: str, match_id: int | None = None
 ) -> dict:
@@ -79,9 +96,12 @@ async def run_match(
 
 
 class WorkerSettings:
-    functions = [heartbeat, analyze_position, analyze_game, scores_recalc, run_match]
-    #: nightly-пересчёт EMA (§10.3) — 03:40 UTC
-    cron_jobs = [arq.cron("app.worker.scores_recalc", hour=3, minute=40, run_at_startup=False)]
+    functions = [heartbeat, analyze_position, analyze_game, scores_recalc, retention_run, run_match]
+    #: nightly-пересчёт EMA (§10.3) — 03:40 UTC; retention — 04:10 UTC
+    cron_jobs = [
+        arq.cron("app.worker.scores_recalc", hour=3, minute=40, run_at_startup=False),
+        arq.cron("app.worker.retention_run", hour=4, minute=10, run_at_startup=False),
+    ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     #: default queue — analyze/pdf; match workers получают WORKER_QUEUE из compose
     queue_name = os.getenv("WORKER_QUEUE", "arq:queue")
