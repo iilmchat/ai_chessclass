@@ -39,6 +39,8 @@
 | progress | `GET /progress/me`, `GET /progress/{user}` (teacher/admin) | — | ✅ S-42 | стрики, темы, бейджи; age_group в профиле (SPEC §3.13) |
 | studies | `GET /studies`, `GET /studies/{id}`, `POST /studies/{id}/attempt`; admin: `GET /admin/studies`, `POST /admin/studies/generate`, `POST /admin/studies/{id}/submit`, `POST /admin/studies/{id}/review` | — | ✅ S-43 | генерация SF+LLM, ревью teacher, публикация, попытка решения (SPEC §3.14) |
 | voice | `GET /voice/status`, `POST /voice/speak` | — | ✅ S-44 | ElevenLabs TTS, кэш/квота; 503 без ключа — UI остаётся текстовым (SPEC §3.15) |
+| tournaments | `GET /tournaments`, `GET /tournaments/{id}`; admin: `POST /admin/tournaments`, `GET /admin/tournaments/{id}/export.csv` | — | ✅ S-45 | bracket/round-robin без LLM, лидерборд, CSV (SPEC §3.16) |
+| export | `GET /admin/export/skills.csv`, `GET /admin/export/xapi` | — | ✅ S-45 | LMS: CSV навыков + xAPI statements (SPEC §3.16) |
 | rag | `POST /admin/rag/ingest`, `GET /admin/rag/search?q&k` (admin) | — | ✅ S-13 | pgvector 768, HNSW cosine; hash-фолбэк без провайдера; rag_eval |
 | anticheat | `GET /admin/anticheat/flags?status`, `POST /admin/anticheat/flags/{id}/review` (teacher/admin) | — | ✅ S-22 | лента флагов, статус-машина new→reviewed/false_positive/confirmed; engine_likeliness §8 |
 
@@ -509,6 +511,38 @@ interface StudyAdminOut extends StudyOut {
 - Аудит `voice.speak` (chars/cached); ключ не логируется. Кэш в prod —
   volume `chessclass_voice`.
 
+### 3.16. tournaments / export (S-45)
+
+```ts
+// GET /tournaments → TournamentOut[]
+// GET /tournaments/{id} → TournamentDetailOut
+// POST /admin/tournaments { name, format: "bracket"|"round_robin",
+//   botVersionIds: number[2..16] } → 201 TournamentDetailOut (teacher/admin)
+interface TournamentOut {
+  id: string; name: string; format: string; status: "draft|running|done";
+  createdAt: string; startedAt: string | null; finishedAt: string | null;
+  meta: Record<string, unknown>;
+}
+interface TournamentDetailOut extends TournamentOut {
+  participants: { botVersionId, userId, email, displayName, seed,
+                  wins, losses, draws, points, rank }[];
+  matches: { roundNo, matchNo, botAId, botBId, winnerId, result,
+             movesCount, durationMs }[];
+}
+// GET /admin/tournaments/{id}/export.csv → CSV (leaderboard + matches)
+// GET /admin/export/skills.csv → CSV (student × skill + progress + Elo)
+// GET /admin/export/xapi → { statements: [{actor, verb, object, result, timestamp}] }
+```
+
+- Турнир — **без LLM**: ходы обоих ботов в песочнице, `TOURNAMENT_MAX_PLIES`
+  (40), бюджет per-move как у матчей; Elo/статистика матчей ботов не
+  меняются; bracket — 7 матчей для 8 ботов, round-robin — все пары.
+- Безопасность: создание/экспорт — teacher/admin (auditor читает экспорт);
+  чужие/неактивные боты → 404; 2–16 уникальных.
+- Экспорт CSV: `user × skill` (EMA, week, solved/streak, Elo, W/L/D);
+  xAPI — statements с actor mbox, verb (`experienced|achieved`), object
+  skill/bot-elo, result score; аудит `export.skills`/`export.xapi`.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -773,3 +807,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-02 | S-42: progress ✅ - py_progress/стрики, achievements/бейджи, age_group, UI профиля | S-42 |
 | 2026-11-02 | S-43: studies ✅ - SF+LLM генерация, draft→review→published, attempts, лимит/аудит | S-43 |
 | 2026-11-02 | S-44: voice ✅ - ElevenLabs TTS, cache/voice_audio, quota, UI-плеер, text fallback | S-44 |
+| 2026-11-02 | S-45: tournaments/export ✅ - 8-бот bracket без LLM, CSV/xAPI для LMS, UI | S-45 |

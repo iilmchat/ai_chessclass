@@ -572,6 +572,13 @@ def evaluate(position) -> float:    # опциональный контракт
 - `engine_likeliness` (бот): слишком идеальная игра против лестницы — далее
   семплы ходов (10 % ходов матча) и сравнение с топ-1 SF.
 
+### 7.8. Турниры ботов (S-45)
+
+`tournaments` + `tournament_participants` + `tournament_matches`: bracket
+(8 ботов → 7 матчей) или round-robin; ходы обоих ботов в песочнице, без
+LLM и без изменения Elo; лидерборд по очкам 3/1/0, экспорт CSV. UI
+`/tournaments`; создание — teacher/admin.
+
 ## 8. Единый LLM-шлюз (RouterAI)
 
 ### 8.1. Принцип
@@ -860,6 +867,12 @@ bot_versions(id, user_id, version_no, code text, entry, is_active, created_at)
 bot_stats(user_id pk, elo numeric, wins/losses/draws by opponent, updated_at)
 bot_matches(id, version_id, opponent, result, plies, duration_ms, elo_delta, started_at, finished_at)
 bot_match_moves(id, match_id, ply, fen, uci, agent, think_ms, sf_sample bool)
+tournaments(id, name, format bracket|round_robin, status, created_by,
+            meta jsonb, created_at, started_at, finished_at)  # S-45
+tournament_participants(tournament_id, bot_version_id, user_id, seed,
+                        wins/losses/draws/points, rank)  # S-45
+tournament_matches(id, tournament_id, round_no, match_no, bot_a_id, bot_b_id,
+                   winner_id, result, moves_count, duration_ms)  # S-45
 ```
 
 **Когнитивное ядро (shared)**
@@ -1018,6 +1031,8 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 | Python | `/python`, `/python/assignment/:id` | список заданий по уровню, редактор+тесты, подсказки | все |
 | Шахматы | `/chess/position`, `/chess/games`, `/chess/game/:id` | доска (react-chessboard), инсайт, анализ | все |
 | Боты | `/bots`, `/bots/:id`, `/bots/:id/match/:matchId` | редактор, лестница, реплей матчей | все |
+| Турниры | `/tournaments` | bracket/round-robin, лидерборд, экспорт CSV | все (создание — teacher/admin) |
+| Экспорт LMS | `/export` | skills.csv, xapi.json | teacher/admin/auditor |
 | Навыки | `/skills` | дашборд навыков, связи, тренды | все |
 | Профиль | `/profile` | age_group, стрики, прогресс, бейджи | все |
 | Классы | `/classes` | классы, инвайты, групповой дашборд | teacher/admin (join — student) |

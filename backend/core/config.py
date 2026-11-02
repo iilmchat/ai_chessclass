@@ -90,6 +90,7 @@ class Settings(BaseSettings):
     chess_blunder_cp: int = 300  # Δeval ≥ порога → blunder (§6.2, config не hardcoded)
     chess_pgn_max_bytes: int = 2_000_000  # §13.4
     study_daily_limit: int = 10  # S-43: генераций этюдов на пользователя/сутки
+    tournament_max_plies: int = 40  # S-45: партия турнира без LLM
     # --- rag (S-13; §10.6, ADR-006: 768; модель — открытый вопрос §18.2)
     llm_embed_model: str = ""
     rag_chunk_chars: int = 800

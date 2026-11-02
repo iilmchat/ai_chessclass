@@ -187,6 +187,18 @@
 - Тесты: кэш (провайдер вызван один раз), квота, fallback без ключа;
   backend 172, frontend 5, build OK.
 
+#### S-45 — Турниры ботов и экспорт в LMS (2026-11-02)
+- Миграция `0021_tournaments`: `tournaments`, `tournament_participants`,
+  `tournament_matches`; bracket/round-robin, статусы, ranks/points.
+- Турнир без LLM: ходы обоих ботов в песочнице, `TOURNAMENT_MAX_PLIES=40`;
+  bracket 8 ботов = 7 матчей, round-robin — все пары; Elo не меняется.
+- API: `GET /tournaments`, `GET /tournaments/{id}`, `POST /admin/tournaments`
+  (teacher/admin), CSV-экспорт; UI `/tournaments`.
+- LMS: `GET /admin/export/skills.csv` (student × skill + progress + Elo),
+  `GET /admin/export/xapi` (statements actor/verb/object/result);
+  аудит экспортов; UI `/export`.
+- Тесты: 8 ботов bracket 7 матчей, CSV/xAPI, 403 для студента; backend 174.
+
 ## [v0.1.0] — 2026-11-01 (29/29 спринтов, этапы E-01…E-10 завершены)
 
 Релиз с тегом `v0.1.0` на GitHub (коммит `316fce9`). Все возможности —

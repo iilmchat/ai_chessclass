@@ -450,3 +450,91 @@ export async function speakText(text: string): Promise<Blob> {
   }
   return response.blob();
 }
+
+// --- tournaments / export (S-45)
+
+export interface TournamentDto {
+  id: string;
+  name: string;
+  format: string;
+  status: string;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  meta: Record<string, unknown>;
+}
+
+export interface TournamentParticipantDto {
+  botVersionId: string;
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+  seed: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  points: number;
+  rank: number | null;
+}
+
+export interface TournamentMatchDto {
+  roundNo: number;
+  matchNo: number;
+  botAId: string;
+  botBId: string;
+  winnerId: string | null;
+  result: string;
+  movesCount: number;
+  durationMs: number;
+}
+
+export interface TournamentDetailDto extends TournamentDto {
+  participants: TournamentParticipantDto[];
+  matches: TournamentMatchDto[];
+}
+
+export function fetchTournaments(): Promise<TournamentDto[]> {
+  return apiFetch('/tournaments');
+}
+
+export function fetchTournament(id: string): Promise<TournamentDetailDto> {
+  return apiFetch(`/tournaments/${id}`);
+}
+
+export function createTournament(payload: {
+  name: string;
+  format: string;
+  botVersionIds: number[];
+}): Promise<TournamentDetailDto> {
+  return apiFetch('/admin/tournaments', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Скачать защищённый экспорт (CSV/JSON) через Bearer. */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  const response = await fetch(`${BASE}${path}`, {
+    credentials: 'include',
+    headers,
+  });
+  if (!response.ok) {
+    const problem = (await response.json().catch(() => null)) as ProblemDetails | null;
+    throw new ApiError(
+      response.status,
+      problem?.code ?? 'export_error',
+      problem?.detail ?? 'Ошибка экспорта',
+    );
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}

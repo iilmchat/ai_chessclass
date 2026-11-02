@@ -20,12 +20,15 @@ from domains.bot_lab.router import router as bots_router
 from domains.chess_lab.router import router as chess_router
 from domains.classes.router import router as classes_router
 from domains.cognitive.router import router as skills_router
+from domains.export.router import router as export_router
 from domains.profile.router import router as profile_router
 from domains.progress.router import router as progress_router
 from domains.python_teacher.router import router as py_router
 from domains.reports.router import router as reports_router
 from domains.studies.router import admin_router as studies_admin_router
 from domains.studies.router import router as studies_router
+from domains.tournaments.router import admin_router as tournaments_admin_router
+from domains.tournaments.router import router as tournaments_router
 from domains.voice.router import router as voice_router
 from llm.router import router as llm_admin_router
 from rag.router import router as rag_admin_router
@@ -117,6 +120,9 @@ app.include_router(rag_admin_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(studies_router, prefix="/api/v1")
 app.include_router(studies_admin_router, prefix="/api/v1")
+app.include_router(tournaments_router, prefix="/api/v1")
+app.include_router(tournaments_admin_router, prefix="/api/v1")
+app.include_router(export_router, prefix="/api/v1")
 app.include_router(voice_router, prefix="/api/v1")
 
 

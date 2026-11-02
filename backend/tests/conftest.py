@@ -78,6 +78,12 @@ async def _cleanup():
         # Сначала зависимые строки, потом e2e-юзеры (FK SET NULL не удалит).
         await session.execute(
             sa.text(
+                "DELETE FROM tournaments WHERE created_by IN "
+                "(SELECT id FROM users WHERE email LIKE '%@e2e.chessclass')"
+            )
+        )
+        await session.execute(
+            sa.text(
                 "DELETE FROM chess_studies WHERE created_by IN "
                 "(SELECT id FROM users WHERE email LIKE '%@e2e.chessclass')"
             )

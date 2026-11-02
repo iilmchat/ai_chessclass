@@ -3,18 +3,22 @@ import { BotsPage } from '../pages/BotsPage';
 import { ChessPage } from '../pages/ChessPage';
 import { ClassesPage } from '../pages/ClassesPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { ExportPage } from '../pages/ExportPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { PythonPage } from '../pages/PythonPage';
 import { SkillsPage } from '../pages/SkillsPage';
+import { TournamentsPage } from '../pages/TournamentsPage';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Дашборд', end: true },
   { to: '/python', label: 'Python-курс' },
   { to: '/chess', label: 'Шахматы' },
   { to: '/bots', label: 'Боты' },
+  { to: '/tournaments', label: 'Турниры' },
   { to: '/skills', label: 'Навыки' },
   { to: '/classes', label: 'Классы' },
   { to: '/profile', label: 'Профиль' },
+  { to: '/export', label: 'Экспорт' },
 ];
 
 export function App() {
@@ -50,6 +54,8 @@ export function App() {
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/classes" element={<ClassesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/tournaments" element={<TournamentsPage />} />
+          <Route path="/export" element={<ExportPage />} />
         </Routes>
       </main>
     </div>
