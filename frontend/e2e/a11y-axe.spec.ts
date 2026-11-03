@@ -29,7 +29,11 @@ const PAGES = ['/', '/python', '/chess', '/bots', '/skills', '/rag'] as const;
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa'];
 
-test('axe: 0 critical/serious на публичных маршрутах', async ({ page }) => {
+test('axe: 0 critical/serious на публичных маршрутах', async ({ browser }) => {
+  // CSP prod-образа запрещает inline-скрипты; для тест-инъекции axe —
+  // bypassCSP только в тестовом контексте (на приложение не влияет).
+  const context = await browser.newContext({ bypassCSP: true });
+  const page = await context.newPage();
   for (const route of PAGES) {
     await page.goto(route);
     await page.waitForLoadState('networkidle');
@@ -53,4 +57,5 @@ test('axe: 0 critical/serious на публичных маршрутах', async
     }
     expect(blocking, `axe ${route}`).toEqual([]);
   }
+  await context.close();
 });

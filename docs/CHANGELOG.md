@@ -9,6 +9,21 @@
 
 ### Добавлено
 
+#### S-65 — PvP UI и workflow жалоб (2026-11-03)
+- Страница `/pvp` (любая роль): выбор бота (rated-флаг), создание комнаты,
+  quick-match, вход по коду, статус-карточка с поллингом (waiting→ready→
+  running→done), отмена (host), старт (host), SSE-строка прогресса,
+  реплей с шахматной доской (шаги по полуходам), PvP-лидерборд, отправка
+  жалобы участником.
+- Страница `/complaints` (teacher/admin): очередь жалоб (фильтр статуса),
+  вердикт reviewed/rejected с note → `PATCH /admin/pvp/complaints/{id}`.
+- Миграция `0029_pvp_complaint_review`: `reviewed_by`/`reviewed_at`/`note`.
+- Backend: ревью-контракт (статус-машина, RBAC teacher/admin, аудит
+  pvp.complaint.review); тесты +3 (flow, rejected/bad-status, teacher).
+- e2e `pvp.spec.ts`: два браузера (host/guest) играют матч до done и
+  видят реплей; жалоба закрывается админом в UI.
+- Навигация: `/pvp`, «Жалобы».
+
 #### S-64 — RAG-редактор UI и gold-set eval (2026-11-03)
 - Страница `/rag` (teacher/admin, доступ по роли): список документов с
   фильтром статусов, редактор (создание черновика / правка → новая версия),

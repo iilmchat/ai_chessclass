@@ -230,6 +230,19 @@ async def get_room(session: AsyncSession, room_id: int) -> PvpRoom:
     return room
 
 
+async def my_room(session: AsyncSession, user: User) -> PvpRoom:
+    """Активная комната пользователя (waiting/ready/running) — для UI S-65."""
+    room = await session.scalar(
+        select(PvpRoom).where(
+            PvpRoom.status.in_(("waiting", "ready", "running")),
+            (PvpRoom.host_user_id == user.id) | (PvpRoom.guest_user_id == user.id),
+        )
+    )
+    if room is None:
+        raise AppError("pvp_room_not_found", "Активной комнаты нет", 404)
+    return room
+
+
 async def cancel_room(
     session: AsyncSession, user: User, room_id: int, redis=None
 ) -> PvpRoom:
@@ -271,6 +284,37 @@ async def list_complaints(session: AsyncSession) -> list[PvpComplaint]:
             )
         ).scalars()
     )
+
+
+async def get_complaint(session: AsyncSession, complaint_id: int) -> PvpComplaint:
+    complaint = await session.get(PvpComplaint, complaint_id)
+    if complaint is None:
+        raise AppError("pvp_complaint_not_found", "Жалоба не найдена", 404)
+    return complaint
+
+
+async def review_complaint(
+    session: AsyncSession,
+    reviewer: User,
+    complaint_id: int,
+    *,
+    status: str,
+    note: str | None,
+) -> PvpComplaint:
+    """open → reviewed|rejected (S-65): вердикт за учителем (ADR-005)."""
+    complaint = await get_complaint(session, complaint_id)
+    if complaint.status != "open":
+        raise AppError("pvp_complaint_reviewed", "Жалоба уже разобрана", 409)
+    if status not in ("reviewed", "rejected"):
+        raise AppError("pvp_complaint_status", "Неизвестный статус", 422)
+    complaint.status = status
+    complaint.reviewed_by = reviewer.id
+    from datetime import UTC, datetime
+
+    complaint.reviewed_at = datetime.now(UTC)
+    complaint.note = (note or None) and note[:2000]
+    await session.flush()
+    return complaint
 
 
 async def leaderboard(session: AsyncSession, limit: int = 50) -> list[dict]:

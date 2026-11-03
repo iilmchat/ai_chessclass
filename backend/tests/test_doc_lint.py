@@ -41,8 +41,8 @@ REPO = _find_script().parents[1]
 def test_alembic_graph_matches_repo() -> None:
     head, count = doc_lint._alembic_graph(REPO)
 
-    assert head == "0028_rag_editor"
-    assert count == 28
+    assert head == "0029_pvp_complaint_review"
+    assert count == 29
 
 
 def test_collect_versions_consistent() -> None:

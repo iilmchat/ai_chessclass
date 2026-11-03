@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom';
 import { BotsPage } from '../pages/BotsPage';
 import { ChessPage } from '../pages/ChessPage';
 import { ClassesPage } from '../pages/ClassesPage';
+import { ComplaintsPage } from '../pages/ComplaintsPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { ExportPage } from '../pages/ExportPage';
 import { ObservabilityPage } from '../pages/ObservabilityPage';
@@ -9,6 +10,7 @@ import { ProfilePage } from '../pages/ProfilePage';
 import { PythonPage } from '../pages/PythonPage';
 import { RagEditorPage } from '../pages/RagEditorPage';
 import { ReviewPage } from '../pages/ReviewPage';
+import { PvpPage } from '../pages/PvpPage';
 import { SkillsPage } from '../pages/SkillsPage';
 import { TournamentsPage } from '../pages/TournamentsPage';
 
@@ -18,6 +20,8 @@ const NAV_ITEMS = [
   { to: '/review', label: 'Повторение' },
   { to: '/chess', label: 'Шахматы' },
   { to: '/bots', label: 'Боты' },
+  { to: '/pvp', label: 'PvP' },
+  { to: '/complaints', label: 'Жалобы' },
   { to: '/tournaments', label: 'Турниры' },
   { to: '/skills', label: 'Навыки' },
   { to: '/classes', label: 'Классы' },
@@ -61,6 +65,8 @@ export function App() {
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/chess" element={<ChessPage />} />
           <Route path="/bots" element={<BotsPage />} />
+          <Route path="/pvp" element={<PvpPage />} />
+          <Route path="/complaints" element={<ComplaintsPage />} />
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/classes" element={<ClassesPage />} />
           <Route path="/rag" element={<RagEditorPage />} />

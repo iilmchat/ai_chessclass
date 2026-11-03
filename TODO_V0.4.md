@@ -12,9 +12,9 @@ head `0028_rag_editor`).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 > Оценка: **S** ≤ 3 дней · **M** ≤ 1 недели · **L** ≈ 2 недели.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 7/12 закрыто (S-58 ✅,
-S-59 ✅ с ограничением voice, S-60 ✅, S-61 ✅, S-62 ✅, S-63 ✅, S-64 ✅);
-S-65…S-69 ☐.**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 8/12 закрыто (S-58 ✅,
+S-59 ✅ с ограничением voice, S-60 ✅, S-61 ✅, S-62 ✅, S-63 ✅, S-64 ✅,
+S-65 ✅); S-66…S-69 ☐.**
 Приоритет: **сначала staging и живая приёмка провайдеров, затем edge/CI,
 продуктовая полнота UI и интеграции**. v0.4 — этап готовности к реальному
 запуску, а не фичер-релиз: новых доменов нет.
@@ -193,12 +193,24 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 - **Depends:** S-58 ✅ · **Effort:** L (фактически M) · **Закрывает:**
   RAG-редактор API-only.
 
-### S-65 ☐ PvP UI и workflow жалоб
-- [ ] `/pvp`: комнаты, quick-match, SSE-доска, replay, лидерборд, зритель
-- [ ] `PATCH /admin/complaints/{id}` (open→reviewed/rejected) + очередь
-      жалоб у admin/teacher; сейчас статусы недостижимы API
-- **DoD:** два браузера играют бот-матч; жалоба закрывается в UI; e2e PvP.
-- **Depends:** S-58 · **Effort:** L · **Закрывает:** PvP API-only,
+### S-65 ✅ PvP UI и workflow жалоб (2026-11-03)
+- [x] `/pvp`: комнаты, quick-match, SSE-доска, replay, лидерборд, зритель
+- [x] `PATCH /admin/pvp/complaints/{id}` (open→reviewed/rejected) + очередь
+      жалоб у admin/teacher (эндпоинт был `GET`-only ADMIN/AUDITOR — расширен)
+- **DoD:** два браузера играют матч; жалоба закрывается в UI; e2e PvP. ✅
+  (2026-11-03: страницы `/pvp` и `/complaints`; migration `0029`
+  (reviewed_by/at, note); статус-машина + RBAC teacher/admin + аудит;
+  **e2e `pvp.spec.ts` — два браузера: host создаёт комнату, guest входит
+  по коду, обе страницы ждут done на реальном SF-воркере, реплей с доской
+  и шагами, жалоба через UI, admin закрывает reviewed+note в UI —
+  1 passed (14.1с) на изолированномe2e-стенде**
+  `scripts/e2e-targeted.ps1`; backend 223 теста, ruff/mypy 0, vitest 5/5,
+  tsc build green; отчёт — `docs/sprint-reports/S-65-2026-11-03.md`)
+- **Фикс по ходу:** `GET /pvp/rooms/{id}/replay?match_id=` — параметр
+  snake_case (был `matchId` → 422 → панель реплея не открывалась);
+  `GET /pvp/rooms/mine` — возврат активной комнаты после F5.
+- **Отчёт:** `docs/sprint-reports/S-65-2026-11-03.md`.
+- **Depends:** S-58 ✅ · **Effort:** L · **Закрывает:** PvP API-only,
   `pvp_complaints` без ревью-эндпоинта.
 
 ### S-66 ☐ A11y/mobile и e2e новых экранов

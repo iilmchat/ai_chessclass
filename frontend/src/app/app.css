@@ -508,6 +508,36 @@ body {
   background: var(--bg);
   border-radius: 8px;
 }
+
+/* --- pvp (S-65) --- */
+.pvp-rated {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.pvp-complaint {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pvp-complaint-reason {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+}
+
+.pvp-board-wrap {
+  max-width: 380px;
+}
+
+.pvp-moves {
+  margin-top: 8px;
+}
 .skills-grid {
   display: grid;
   grid-template-columns: minmax(300px, 360px) 1fr;

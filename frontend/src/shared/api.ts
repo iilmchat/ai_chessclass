@@ -880,3 +880,132 @@ export function ragSearch(q: string, k = 5): Promise<RagSearchDto> {
 export function ragEval(): Promise<RagEvalDto> {
   return apiFetch<RagEvalDto>('/admin/rag/eval');
 }
+
+// --- pvp (S-51 API / S-65 UI)
+
+export interface PvpRoomDto {
+  id: string;
+  code: string;
+  hostUserId: string;
+  hostBotId: string;
+  guestUserId: string | null;
+  guestBotId: string | null;
+  status: string;
+  rated: boolean;
+  tournamentId: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+export interface PvpLeaderRowDto {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  elo: number;
+  wins: number;
+  losses: number;
+  draws: number;
+}
+
+export interface PvpComplaintDto {
+  id: string;
+  roomId: string;
+  reporterId: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+  note?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+}
+
+export function fetchPvpRoom(roomId: string): Promise<PvpRoomDto> {
+  return apiFetch<PvpRoomDto>(`/pvp/rooms/${roomId}`);
+}
+
+/** Активная комната пользователя (waiting/ready/running), иначе 404. */
+export function fetchMyPvpRoom(): Promise<PvpRoomDto> {
+  return apiFetch<PvpRoomDto>('/pvp/rooms/mine');
+}
+
+export function createPvpRoom(botVersionId: number, rated = true): Promise<PvpRoomDto> {
+  return apiFetch<PvpRoomDto>('/pvp/rooms', {
+    method: 'POST',
+    body: JSON.stringify({ botVersionId, rated }),
+  });
+}
+
+export function joinPvpRoom(code: string, botVersionId: number): Promise<PvpRoomDto> {
+  return apiFetch<PvpRoomDto>('/pvp/rooms/join', {
+    method: 'POST',
+    body: JSON.stringify({ code: code.trim().toUpperCase(), botVersionId }),
+  });
+}
+
+export function pvpQuickMatch(botVersionId: number): Promise<{ room: PvpRoomDto; matched: boolean }> {
+  return apiFetch<{ room: PvpRoomDto; matched: boolean }>('/pvp/quick-match', {
+    method: 'POST',
+    body: JSON.stringify({ botVersionId }),
+  });
+}
+
+export function startPvpRoom(roomId: string): Promise<PvpRoomDto> {
+  return apiFetch<PvpRoomDto>(`/pvp/rooms/${roomId}/start`, { method: 'POST' });
+}
+
+export function cancelPvpRoom(roomId: string): Promise<PvpRoomDto> {
+  return apiFetch<PvpRoomDto>(`/pvp/rooms/${roomId}/cancel`, { method: 'POST' });
+}
+
+export function fetchPvpLeaderboard(): Promise<PvpLeaderRowDto[]> {
+  return apiFetch<PvpLeaderRowDto[]>('/pvp/leaderboard');
+}
+
+export function createPvpComplaint(roomId: string, reason: string): Promise<PvpComplaintDto> {
+  return apiFetch<PvpComplaintDto>(`/pvp/rooms/${roomId}/complaints`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function fetchPvpComplaints(): Promise<PvpComplaintDto[]> {
+  return apiFetch<PvpComplaintDto[]>('/admin/pvp/complaints');
+}
+
+export interface PvpMoveDto {
+  ply: number;
+  fen: string;
+  uci: string;
+  agent: string;
+  thinkMs: number;
+  sfSample: boolean;
+}
+
+export interface PvpMatchDto {
+  id: string;
+  roundNo: number;
+  matchNo: number;
+  botAId: string;
+  botBId: string;
+  winnerId: string | null;
+  result: string;
+  movesCount: number;
+  durationMs: number;
+}
+
+export interface PvpReplayDto {
+  match: PvpMatchDto;
+  moves: PvpMoveDto[];
+}
+
+export function reviewPvpComplaint(
+  complaintId: string,
+  status: 'reviewed' | 'rejected',
+  note?: string,
+): Promise<PvpComplaintDto> {
+  return apiFetch<PvpComplaintDto>(`/admin/pvp/complaints/${complaintId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, note }),
+  });
+}

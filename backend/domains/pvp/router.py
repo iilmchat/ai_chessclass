@@ -18,8 +18,8 @@ from domains.pvp.models import PvpComplaint, PvpRoom
 
 router = APIRouter(prefix="/pvp", tags=["pvp"])
 admin_router = APIRouter(prefix="/admin/pvp", tags=["pvp"])
-AdminOrAuditor = Annotated[
-    User, Depends(require_role(UserRole.ADMIN, UserRole.AUDITOR))
+AdminOrTeacher = Annotated[
+    User, Depends(require_role(UserRole.ADMIN, UserRole.TEACHER))
 ]
 
 
@@ -78,6 +78,14 @@ class ComplaintOut(CamelModel):
     reason: str
     status: str
     created_at: datetime
+    note: str | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+
+
+class ComplaintReviewIn(CamelModel):
+    status: str = Field(pattern=r"^(reviewed|rejected)$")
+    note: str | None = Field(default=None, max_length=2000)
 
 
 class PvpMatchOut(CamelModel):
@@ -137,6 +145,9 @@ def _complaint_out(row: PvpComplaint) -> ComplaintOut:
         reason=row.reason,
         status=row.status,
         created_at=row.created_at,
+        note=row.note,
+        reviewed_by=str(row.reviewed_by) if row.reviewed_by else None,
+        reviewed_at=row.reviewed_at,
     )
 
 
@@ -234,6 +245,12 @@ async def quick_match(
     )
     await session.commit()
     return QuickMatchOut(room=_out(room), matched=matched)
+
+
+@router.get("/rooms/mine", response_model=RoomOut)
+async def my_room(user: CurrentUser, session: DbSession) -> RoomOut:
+    """S-65: активная комната пользователя — возврат на страницу после F5."""
+    return _out(await svc.my_room(session, user))
 
 
 @router.get("/rooms/{room_id}", response_model=RoomOut)
@@ -406,6 +423,33 @@ async def add_complaint(
 
 @admin_router.get("/complaints", response_model=list[ComplaintOut])
 async def list_complaints(
-    _guard: AdminOrAuditor, session: DbSession
+    _guard: AdminOrTeacher, session: DbSession
 ) -> list[ComplaintOut]:
     return [_complaint_out(row) for row in await svc.list_complaints(session)]
+
+
+@admin_router.patch("/complaints/{complaint_id}", response_model=ComplaintOut)
+async def review_complaint(
+    complaint_id: int,
+    body: ComplaintReviewIn,
+    guard: AdminOrTeacher,
+    session: DbSession,
+) -> ComplaintOut:
+    """S-65: workflow жалоб — open → reviewed/rejected (note, reviewer)."""
+    from domains.pvp.service import review_complaint as review
+
+    complaint = await review(
+        session, guard, complaint_id, status=body.status, note=body.note
+    )
+    from domains.audit import service as audit_svc
+
+    await audit_svc.record(
+        session,
+        guard,
+        "pvp.complaint.review",
+        target_type="pvp_complaint",
+        target_id=complaint.id,
+        meta={"status": complaint.status},
+    )
+    await session.commit()
+    return _complaint_out(complaint)

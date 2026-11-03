@@ -127,10 +127,10 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 |------------|----------|
 | Версия | **v0.3.0** (2026-11-03, релиз) |
 | Спринты | **12/12** (S-46…S-57), этапы E-17…E-20 ✅ |
-| Тесты backend | **220 passed** (203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64) |
+| Тесты backend | **223 passed** (203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
-| UI-e2e | **8 passed** (Playwright: полный journey + axe a11y) |
-| Миграции | Alembic head **0028_rag_editor** (28) |
+| UI-e2e | **9 passed** (Playwright: full journey + axe + PvP двухбраузерный) |
+| Миграции | Alembic head **0029_pvp_complaint_review** (29) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
 | Следующий этап | **v0.4** — план [TODO_V0.4.md](TODO_V0.4.md) |

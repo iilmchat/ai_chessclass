@@ -99,6 +99,11 @@ class PvpComplaint(Base):
     status: Mapped[str] = mapped_column(
         String(12), nullable=False, server_default="open"
     )
+    reviewed_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
