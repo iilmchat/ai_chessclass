@@ -23,6 +23,8 @@ frontend/blob-report/
 volumes/
 backups/
 *.log
+# verification scratch
+.verify/
 
 # --- IDE / OS
 .idea/

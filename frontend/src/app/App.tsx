@@ -34,7 +34,7 @@ export function App() {
             ♞
           </span>
           <span className="brand-name">ChessClass</span>
-          <span className="brand-stage">v0.3 · dev</span>
+          <span className="brand-stage">v{__APP_VERSION__} · {__APP_STAGE__}</span>
         </div>
         <nav className="nav" aria-label="Основная навигация">
           {NAV_ITEMS.map((item) => (
