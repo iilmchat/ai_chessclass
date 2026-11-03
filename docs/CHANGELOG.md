@@ -26,19 +26,27 @@
   `0.3.0`; e2e redis host-порт **6385→6386** (KI-001: 6385 занят
   `ai-chess-annotator-redis-1`).
 
-#### S-59 — LLM smoke v2 и echo-базлайн (2026-11-03, часть 1; live — после ключей)
+#### S-59 — Живая приёмка LLM и voice (2026-11-03)
 - `backend/scripts/llm_smoke.py` v2: `--mode auto|echo|live`, JSON-артефакт
   (schema `chessclass.llm_smoke/1`), `--compare` echo→live, `--with-voice`,
   `--with-pdf`, health провайдера, FinOps-сверка (`llm_calls` + суммы за
-  сутки); коды возврата 0/2/3; +3 unit-теста (`tests/test_llm_smoke.py`,
-  всего 200 backend-тестов).
-- Staging echo-базлайн: 4/4 `status=echo model=echo cost=0.0000`,
-  `health=echo`, `voice=disabled` (graceful `voice_unavailable`), `pdf=ok`
-  (`%PDF-`, 14 059 b); артефакт
+  сутки); коды возврата 0/2/3; +3 unit-теста (`tests/test_llm_smoke.py`).
+- Echo-базлайн staging: 4/4 `status=echo model=echo cost=0.0000`,
+  `voice=disabled`, `pdf=ok`; артефакт
   `docs/sprint-reports/S-59-echo-baseline-2026-11-03.json`.
-- Runbooks: `llm-gateway.md` §2.2 (echo→live, `--compare`, коды), `staging.md`
-  §4 (команда smoke на staging).
-- Живая часть (ключи LLM/voice, 1 TTS, diff echo→live) — ожидает ключей.
+- **Live LLM (RouterAI):** `health=ok`, `missingModels=[]`, **4/4
+  `status=ok`** (L1 `qwen/qwen3.7-flash`, L2 `deepseek/deepseek-v4.1-flash`,
+  L3 `anthropic/claude-sonnet-5.5`, judge `google/gemini-3.1-flash-lite`),
+  cost **1.3629 ₽** (961/5291 токенов), PDF `ok`, diff echo→live **4/4**;
+  артефакт `docs/sprint-reports/S-59-live-2026-11-03.json`.
+- Каталог RouterAI сверён 2026-11-03 (582 модели): слаги/цены ₽/1M
+  зафиксированы в `.env.example`/`.env.prod.example`/`.env.staging.example`
+  и runbook `llm-gateway.md` §1; latency 11–26 с — §5.
+- Voice: ElevenLabs geo-block из РФ (`geo-restriction.elevenlabs.io`) —
+  живой TTS не принят, voice остаётся graceful off; вынесено в backlog
+  (альтернативный TTS-провайдер).
+- Runbooks: `llm-gateway.md` §1/§2.2/§5/§7, `staging.md` §8; TODO_V0.4
+  S-59 → ✅.
 
 #### S-60 — Правда релиза и doc-lint (2026-11-03)
 - `scripts/doc_lint.py` (stdlib): версии (`pyproject.toml`/`package.json`/

@@ -12,8 +12,8 @@ head `0028_rag_editor`).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 > Оценка: **S** ≤ 3 дней · **M** ≤ 1 недели · **L** ≈ 2 недели.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 2/12 закрыто (S-58 ✅, S-60 ✅);
-S-59 🔶 — echo-базлайн снят, live ждёт ключей (S-61…S-69 ☐).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 3/12 закрыто (S-58 ✅,
+S-59 ✅ с ограничением voice, S-60 ✅); S-61…S-69 ☐.**
 Приоритет: **сначала staging и живая приёмка провайдеров, затем edge/CI,
 продуктовая полнота UI и интеграции**. v0.4 — этап готовности к реальному
 запуску, а не фичер-релиз: новых доменов нет.
@@ -53,27 +53,31 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 - **Отчёт:** `docs/sprint-reports/S-58-2026-11-03.md`.
 - **Depends:** — · **Effort:** M · **Закрывает:** нет prod-подобного контура.
 
-### S-59 🔶 Живая приёмка LLM и voice (часть 1 — 2026-11-03)
+### S-59 ✅ Живая приёмка LLM (live) и voice (2026-11-03)
 - [x] `backend/scripts/llm_smoke.py` v2: `--mode auto|echo|live`, `--out`
       JSON (schema `chessclass.llm_smoke/1`), `--compare` echo→live,
       `--with-voice`, `--with-pdf`, health провайдера, FinOps-сверка
-      `llm_calls`/сегодня; +3 unit-теста (итого 200 backend-тестов)
+      `llm_calls`/сегодня; +3 unit-теста
 - [x] echo-базлайн на staging: 4/4 `status=echo model=echo cost=0.0000`,
-      `health=echo`, `voice=disabled` (graceful `voice_unavailable`),
-      `pdf=ok` (`%PDF-`, 14 059 b); артефакт
-      `docs/sprint-reports/S-59-echo-baseline-2026-11-03.json`; `--compare`
-      и коды 0/2/3 проверены (live без провайдера → 3)
-- [ ] реальные LLM/voice ключи на staging → live-прогон: 4/4 `status=ok`,
-      health `ok`, 1 живой инсайт + 1 TTS, сверка `llm_calls`/цен/бюджетов,
-      diff echo→live (ожидает ключей)
-- **DoD:** логи 4+1+1, health live `status=ok`; деградации/лимиты записаны
-  в runbook v0.4; echo-режим явно отличим от live — **частично** (echo-часть
-  закрыта, live — после появления ключей).
-- **Факт (часть 1):** staging echo: exit 0, 4 маршрута echo, cost 0;
-  `voice=disabled`, `pdf=ok`; `--compare` echo→echo — 0/4 changed;
-  `--mode live` без провайдера — exit 3; runbook `llm-gateway.md` §2.2 /
-  `staging.md` §4 обновлены.
-- **Отчёт:** `docs/sprint-reports/S-59-2026-11-03.md` (в работе, часть 1).
+      `voice=disabled`, `pdf=ok`; артефакт
+      `docs/sprint-reports/S-59-echo-baseline-2026-11-03.json`
+- [x] **live-прогон на staging (RouterAI):** `health=ok`, `missingModels=[]`,
+      **4/4 `status=ok`**: L1 `qwen/qwen3.7-flash`, L2
+      `deepseek/deepseek-v4.1-flash`, L3 `anthropic/claude-sonnet-5.5`,
+      judge `google/gemini-3.1-flash-lite`; **cost 1.3629 ₽** (961/5291
+      токенов), PDF `ok` (14 059 b), diff echo→live **4/4**, exit 0;
+      артефакт `docs/sprint-reports/S-59-live-2026-11-03.json`
+- [ ] 1 живой TTS — **внешний блокер:** ElevenLabs geo-block из РФ
+      (`geo-restriction.elevenlabs.io`, Russia в списке); voice остаётся
+      graceful off. Вынесено в backlog (альтернативный TTS-провайдер)
+- **DoD:** live 4/4 `status=ok` + health `ok` + 1 живой инсайт — ✅; 1 TTS — ❌
+  (внешний блокер, зафиксирован); echo-режим отличим от live — ✅ (diff 4/4);
+  деградации/лимиты в runbook — ✅ (`llm-gateway.md` §2.2/§5: latency
+  L1 25.7 с / L2 19.4 с / L3 11.1 с / judge 1.4 с, timeout 40 с).
+- **Факт:** каталог RouterAI сверён 2026-11-03 (582 модели), слаги/цены
+  (₽/1M) зафиксированы в `.env.example`/`.env.prod.example`/
+  `.env.staging.example`; staging live-приёмка пройдена.
+- **Отчёт:** `docs/sprint-reports/S-59-2026-11-03.md` (✅; voice — ограничение).
 - **Depends:** S-58 · **Effort:** M · **Закрывает:** ядро продукта ни разу
   не работало с реальными ключами.
 
@@ -203,15 +207,12 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 
 ## Первая неделя (стартовый план)
 
-- **Пн:** S-60 — фиксация факта (195/5/7, head 0028), doc-lint, этот TODO
-  как активный план.
-- **Вт:** S-58 — `docker-compose.staging.yml` + `.env.staging.example`,
-  `CORS_ORIGINS`/`APP_ENV=staging`, brand из env.
-- **Ср:** S-58 — staging up: migrate/seed/backup→restore/smoke, load baseline,
-  env-дифф dev/staging/prod.
-- **Чт:** S-59 — реальные ключи LLM/voice, `llm_smoke.py`, инсайт+TTS+PDF,
-  сверка `llm_calls`.
-- **Пт:** чеклист приёмки в runbook v0.4, отчёты S-58…S-60, go/no-go по E-22.
+- **Пн:** S-60 ✅ — фиксация факта (203/5/7, head 0028), doc-lint, TODO_V0.4.
+- **Вт:** S-58 ✅ — staging compose/env, `CORS_ORIGINS`/`APP_ENV=staging`, brand.
+- **Ср:** S-58 ✅ — staging up: migrate/seed/backup→restore/smoke, load baseline.
+- **Чт:** S-59 ✅ — live LLM на staging (4/4 `status=ok`, cost 1.36 ₽),
+  echo→live diff; voice — ElevenLabs geo-block (backlog).
+- **Пт:** S-61 — CSP report-only на staging + egress allowlist; далее S-62/S-63.
 
 ## Явно не входит в v0.4
 
@@ -220,6 +221,18 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 - Нативные мобильные приложения, двусторонний голос, multi-tenancy/биллинг/SSO.
 - k8s/autoscaling, HSM/KMS, внешние векторные БД, смена портов ADR-013.
 - Маскировка echo-режима под live; `X-XSS-Protection` (устарел).
+
+## Backlog (после v0.4 / при разблокировке)
+
+- **TTS-альтернатива.** ElevenLabs geo-block из РФ (`geo-restriction.
+  elevenlabs.io`) — живой TTS в S-59 не принят, voice остаётся graceful off.
+  Варианты: адаптер RouterAI TTS (`mistralai/voxtral-mini-tts-3-0`,
+  `google/gemini-3.1-flash-tts-preview` есть в каталоге) / Yandex SpeechKit /
+  SaluteSpeech с кэшем/квотами как в `backend/domains/voice/service.py`;
+  либо приёмка voice через VPN/зарубежный аккаунт.
+- **L3-модель:** `reflection/beam-1.0-501b-*` отсутствует в каталоге RouterAI
+  (2026-11-03) — используется `anthropic/claude-sonnet-5.5`; вернуться при
+  появлении Beam (см. `llm/models_registry.py`, display-имена обновить).
 
 ## Критерий релиза v0.4.0
 

@@ -20,6 +20,19 @@
 `LLM_BASE_URL` обязан включать `/v1`. Для LM Studio в Docker включите
 **Serve on Local Network** (иначе контейнер не достучится до loopback хоста).
 
+**Каталог сверён 2026-11-03** (RouterAI, 582 модели; цены ₽/1M input/output):
+
+| Тир | Слаг | ₽/1M in | ₽/1M out |
+|---|---|---|---|
+| L1 | `qwen/qwen3.7-flash` | 3.1580 | 13.6845 |
+| L2 | `deepseek/deepseek-v4.1-flash` | 10.4213 | 28.9480 |
+| L3 | `anthropic/claude-sonnet-5.5` | 210.5308 | 1052.6542 |
+| L3_alt | `x-ai/grok-4.7` | 210.5308 | 631.5925 |
+| judge | `google/gemini-3.1-flash-lite` | 26.3164 | 157.8981 |
+
+`reflection/beam-1.0-501b-*` в каталоге отсутствует (см. backlog TODO_V0.4).
+При смене каталога обновить слаги/`LLM_COST_*` и повторить health/smoke.
+
 ## 2. Проверка
 
 ### 2.1. Health (admin)
@@ -72,7 +85,10 @@ docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T api
 
 Коды возврата: **0** — ожидания выполнены; **2** — расхождение
 (route/health/voice/pdf); **3** — конфигурация (live без провайдера, нет
-БД/Redis/артефакта). Staging-контур — `docs/runbooks/staging.md`.
+БД/Redis/артефакта). Проверено на staging **2026-11-03**: echo-базлайн
+4/4 `status=echo` (cost 0), live 4/4 `status=ok` (cost 1.3629 ₽, health
+`ok`, `missingModels=[]`); артефакты — `docs/sprint-reports/S-59-echo-baseline-
+2026-11-03.json` и `S-59-live-2026-11-03.json`.
 
 ### 2.3. Строки FinOps
 
@@ -117,6 +133,9 @@ docker compose -f docker-compose.dev.yml exec -T db psql -U chess -d chessclass 
 - При исчерпании — echo или downgrade до L1; echo не пишет `usage_daily`.
 - Стоимость: `cost_in/out` считаются по `LLM_COST_*`; ошибка записи FinOps
   не повторяет уже оплаченный LLM-вызов (S-31).
+- **Latency (staging, 2026-11-03, первый вызов):** L1 25.7 с, L2 19.4 с,
+  L3 11.1 с, judge 1.4 с. `LLM_TIMEOUT_S=40` — не занижать; при стабильно
+  высоких значениях поднять до 60 с и/или прогревать провайдера.
 
 ## 6. Локальный LM Studio
 
@@ -137,3 +156,4 @@ docker compose -f docker-compose.dev.yml exec -T db psql -U chess -d chessclass 
 | `password authentication failed` (dev DB) | пароль роли не совпал с volume | `ALTER USER chess WITH PASSWORD '<из .env>';` или пересоздать dev-volume |
 | `Foreign key ... users` в standalone-скрипте | не импортированы auth-модели | импортировать `domains.auth.models` до запроса |
 | embeddings всегда `hash` | пуст `LLM_EMBED_MODEL` | это ожидаемо; задать 768-мерную модель, если нужен провайдер |
+| `voice=disabled` / 503 `voice_unavailable` | пуст `VOICE_API_KEY` или ElevenLabs geo-block (RU) | voice остаётся off; альтернативный TTS — backlog TODO_V0.4 |

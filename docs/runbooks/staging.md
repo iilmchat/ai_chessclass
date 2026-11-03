@@ -127,8 +127,13 @@ docker compose --env-file .env.staging -f docker-compose.staging.yml down -v
 
 - TLS self-signed → `-SkipCertificateCheck`/`curl -k`; это не валидация реальной
   цепочки сертификатов (LE/продление — `operations.md` §4).
-- Живые LLM/voice/LRS/Telegram не подключены — S-59: без ключей/URL работают
-  echo/hash-fallback, `LRS_ENABLED=false`, Telegram выключен.
+- LLM live проверен 2026-11-03 (RouterAI, 4/4 `status=ok`, cost 1.3629 ₽; см.
+  отчёт S-59); без ключа — echo/hash-fallback (`llm_smoke.py --mode echo`).
+- Voice: ElevenLabs geo-block из РФ (`geo-restriction.elevenlabs.io`) — TTS
+  недоступен, voice остаётся graceful off; альтернативный TTS — backlog
+  (`TODO_V0.4.md`).
+- LRS/Telegram — S-67/S-68: без endpoint/токена выключены
+  (`LRS_ENABLED=false`, `TELEGRAM_BOT_TOKEN` пуст).
 - Cookie `Secure=False` при `APP_ENV=staging` (как dev): refresh-cookie ходит и по
   http://localhost:3202; для https-профиля via edge — только staging, не prod.
 - Staging-данные — только в `chessclass_staging_*`; не выполнять на staging
