@@ -1,0 +1,115 @@
+# S-63: scheduled load job — по расписанию и вручную; публикует p95 в
+# GitHub Step Summary (контраст с docs/load-profile.ml). Стек тот же, что в
+# e2e: API 8021 + match-воркеры, LLM echo (без ключей), реальные БД/Redis.
+name: load
+
+on:
+  schedule:
+    - cron: "0 4 * * 1" # понедельник 04:00 UTC
+  workflow_dispatch:
+
+jobs:
+  load-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: chess
+          POSTGRES_PASSWORD: chess_ci
+          POSTGRES_DB: chessclass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chess"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 30
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgresql+asyncpg://chess:chess_ci@localhost:5432/chessclass
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-secret-please-change-0123456789abcdef
+      LLM_BASE_URL: ""
+      REPORTS_DIR: /tmp/chessclass-reports
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps
+        working-directory: backend
+        run: pip install -e ".[dev]"
+      - name: Install Stockfish
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y stockfish
+          stockfish_bin="$(command -v stockfish || true)"
+          if [ -z "$stockfish_bin" ]; then
+            stockfish_bin=/usr/games/stockfish
+          fi
+          echo "STOCKFISH_PATH=$stockfish_bin" >> "$GITHUB_ENV"
+      - name: Migrations + seeds
+        working-directory: backend
+        run: |
+          alembic upgrade head
+          python -m db.seeds
+      - name: Start API + match workers
+        working-directory: backend
+        run: |
+          nohup env APP_ROLE=api uvicorn app.main:app --host 127.0.0.1 --port 8021 \
+            > ../load-api.log 2>&1 &
+          for kind in random greedy minimax sf; do
+            max_jobs=1
+            if [ "$kind" = "random" ]; then max_jobs=2; fi
+            nohup env APP_ROLE=worker \
+              WORKER_QUEUE="arq:matches:$kind" \
+              WORKER_MAX_JOBS="$max_jobs" \
+              arq app.worker.WorkerSettings \
+              > "../load-worker-$kind.log" 2>&1 &
+          done
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8021/readyz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat ../load-api.log
+          exit 1
+      - name: Load smoke (health/ready) → Step Summary
+        run: |
+          set -o pipefail
+          python backend/scripts/load_smoke.py \
+            --base-url http://127.0.0.1:8021 \
+            --requests 100 --concurrency 20 --p95-ms 200 --include-ready \
+            | tee /tmp/load-report.json
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib, datetime
+          report = json.loads(pathlib.Path("/tmp/load-report.json").read_text(encoding="utf-8"))
+          now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+          print(f"## Load smoke ({now})")
+          print()
+          print("| Metric | p50 | p95 | Target p95 | errors |")
+          print("|---|---:|---:|---:|---:|")
+          print(
+              f"| health/ready | {report['p50Ms']} ms | "
+              f"{report['p95Ms']} ms | {report['targetP95Ms']} ms | {report['errors']} |"
+          )
+          PY
+      - name: Upload load artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-logs
+          path: |
+            load-api.log
+            load-worker-*.log
+          if-no-files-found: ignore

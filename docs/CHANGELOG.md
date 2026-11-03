@@ -9,6 +9,15 @@
 
 ### Добавлено
 
+#### S-63 — Ворота CI (2026-11-03)
+- Gate-матрица: backend + **pip-audit** (по `requirements.lock`), e2e +
+  **axe-core** (0 critical/serious на 5 маршрутах; скрипт из node_modules) +
+  **backup→restore smoke** (`scripts/ci/backup_smoke.sh`), jobs **secrets**
+  (gitleaks) и **images** (docker build api/web).
+- `.github/workflows/load.yml` — cron пн 04:00 UTC + workflow_dispatch;
+  load_smoke 100/20 с публикацией p95 в Step Summary.
+- axe-core в devDeps; README: CI-описание, UI-e2e 7→8.
+
 #### S-62 — Hash-lock сборка (2026-11-03)
 - `backend/requirements.lock` — `pip-compile --generate-hashes` из
   pyproject (46 пакетов, каждый с `--hash=sha256`); сборка Dockerfile —

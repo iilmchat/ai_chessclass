@@ -65,6 +65,10 @@ jobs:
         run: python -m db.seeds
       - name: Tests
         run: python -m pytest -q
+      - name: pip-audit (supply chain, S-62 lock)
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.lock --timeout 90
       - name: Doc-lint (release truth)
         working-directory: ${{ github.workspace }}
         run: python scripts/doc_lint.py --tests-count auto
@@ -184,6 +188,8 @@ jobs:
       - name: Playwright UI-e2e
         working-directory: frontend
         run: npm run test:e2e
+      - name: "Backup → restore smoke (S-63: hash/users/alembic)"
+        run: bash scripts/ci/backup_smoke.sh
       - name: Upload e2e artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -196,3 +202,25 @@ jobs:
             e2e-worker.log
             e2e-worker-*.log
           if-no-files-found: ignore
+
+  # --- S-63: ворота (gate-матрица — docs/sprint-reports) ---
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secrets scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image (hash-lock, S-62)
+        run: docker build ./backend
+      - name: Build frontend image (CSP enforce, S-61)
+        run: docker build ./frontend

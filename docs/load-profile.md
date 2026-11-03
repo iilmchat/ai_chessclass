@@ -35,14 +35,23 @@ docker compose -f docker-compose.dev.yml exec -T api \
 ## 4. Ограничения
 
 - Нагрузка на матчи/турниры требует worker+Stockfish и не входит в smoke;
-  для неё — отдельный профиль на staging (S-56).
+  для неё — отдельный профиль на staging (S-69).
 - LLM-провайдер внешний; p95 зависит от RouterAI/LM Studio.
 - Dev API — один uvicorn-worker; prod масштабируется репликами.
 - `readyz` делает реальные ping DB/Redis; при недоступности — 503.
 
-## 5. Как повторить
+## 5. Scheduled CI job (S-63)
+
+`.github/workflows/load.yml` — понедельник 04:00 UTC + `workflow_dispatch`:
+стек как у e2e (API 8021 + 4 match-воркера, echo-LLM),
+`load_smoke.py --requests 100 --concurrency 20 --p95-ms 200 --include-ready`;
+p50/p95/errors публикуются в GitHub Step Summary workflow'а, логи —
+артефакт при падении. Регресс-сторож p95; полные профили (матчи/LLM/
+турниры) — S-69.
+
+## 6. Как повторить
 
 1. Поднять dev-стек (`docker compose -f docker-compose.dev.yml up -d`).
 2. Запустить скрипт (см. выше), при необходимости `--include-ready`.
 3. Для staging/RC — base-url prod, `--requests 100 --concurrency 20`,
-   p95-ms по таблице; результат приложить к S-56.
+   p95-ms по таблице; результат приложить к S-69.

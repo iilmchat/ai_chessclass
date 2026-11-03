@@ -8,9 +8,12 @@
 ([TODO_V0.2.md](TODO_V0.2.md)) · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
-— backend: lint (ruff) → typecheck (mypy) → alembic → seeds → pytest; frontend:
-Vitest → tsc/build; e2e: Playwright journey (PostgreSQL 17 + Redis сервисы;
-подробности — [docs/RULES.md](docs/RULES.md))
+[![load](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml/badge.svg?event=schedule)](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml)
+— backend: lint (ruff) → typecheck (mypy) → alembic → seeds → pytest →
+**pip-audit** → doc-lint; frontend: Vitest → tsc/build; e2e: Playwright
+journey + **axe-core** → **backup→restore smoke**; ворота: **gitleaks**,
+**docker build** api/web; **load** — еженедельный smoke с p95 в Step Summary
+(PostgreSQL 17 + Redis сервисы; подробности — [docs/RULES.md](docs/RULES.md))
 
 **Стек:** Python 3.12 + FastAPI · React 19 + TypeScript (Vite) · PostgreSQL 17 + pgvector ·
 Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, локальный
@@ -126,7 +129,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Спринты | **12/12** (S-46…S-57), этапы E-17…E-20 ✅ |
 | Тесты backend | **219 passed** (203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
-| UI-e2e | **7 passed** (Playwright: полный journey) |
+| UI-e2e | **8 passed** (Playwright: полный journey + axe a11y) |
 | Миграции | Alembic head **0028_rag_editor** (28) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |

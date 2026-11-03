@@ -12,8 +12,9 @@ head `0028_rag_editor`).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 > Оценка: **S** ≤ 3 дней · **M** ≤ 1 недели · **L** ≈ 2 недели.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 5/12 закрыто (S-58 ✅,
-S-59 ✅ с ограничением voice, S-60 ✅, S-61 ✅, S-62 ✅); S-63…S-69 ☐.**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 6/12 закрыто (S-58 ✅,
+S-59 ✅ с ограничением voice, S-60 ✅, S-61 ✅, S-62 ✅, S-63 ✅);
+S-64…S-69 ☐.**
 Приоритет: **сначала staging и живая приёмка провайдеров, затем edge/CI,
 продуктовая полнота UI и интеграции**. v0.4 — этап готовности к реальному
 запуску, а не фичер-релиз: новых доменов нет.
@@ -147,12 +148,24 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 - **Отчёт:** `docs/sprint-reports/S-62-2026-11-03.md`.
 - **Depends:** — · **Effort:** M · **Закрывает:** supply-chain риск A08.
 
-### S-63 ☐ Ворота CI: security/a11y/load/docker/backup
-- [ ] jobs: `pip-audit`, secrets scan (gitleaks), axe-core через Playwright,
+### S-63 ✅ Ворота CI: security/a11y/load/docker/backup (2026-11-03)
+- [x] jobs: `pip-audit`, secrets scan (gitleaks), axe-core через Playwright,
       `docker build` api/web
-- [ ] backup→restore smoke; scheduled load job (staging) с публикацией p95
-- **DoD:** каждый gate падает на регрессии; CI ≤ 20 мин; отчёт gate-матрицы.
-- **Depends:** S-61, S-62 · **Effort:** M · **Закрывает:** CI покрывает
+- [x] backup→restore smoke; scheduled load job (staging) с публикацией p95
+- **DoD:** каждый gate падает на регрессии; CI ≤ 20 мин; отчёт gate-матрицы. ✅
+  (2026-11-03: job-матрица — backend(+pip-audit)/frontend/e2e(+axe+backup
+  smoke)/secrets(gitleaks)/images(docker build ×2)/load(workflow); локальные
+  факты: docker build api+web ✅, gitleaks «no leaks» (78 коммитов) ✅,
+  backup_smoke users=6 alembic=0028 ✅, YAML валидны, vitest 5/5, tsc/vite
+  build ✅; axe-спека — 1 тест на 5 маршрутах, blocking=critical/serious;
+  load.yml — cron пн 04:00 UTC + workflow_dispatch, p95 в Step Summary;
+  отчёт — `docs/sprint-reports/S-63-2026-11-03.md`)
+- **Реализация:** `.github/workflows/ci.yml` (pip-audit шаг, backup_smoke
+  шаг `scripts/ci/backup_smoke.sh`, jobs `secrets`/`images`);
+  `.github/workflows/load.yml` — новый; `frontend/e2e/a11y-axe.spec.ts`
+  (axe-core из node_modules, без CDN); axe-core в devDeps.
+- **Отчёт:** `docs/sprint-reports/S-63-2026-11-03.md`.
+- **Depends:** S-61 ✅, S-62 ✅ · **Effort:** M · **Закрывает:** CI покрывает
   только ruff/mypy/pytest/build/e2e (security-review §5).
 
 ---
