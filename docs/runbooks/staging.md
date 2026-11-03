@@ -77,6 +77,17 @@ curl.exe -k -i -X OPTIONS https://localhost:8443/api/v1/auth/login `
 
 CORS-allowlist задаётся в `.env.staging`: `CORS_ORIGINS=https://localhost:8443,http://localhost:3202`.
 
+LLM/voice smoke (S-59; без ключей — echo-базлайн, с ключами — live,
+подробности — `llm-gateway.md` §2.2):
+
+```powershell
+docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T api `
+  python scripts/llm_smoke.py --mode echo --with-voice --with-pdf `
+  --out /srv/reports/llm-smoke-echo.json
+# live: --mode live --out /srv/reports/llm-smoke-live.json `
+#       --compare /srv/reports/llm-smoke-echo.json
+```
+
 ## 5. Backup/restore
 
 ```powershell

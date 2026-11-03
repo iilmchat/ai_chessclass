@@ -12,7 +12,8 @@ head `0028_rag_editor`).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 > Оценка: **S** ≤ 3 дней · **M** ≤ 1 недели · **L** ≈ 2 недели.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 1/12 (S-58 ✅; S-59…S-69 ☐).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 1/12 закрыт (S-58 ✅);
+S-59 🔶 — echo-базлайн снят, live ждёт ключей (S-60…S-69 ☐).**
 Приоритет: **сначала staging и живая приёмка провайдеров, затем edge/CI,
 продуктовая полнота UI и интеграции**. v0.4 — этап готовности к реальному
 запуску, а не фичер-релиз: новых доменов нет.
@@ -52,13 +53,27 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 - **Отчёт:** `docs/sprint-reports/S-58-2026-11-03.md`.
 - **Depends:** — · **Effort:** M · **Закрывает:** нет prod-подобного контура.
 
-### S-59 ☐ Живая приёмка LLM и voice
-- [ ] реальные LLM/voice ключи на staging; `backend/scripts/llm_smoke.py` —
-      4 маршрута `status=ok`
-- [ ] 1 живой инсайт-комментарий, 1 TTS, PDF; сверка `llm_calls`/цен/бюджетов
-      и diff echo→live
+### S-59 🔶 Живая приёмка LLM и voice (часть 1 — 2026-11-03)
+- [x] `backend/scripts/llm_smoke.py` v2: `--mode auto|echo|live`, `--out`
+      JSON (schema `chessclass.llm_smoke/1`), `--compare` echo→live,
+      `--with-voice`, `--with-pdf`, health провайдера, FinOps-сверка
+      `llm_calls`/сегодня; +3 unit-теста (итого 200 backend-тестов)
+- [x] echo-базлайн на staging: 4/4 `status=echo model=echo cost=0.0000`,
+      `health=echo`, `voice=disabled` (graceful `voice_unavailable`),
+      `pdf=ok` (`%PDF-`, 14 059 b); артефакт
+      `docs/sprint-reports/S-59-echo-baseline-2026-11-03.json`; `--compare`
+      и коды 0/2/3 проверены (live без провайдера → 3)
+- [ ] реальные LLM/voice ключи на staging → live-прогон: 4/4 `status=ok`,
+      health `ok`, 1 живой инсайт + 1 TTS, сверка `llm_calls`/цен/бюджетов,
+      diff echo→live (ожидает ключей)
 - **DoD:** логи 4+1+1, health live `status=ok`; деградации/лимиты записаны
-  в runbook v0.4; echo-режим явно отличим от live.
+  в runbook v0.4; echo-режим явно отличим от live — **частично** (echo-часть
+  закрыта, live — после появления ключей).
+- **Факт (часть 1):** staging echo: exit 0, 4 маршрута echo, cost 0;
+  `voice=disabled`, `pdf=ok`; `--compare` echo→echo — 0/4 changed;
+  `--mode live` без провайдера — exit 3; runbook `llm-gateway.md` §2.2 /
+  `staging.md` §4 обновлены.
+- **Отчёт:** `docs/sprint-reports/S-59-2026-11-03.md` (в работе, часть 1).
 - **Depends:** S-58 · **Effort:** M · **Закрывает:** ядро продукта ни разу
   не работало с реальными ключами.
 

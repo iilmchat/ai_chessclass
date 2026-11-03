@@ -26,6 +26,20 @@
   `0.3.0`; e2e redis host-порт **6385→6386** (KI-001: 6385 занят
   `ai-chess-annotator-redis-1`).
 
+#### S-59 — LLM smoke v2 и echo-базлайн (2026-11-03, часть 1; live — после ключей)
+- `backend/scripts/llm_smoke.py` v2: `--mode auto|echo|live`, JSON-артефакт
+  (schema `chessclass.llm_smoke/1`), `--compare` echo→live, `--with-voice`,
+  `--with-pdf`, health провайдера, FinOps-сверка (`llm_calls` + суммы за
+  сутки); коды возврата 0/2/3; +3 unit-теста (`tests/test_llm_smoke.py`,
+  всего 200 backend-тестов).
+- Staging echo-базлайн: 4/4 `status=echo model=echo cost=0.0000`,
+  `health=echo`, `voice=disabled` (graceful `voice_unavailable`), `pdf=ok`
+  (`%PDF-`, 14 059 b); артефакт
+  `docs/sprint-reports/S-59-echo-baseline-2026-11-03.json`.
+- Runbooks: `llm-gateway.md` §2.2 (echo→live, `--compare`, коды), `staging.md`
+  §4 (команда smoke на staging).
+- Живая часть (ключи LLM/voice, 1 TTS, diff echo→live) — ожидает ключей.
+
 ### Документация
 
 - README/Design/TODO_V0.3/статусы документов приведены к факту релиза v0.3.0:

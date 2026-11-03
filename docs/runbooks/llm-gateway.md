@@ -36,17 +36,43 @@ Invoke-RestMethod http://127.0.0.1:8020/api/v1/admin/llm/health `
 `lastCall.status=ok`. `echo` — `LLM_BASE_URL` пуст; `degraded` — провайдер
 недоступен или слаги не найдены (смотрите `missingModels`).
 
-### 2.2. Живой smoke (4 маршрута)
+### 2.2. Smoke LLM-шлюза: echo-базлайн → live (S-59)
+
+Скрипт `backend/scripts/llm_smoke.py` — двурежимный: 4 маршрута (L1
+`python_teacher.comment`, L2 `python_teacher.explain_code`, L3
+`chess_lab.insight`, judge `anticheat.judge_explain`), health провайдера,
+сверка FinOps (`llm_calls` + суммы за сутки), опционально озвучка (S-44) и
+PDF-отчёт (S-25). Пишет `llm_calls` (`user_id=NULL`, квоты не расходуются).
+
+Echo-базлайн (ключи не нужны — провайдер принудительно гасится):
 
 ```powershell
-docker compose -f docker-compose.dev.yml run --rm api `
-  python scripts/llm_smoke.py
+docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T api `
+  python scripts/llm_smoke.py --mode echo --with-voice --with-pdf `
+  --out /srv/reports/llm-smoke-echo.json
 ```
 
-Проверяются L1 (`python_teacher.comment`), L2
-(`python_teacher.explain_code`), L3 (`chess_lab.insight`, advanced) и judge
-(`anticheat.judge_explain`). Код 0 — все `status=ok`; 2 — echo/ошибка.
-Скрипт пишет `llm_calls` (`user_id=NULL`, квоты не расходуются).
+Ожидаемо: exit 0, 4/4 `status=echo model=echo`, `cost=0.0000`,
+`health=echo`, `voice=disabled` (graceful `voice_unavailable`), `pdf=ok`
+(`%PDF-`). Артефакт — JSON schema `chessclass.llm_smoke/1`, baseline для
+`--compare`.
+
+Live-прогон (ключи `LLM_BASE_URL`/`LLM_API_KEY`; voice — `VOICE_API_KEY`):
+
+```powershell
+docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T api `
+  python scripts/llm_smoke.py --mode live --with-voice --with-pdf `
+  --out /srv/reports/llm-smoke-live.json `
+  --compare /srv/reports/llm-smoke-echo.json
+```
+
+Ожидаемо: exit 0, 4/4 `status=ok`, `health=ok`, `missingModels=[]`,
+`cost>0`, per-route diff «echo → live». Без провайдера live-режим → exit 3;
+провайдер недоступен/слаги не найдены → exit 2 (`health=degraded`).
+
+Коды возврата: **0** — ожидания выполнены; **2** — расхождение
+(route/health/voice/pdf); **3** — конфигурация (live без провайдера, нет
+БД/Redis/артефакта). Staging-контур — `docs/runbooks/staging.md`.
 
 ### 2.3. Строки FinOps
 

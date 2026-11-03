@@ -1,0 +1,153 @@
+{
+  "schema": "chessclass.llm_smoke/1",
+  "ts": "2026-11-03T12:24:23.392778+00:00",
+  "mode": "echo",
+  "provider": {
+    "configured": false,
+    "baseUrl": ""
+  },
+  "health": {
+    "status": "echo",
+    "providerConfigured": false,
+    "baseUrl": "",
+    "missingModels": [],
+    "availableModels": [],
+    "latencyMs": null,
+    "error": null
+  },
+  "cases": [
+    {
+      "route": "python_teacher.comment",
+      "level": "novice",
+      "tier": "L1",
+      "status": "echo",
+      "expectedStatus": "echo",
+      "modelRequested": "minimax-m3.1",
+      "modelUsed": "echo",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "latencyMs": 9,
+      "cost": "0.0000",
+      "textPreview": "[echo] заглушка LLM (S-05): запрос «Ученик написал: print('Привет'). Что здесь хорошо и что улучшить?»",
+      "fallbackFrom": "cloud_not_configured",
+      "ok": true
+    },
+    {
+      "route": "python_teacher.explain_code",
+      "level": "intermediate",
+      "tier": "L2",
+      "status": "echo",
+      "expectedStatus": "echo",
+      "modelRequested": "deepseek-v4.1",
+      "modelUsed": "echo",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "latencyMs": 5,
+      "cost": "0.0000",
+      "textPreview": "[echo] заглушка LLM (S-05): запрос «Объясни, что делает код и где он может пригодиться: for i in range(3):     print(i)»",
+      "fallbackFrom": "cloud_not_configured",
+      "ok": true
+    },
+    {
+      "route": "chess_lab.insight",
+      "level": "advanced",
+      "tier": "L3",
+      "status": "echo",
+      "expectedStatus": "echo",
+      "modelRequested": "beam-1.0-501b",
+      "modelUsed": "echo",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "latencyMs": 6,
+      "cost": "0.0000",
+      "textPreview": "[echo] заглушка LLM (S-05): запрос «Стартовая позиция. Назови один ключевой принцип развития фигур.»",
+      "fallbackFrom": "cloud_not_configured",
+      "ok": true
+    },
+    {
+      "route": "anticheat.judge_explain",
+      "level": "novice",
+      "tier": "judge",
+      "status": "echo",
+      "expectedStatus": "echo",
+      "modelRequested": "decider-flash-v1.2",
+      "modelUsed": "echo",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "latencyMs": 5,
+      "cost": "0.0000",
+      "textPreview": "[echo] заглушка LLM (S-05): запрос «Ученик утверждает, что написал цикл for самостоятельно. Задай один уточняющий вопрос по его коду.»",
+      "fallbackFrom": "cloud_not_configured",
+      "ok": true
+    }
+  ],
+  "voice": {
+    "status": "disabled",
+    "code": "voice_unavailable",
+    "detail": "Озвучка не настроена: VOICE_API_KEY пуст"
+  },
+  "pdf": {
+    "status": "ok",
+    "reportId": 1,
+    "sizeBytes": 14059,
+    "path": "/srv/reports/report-4-20261103122423.pdf",
+    "magic": "%PDF-"
+  },
+  "finops": {
+    "calls": [
+      {
+        "route": "python_teacher.comment",
+        "status": "echo",
+        "modelUsed": "echo",
+        "tokensIn": 0,
+        "tokensOut": 0,
+        "cost": "0.0000",
+        "latencyMs": 0
+      },
+      {
+        "route": "python_teacher.explain_code",
+        "status": "echo",
+        "modelUsed": "echo",
+        "tokensIn": 0,
+        "tokensOut": 0,
+        "cost": "0.0000",
+        "latencyMs": 0
+      },
+      {
+        "route": "chess_lab.insight",
+        "status": "echo",
+        "modelUsed": "echo",
+        "tokensIn": 0,
+        "tokensOut": 0,
+        "cost": "0.0000",
+        "latencyMs": 0
+      },
+      {
+        "route": "anticheat.judge_explain",
+        "status": "echo",
+        "modelUsed": "echo",
+        "tokensIn": 0,
+        "tokensOut": 0,
+        "cost": "0.0000",
+        "latencyMs": 0
+      }
+    ],
+    "tokensIn": 0,
+    "tokensOut": 0,
+    "costTotal": "0.0000",
+    "budgetFree": 50000,
+    "today": {
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "costTotal": "0.0000"
+    }
+  },
+  "expected": {
+    "cases": "echo",
+    "health": "echo",
+    "voice": "disabled",
+    "pdf": "ok"
+  },
+  "verdict": "ok",
+  "exitCode": 0
+}
