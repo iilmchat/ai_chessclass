@@ -154,12 +154,15 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 - [x] backup→restore smoke; scheduled load job (staging) с публикацией p95
 - **DoD:** каждый gate падает на регрессии; CI ≤ 20 мин; отчёт gate-матрицы. ✅
   (2026-11-03: job-матрица — backend(+pip-audit)/frontend/e2e(+axe+backup
-  smoke)/secrets(gitleaks)/images(docker build ×2)/load(workflow); локальные
-  факты: docker build api+web ✅, gitleaks «no leaks» (78 коммитов) ✅,
-  backup_smoke users=6 alembic=0028 ✅, YAML валидны, vitest 5/5, tsc/vite
-  build ✅; axe-спека — 1 тест на 5 маршрутах, blocking=critical/serious;
-  load.yml — cron пн 04:00 UTC + workflow_dispatch, p95 в Step Summary;
-  отчёт — `docs/sprint-reports/S-63-2026-11-03.md`)
+  smoke)/secrets(gitleaks)/images(docker build ×2)/load(workflow); **CI-
+  прогон — run 41727124357 success: pip-audit «No known vulnerabilities
+  found», e2e «8 passed (16.3s)» + axe «0 critical/serious» + «restore
+  smoke OK», держ ~6–7 мин**; локальные факты: docker build api+web ✅,
+  gitleaks «no leaks» (78 коммитов) ✅, backup_smoke users=6 alembic=0028 ✅,
+  YAML валидны, vitest 5/5; axe-спека — 1 тест на 5 маршрутах,
+  blocking=critical/serious; load.yml — cron пн 04:00 UTC +
+  workflow_dispatch, p95 в Step Summary; отчёт —
+  `docs/sprint-reports/S-63-2026-11-03.md`)
 - **Реализация:** `.github/workflows/ci.yml` (pip-audit шаг, backup_smoke
   шаг `scripts/ci/backup_smoke.sh`, jobs `secrets`/`images`);
   `.github/workflows/load.yml` — новый; `frontend/e2e/a11y-axe.spec.ts`
