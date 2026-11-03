@@ -7,6 +7,25 @@
 
 ## [Unreleased]
 
+### Добавлено
+
+#### S-58 — Staging-контур и CORS (2026-11-03)
+- `docker-compose.staging.yml` + `.env.staging.example`: prod-parity staging
+  (11 сервисов), порты pg **5440** / redis **6387** / api **8032** / web
+  **3202** / edge **8080+8443** (ADR-014), отдельные volumes и сеть,
+  `APP_ENV=staging`, `WEB_BASE_URL=https://localhost:8443`.
+- `CORS_ORIGINS` (comma/JSON, `NoDecode`) в `core/config.py`; allowlist в
+  `CORSMiddleware` вместо хардкода localhost; warning, если в staging/prod
+  остались localhost-источники.
+- `docs/runbooks/staging.md`: подъём/миграции/seed, smoke, CORS, backup/restore,
+  env-дифф dev/staging/prod, ограничения.
+- Brand стадии из build-arg `APP_STAGE`: staging-образ
+  `chessclass/frontend:0.3.0-staging` показывает «v0.3.0 · staging», prod —
+  «prod».
+- Исправлено: `/readyz` отдавал версию **0.1.0** из `app/__init__.py` — теперь
+  `0.3.0`; e2e redis host-порт **6385→6386** (KI-001: 6385 занят
+  `ai-chess-annotator-redis-1`).
+
 ### Документация
 
 - README/Design/TODO_V0.3/статусы документов приведены к факту релиза v0.3.0:

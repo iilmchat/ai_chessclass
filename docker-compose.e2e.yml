@@ -1,7 +1,7 @@
 # ChessClass — отдельный e2e-стенд (S-36).
 # Запуск: docker compose -f docker-compose.e2e.yml up -d --build
 # Полный прогон с очисткой: .\scripts\e2e.ps1 test
-# Порты: db 5439, redis 6385, API 8021, web 3201.
+# Порты: db 5439, redis 6386, API 8021, web 3201 (redis 6385 занят AI-annotator, KI-001).
 # Данные и volumes — chessclass_e2e_*; dev-БД не затрагивается.
 
 name: chessclass_e2e
@@ -40,7 +40,7 @@ services:
     image: redis:7-alpine
     container_name: chessclass-e2e-redis
     ports:
-      - "6385:6379"
+      - "6386:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

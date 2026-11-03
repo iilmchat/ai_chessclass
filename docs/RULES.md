@@ -46,10 +46,15 @@
 2. Наш проект: контейнеры `chessclass-*`, сеть `chessclass-net`, volumes
    `chessclass_pgdata` / `chessclass_redisdata`.
 3. Порты (ADR-013): pg **5438**, redis **6384**, api **8020**, web **3200**,
-   e2e **8021/3201**. Изменение порта — только через новый ADR.
+   e2e **8021/3201** (redis e2e **6386**); staging (ADR-014): pg **5440**,
+   redis **6387**, api **8032**, web **3202**, edge **8080/8443**.
+   Изменение порта — только через новый ADR.
 4. Никаких `docker system prune -a` / `docker network prune` без явного
    подтверждения пользователя.
-5. Единственный канал запуска стека: `docker compose -f docker-compose.dev.yml ...`.
+5. Каналы запуска: dev — `docker compose -f docker-compose.dev.yml ...`;
+   staging — `docker compose --env-file .env.staging -f docker-compose.staging.yml`
+   (`docs/runbooks/staging.md`); prod — `docker compose -f docker-compose.prod.yml`
+   (runbook `release-v0.3.0.md`/`operations.md`).
 
 ## 6. Валидация перед коммитом
 
@@ -63,7 +68,7 @@
 | readyz | `curl http://localhost:8020/readyz` → `status: ready`, `migrationsUpToDate: true` |
 | Фронтенд | `http://localhost:3200` — на дашборде «API/БД/Redis — ок» |
 | CI (GitHub) | `.github/workflows/ci.yml`: backend ruff → mypy → alembic → seeds → pytest (pg+redis); frontend npm test → npm run build (Node 22); e2e Playwright (API 8021 + worker + pg/redis) |
-| E2E-стенд | `.\scripts\e2e.ps1 test` — отдельные db 5439/redis 6385, API 8021, web 3201, reset/cleanup |
+| E2E-стенд | `.\scripts\e2e.ps1 test` — отдельные db 5439/redis 6386, API 8021, web 3201, reset/cleanup |
 | RAG chess eval | `docker compose -f docker-compose.dev.yml run --rm api python scripts/chess_rag_eval.py` — 13/13 (10 текстовых + 3 FEN) |
 | Бэкап / restore | `.\scripts\backup.ps1`; `.\scripts\restore-test.ps1` — sha256, temp DB, проверка users/alembic |
 | Edge TLS | `deploy/nginx/edge.conf` + `deploy/certs`; self-signed — `.\scripts\gen-self-signed-cert.ps1`; smoke — `smoke-prod.ps1 -EdgeBase https://localhost` |

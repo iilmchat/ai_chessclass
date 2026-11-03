@@ -8,6 +8,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# S-58: стадия в бренде (prod по умолчанию; staging-образ передаёт APP_STAGE=staging).
+ARG APP_STAGE=prod
 RUN npm run build
 
 FROM nginx:1.27-alpine

@@ -1,7 +1,10 @@
+import json
 from decimal import Decimal
 from functools import lru_cache
+from typing import Annotated
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -43,6 +46,13 @@ class Settings(BaseSettings):
     argon2_parallelism: int = 2
     # ссылки из писем; dev — консольный SMTP-бэкенд (Design §13.1)
     web_base_url: str = "http://localhost:3200"
+    # S-58: CORS allowlist; env CORS_ORIGINS — список через запятую или JSON.
+    # NoDecode: pydantic-settings иначе требует JSON для list-поля из env.
+    cors_origins: Annotated[list[str], NoDecode] = [
+        "http://localhost:3200",
+        "http://web:3200",
+        "http://localhost:3201",
+    ]
 
     # --- rag (E-05)
     embedding_dim: int = 768
@@ -153,6 +163,23 @@ class Settings(BaseSettings):
     seed_teacher_password: str = "dev-teacher-2026"
     seed_auditor_password: str = "dev-auditor-2026"
     seed_student_password: str = "dev-student-2026"
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, value: object) -> object:
+        """S-58: CORS_ORIGINS — JSON-массив или список через запятую."""
+        if value is None:
+            return []
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+            if raw.startswith("["):
+                return json.loads(raw)
+            return [item.strip() for item in raw.split(",") if item.strip()]
+        if isinstance(value, (list, tuple)):
+            return list(value)
+        return value
 
 
 @lru_cache

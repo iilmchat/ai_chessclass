@@ -12,7 +12,7 @@ head `0028_rag_editor`).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 > Оценка: **S** ≤ 3 дней · **M** ≤ 1 недели · **L** ≈ 2 недели.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 0/12 (S-58…S-69 ☐).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 1/12 (S-58 ✅; S-59…S-69 ☐).**
 Приоритет: **сначала staging и живая приёмка провайдеров, затем edge/CI,
 продуктовая полнота UI и интеграции**. v0.4 — этап готовности к реальному
 запуску, а не фичер-релиз: новых доменов нет.
@@ -28,15 +28,28 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 
 ## E-21 · Staging, живые провайдеры и правда релиза (S-58…S-60)
 
-### S-58 ☐ Staging-контур и env-контракт
-- [ ] `docker-compose.staging.yml` + `.env.staging.example`: свои БД/Redis/
-      volumes/порты, `APP_ENV=staging`, отдельные `WEB_BASE_URL`/certs
-- [ ] `CORS_ORIGINS` в `backend/core/config.py` вместо хардкода
-      (`backend/app/main.py:83-91`); brand/stage UI из env (S-60)
-- [ ] staging: migrate/seed/backup→restore/smoke; env-дифф dev/staging/prod
-      в runbook
+### S-58 ✅ Staging-контур и env-контракт (2026-11-03)
+- [x] `docker-compose.staging.yml` + `.env.staging.example`: prod-parity
+      11 сервисов, порты 5440/6387/8032/3202/8080/8443 (ADR-014), отдельные
+      volumes/сеть, `APP_ENV=staging`, `WEB_BASE_URL=https://localhost:8443`,
+      edge TLS
+- [x] `CORS_ORIGINS` в `backend/core/config.py` (comma/JSON, `NoDecode`)
+      вместо хардкода в `backend/app/main.py`; warning при localhost-источниках
+      в staging/prod; brand/stage UI через build-arg `APP_STAGE`
+      (staging-образ `frontend:0.3.0-staging`)
+- [x] staging: migrate/seed/backup→restore/smoke; env-дифф dev/staging/prod —
+      `docs/runbooks/staging.md`; попутно `/readyz` version `0.1.0`→`0.3.0`
+      и e2e redis `6385`→`6386` (KI-001)
 - **DoD:** staging отвечает `/readyz` с head=`0028_rag_editor`; smoke-prod
-  зелёный; CORS со staging-домена; backup/restore на staging проверен.
+  зелёный; CORS со staging-домена; backup/restore на staging проверен. ✅
+- **Факт:** 10 контейнеров healthy (migrate — exit 0); seed `users=5`,
+  `rag_documents=17`; `/readyz` `version=0.3.0`, `revision=head=0028`,
+  `migrationsUpToDate=true`; smoke-prod 5/5 (healthz/readyz/SPA/edge
+  healthz/HSTS); CORS preflight `Origin: https://localhost:8443` → 200 +
+  `access-control-allow-origin`, evil-origin → 400 без заголовка; backup
+  sha256 OK, restore `users=5 alembic=0028`; backend **197 passed**
+  (195+2 CORS), ruff/mypy 0; frontend build + Vitest 5/5.
+- **Отчёт:** `docs/sprint-reports/S-58-2026-11-03.md`.
 - **Depends:** — · **Effort:** M · **Закрывает:** нет prod-подобного контура.
 
 ### S-59 ☐ Живая приёмка LLM и voice

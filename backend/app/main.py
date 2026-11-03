@@ -48,6 +48,14 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(settings.log_level)
+    # S-58: в staging/prod localhost-источники почти наверняка означают
+    # незаданный CORS_ORIGINS — предупреждаем, но не роняем старт.
+    if settings.app_env in ("staging", "prod") and any(
+        "localhost" in origin for origin in settings.cors_origins
+    ):
+        logger.warning(
+            "cors: localhost-origins в %s — проверьте CORS_ORIGINS", settings.app_env
+        )
     app.state.redis = redis_lib.from_url(settings.redis_url, decode_responses=True)
     # бутстрап LLM: сверка слагов моделей с провайдером (Design §8.3, R-01);
     # неуспех не роняет старт (S-05 добавит fallback-цепочку cloud→local→echo)
@@ -80,11 +88,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3200",
-        "http://web:3200",
-        "http://localhost:3201",
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

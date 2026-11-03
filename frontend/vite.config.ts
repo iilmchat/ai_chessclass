@@ -5,13 +5,14 @@ import react from '@vitejs/plugin-react';
 const apiProxy = process.env.API_PROXY ?? 'http://localhost:8020';
 
 // Бренд: версия из package.json (npm выставляет npm_package_version при start/build),
-// стадия — из mode (production -> prod, development -> dev).
+// стадия — APP_STAGE (Docker build-arg, S-58) или mode (production -> prod, development -> dev).
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.3.0'),
     __APP_STAGE__: JSON.stringify(
-      mode === 'production' ? 'prod' : mode === 'development' ? 'dev' : mode,
+      process.env.APP_STAGE ||
+        (mode === 'production' ? 'prod' : mode === 'development' ? 'dev' : mode),
     ),
   },
   server: {
