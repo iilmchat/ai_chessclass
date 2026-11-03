@@ -16,7 +16,8 @@
 | `TODO_V0.4.md` | корень | ✅ активный | Спринты v0.4.0: S-58…S-69, этапы E-21…E-24 |
 | `docs/SPEC.md` | docs/ | ✅ живой (S-33) | Контракты: DDL, API-схемы, JSON-форматы, таблицы промптов/весов |
 | `docs/RULES.md` | docs/ | ✅ живой | Процесс: ветки, ревью, отчёт спринта по 7 пунктам, DoD |
-| `docs/CHANGELOG.md` | docs/ | ✅ живой (S-57) | Изменения по спринтам (формат Keep a Changelog) |
+| `docs/CHANGELOG.md` | docs/ | ✅ живой (S-60) | Изменения по спринтам (формат Keep a Changelog) |
+| `scripts/doc_lint.py` | scripts/ | ✅ S-60 | Doc-lint «правда релиза»: версии, head/счётчики, активный план, стрейл-маркеры |
 | `docs/sprint-reports/` | docs/ | по ходу | Отчёты спринтов (по 7 пунктам; шаблон в RULES) |
 | `docs/runbooks/` | docs/ | ✅ S-31/S-38/S-58 | Эксплуатация: LLM-шлюз, бэкапы, TLS, инциденты, staging-контур (`staging.md`) |
 

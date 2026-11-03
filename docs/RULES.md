@@ -61,6 +61,7 @@
 | Что | Как |
 |---|---|
 | Compose | `docker compose -f docker-compose.dev.yml config -q` |
+| Doc-lint (правда релиза) | `python scripts/doc_lint.py --tests-count auto` — версии, head/счётчики, активный план, стрейл-маркеры |
 | Backend статика | `ruff check . && mypy .` (в `backend/`) |
 | Backend тесты | `scripts/ci.ps1` — полный контур в контейнере (host-pip нестабилен); альтернатива: venv `backend/.venv` |
 | Frontend типы | `npx tsc --noEmit` (в `frontend/`) |

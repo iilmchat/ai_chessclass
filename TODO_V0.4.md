@@ -12,8 +12,8 @@ head `0028_rag_editor`).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 > Оценка: **S** ≤ 3 дней · **M** ≤ 1 недели · **L** ≈ 2 недели.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 1/12 закрыт (S-58 ✅);
-S-59 🔶 — echo-базлайн снят, live ждёт ключей (S-60…S-69 ☐).**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 2/12 закрыто (S-58 ✅, S-60 ✅);
+S-59 🔶 — echo-базлайн снят, live ждёт ключей (S-61…S-69 ☐).**
 Приоритет: **сначала staging и живая приёмка провайдеров, затем edge/CI,
 продуктовая полнота UI и интеграции**. v0.4 — этап готовности к реальному
 запуску, а не фичер-релиз: новых доменов нет.
@@ -77,13 +77,24 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 - **Depends:** S-58 · **Effort:** M · **Закрывает:** ядро продукта ни разу
   не работало с реальными ключами.
 
-### S-60 ☐ Правда релиза, doc-lint и TODO_V0.4
-- [ ] README/статус/версии/счётчики к факту; `Design.md` §2.2; runbook v0.3.0
-- [ ] doc-lint в CI: версия (pyproject/package.json/`IMAGE_TAG`), head
-      миграций, счётчики тестов, отсутствие заглушек `v0.2` в статусах
-- [ ] этот `TODO_V0.4.md` — единственный активный план; `TODO_V0.1…V0.3` —
+### S-60 ✅ Правда релиза, doc-lint и TODO_V0.4 (2026-11-03)
+- [x] README/статус/версии/счётчики к факту; `Design.md` §2.2; runbook v0.3.0
+- [x] doc-lint в CI: версии (pyproject/package.json/`__version__`/FastAPI/
+      `IMAGE_TAG`), head миграций, счётчики backend/frontend/e2e, единственный
+      активный план, стрейл-маркеры прошлых этапов (старые счётчики спринтов/
+      тестов/миграций и `Draft` в шапке), прогресс TODO_V0.4
+- [x] этот `TODO_V0.4.md` — единственный активный план; `TODO_V0.1…V0.3` —
       архив (см. `docs/README.md`)
-- **DoD:** расхождений «документ ↔ факт» нет; doc-lint зелёный на `main`.
+- **DoD:** расхождений «документ ↔ факт» нет; doc-lint зелёный на `main`. ✅
+- **Факт:** `scripts/doc_lint.py` (stdlib, 6 независимых групп A–F, коды 0/1,
+  `--tests-count auto|N`); 3 unit-теста `backend/tests/test_doc_lint.py`
+  (backend **203 passed**); шаг «Doc-lint (release truth)» в
+  `.github/workflows/ci.yml` (backend job, после pytest); RULES §6 — команда
+  doc-lint. Почищено: README — 203 теста, RAG-док seed 13→17; `docs/README`
+  — CHANGELOG (S-60) + строка `scripts/doc_lint.py`. Проверка: 6/6 ok
+  (`--tests-count auto`), `--tests-count 999` → exit 1 (негатив),
+  `--skip-tests-count` → 6/6 ok; шаг «Doc-lint» в CI-профиле backend.
+- **Отчёт:** `docs/sprint-reports/S-60-2026-11-03.md`.
 - **Depends:** S-58 · **Effort:** S · **Закрывает:** дрейф документации
   v0.3.0 (README-статус, шапка Design, мутабельный `:prod`).
 

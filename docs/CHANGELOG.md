@@ -40,6 +40,18 @@
   §4 (команда smoke на staging).
 - Живая часть (ключи LLM/voice, 1 TTS, diff echo→live) — ожидает ключей.
 
+#### S-60 — Правда релиза и doc-lint (2026-11-03)
+- `scripts/doc_lint.py` (stdlib): версии (`pyproject.toml`/`package.json`/
+  `app/__version__`/FastAPI/`IMAGE_TAG`), alembic head+count против README,
+  счётчики backend/frontend/e2e, единственный активный план (`TODO_V0.4`),
+  запрещённые стрейл-маркеры (`16/16`, `174 passed`, `0021_tournaments`,
+  `v0.2.0 Draft`), прогресс TODO_V0.4; `--tests-count auto|N`.
+- CI: шаг «Doc-lint (release truth)» в `.github/workflows/ci.yml` (backend job,
+  после pytest — сверка счётчика с фактическим collection).
+- README: backend-тесты 200→**203** (+3 doc-lint), RAG-док seed 13→**17**;
+  `docs/README` — CHANGELOG (S-60); RULES §6 — команда doc-lint.
+- 3 unit-теста `backend/tests/test_doc_lint.py` (чистые хелперы линта).
+
 ### Документация
 
 - README/Design/TODO_V0.3/статусы документов приведены к факту релиза v0.3.0:
