@@ -9,6 +9,17 @@
 
 ### Добавлено
 
+#### S-62 — Hash-lock сборка (2026-11-03)
+- `backend/requirements.lock` — `pip-compile --generate-hashes` из
+  pyproject (46 пакетов, каждый с `--hash=sha256`); сборка Dockerfile —
+  `--require-hashes` по lock + сам пакет `--no-deps`.
+- SHA256 архива Stockfish 17.1 pinned (`ARG STOCKFISH_SHA256`), проверка
+  в heredoc → подмена архива ломает build.
+- `backend/scripts/pip_audit.sh` — pip-audit по lock (DoD no known).
+- Release-truth tests (+3): lock-файл с хэшами, Dockerfile из lock, SF-hash.
+- Резидуал (→S-63): PEP 517 build-isolation на setuptools вне hash-lock
+  (документировано SPEC §3.30).
+
 #### S-61 — CSP и egress-allowlist (2026-11-03)
 - **CSP** в web-nginx (`frontend/nginx.conf`, enforce) + режим
   `CSP_MODE=report-only` для staging (entrypoint-скрипт; audit Vite

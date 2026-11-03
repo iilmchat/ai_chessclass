@@ -12,8 +12,8 @@ head `0028_rag_editor`).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 > Оценка: **S** ≤ 3 дней · **M** ≤ 1 недели · **L** ≈ 2 недели.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 4/12 закрыто (S-58 ✅,
-S-59 ✅ с ограничением voice, S-60 ✅, S-61 ✅); S-62…S-69 ☐.**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 5/12 закрыто (S-58 ✅,
+S-59 ✅ с ограничением voice, S-60 ✅, S-61 ✅, S-62 ✅); S-63…S-69 ☐.**
 Приоритет: **сначала staging и живая приёмка провайдеров, затем edge/CI,
 продуктовая полнота UI и интеграции**. v0.4 — этап готовности к реальному
 запуску, а не фичер-релиз: новых доменов нет.
@@ -127,12 +127,24 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
   XSS-поверхность и неконтролируемый egress для детского prod (security
   review §4).
 
-### S-62 ☐ Hash-lock и воспроизводимая сборка
-- [ ] `pip-compile --generate-hashes` → `backend/requirements.lock` +
+### S-62 ✅ Hash-lock и воспроизводимая сборка (2026-11-03)
+- [x] `pip-compile --generate-hashes` → `backend/requirements.lock` +
       constraints; Dockerfile `--require-hashes`
-- [ ] sha256 Stockfish-архива (`backend/Dockerfile:13-35`); `pip-audit` по
+- [x] sha256 Stockfish-архива (`backend/Dockerfile:13-35`); `pip-audit` по
       финальному образу RC
-- **DoD:** сборка только из lock; hash-mismatch ломает build; audit — no known.
+- **DoD:** сборка только из lock; hash-mismatch ломает build; audit — no known. ✅
+  (2026-11-03: lock 46 пакетов с hash; контрольный build api зелёный
+  (SF sha256 OK, `--require-hashes`); STOCKFISH_SHA256=09e95322…;
+  pip-audit OSV: no known (pypi.org из локальной сети заблокирован —
+  CI прогонит дефолтный сервис); 219 backend-тестов; отчёт —
+  `docs/sprint-reports/S-62-2026-11-03.md`)
+- **Реализация:** `requirements.lock` (pip-compile --generate-hashes,
+  46 пакетов, block-парсер в тесте); Dockerfile: `--require-hashes -r`,
+  `--no-deps -e .`, `ARG STOCKFISH_SHA256` + digest-проверка до распаковки;
+  `scripts/pip_audit.sh` (`PIP_AUDIT_SERVICE=osv` из заблокированных сетей).
+- **Резидуал →S-63:** PEP 517 build-isolation (setuptools для sdists и
+  `-e .`) не hash-locked — известная особенность pip; SPEC §3.30.
+- **Отчёт:** `docs/sprint-reports/S-62-2026-11-03.md`.
 - **Depends:** — · **Effort:** M · **Закрывает:** supply-chain риск A08.
 
 ### S-63 ☐ Ворота CI: security/a11y/load/docker/backup

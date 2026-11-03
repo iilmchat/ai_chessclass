@@ -770,7 +770,6 @@ interface TournamentDetailOut extends TournamentOut {
   CSP/egress, hash-lock, axe, staging load, live LLM/voice.
 
 ### 3.29. Security: CSP и egress-allowlist (S-61)
-
 **CSP (frontend-nginx).** Политика одна — излучается web-nginx (`frontend/
 nginx.conf`), edge её не дублирует (заголовок проходит сквозь; в `location /`
 edge нет своего CSP):
@@ -802,6 +801,30 @@ Telegram, LRS) проходят через `core/egress.py` — request-hook `ma
   запрос не уходит (SSRF/deep-defense для детского prod);
 - тесты: `tests/test_egress.py` (bypass — тот же LLM-клиент на чужой хост
   краснеет; allowlist/wildcard/поддомены).
+
+### 3.30. Supply chain: hash-lock сборка (S-62, security-review A08)
+
+**`backend/requirements.lock`** — сгенерирован из `pyproject.toml`
+(`pip-compile --generate-hashes`, pip-tools, базовый образ python:3.12-slim —
+тот же, что и prod). 46 пакетов, каждая запись со `--hash=sha256`
+(release-truth тест `tests/test_hash_lock.py` валидирует блоки).
+
+**`backend/Dockerfile` (режим сборки):**
+
+1. `pip install --require-hashes -r requirements.lock` — любое расхождение
+   hash (пере-залитый пакет) → build падает;
+2. сам проект — `pip install --no-deps -e .` (единственный шаг, где
+   PEP 517 build-isolation качает setuptools из PyPI без hash — резидуал
+   зафиксирован в отчёте S-62, замкнёт S-63/переделка в двуединую сборку);
+3. архива Stockfish — `ARG STOCKFISH_SHA256=<hex-64>` вычисляется от
+   `stockfish-ubuntu-x86-64-avx2.tar` **до распаковки**; несовпадение →
+   build падает (обновление SF — только с новым hash и волевым актом).
+
+**`backend/scripts/pip_audit.sh`** — `pip-audit -r requirements.lock`
+(no known vulnerabilities); контракт в CI — шаг backend job (S-63).
+
+**Обновление зависимостей** — только через перегенерацию lock (RULES §6):
+ручной `pip install` в dev-машине не меняет факта сборки.
 
 ## 9. Engine Stockfish (S-10)
 
@@ -1081,3 +1104,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-03 | S-56: RC ✅ - migrations/backup/e2e/smoke, versions 0.3.0 | S-56 |
 | 2026-11-03 | S-57: release v0.3.0 ✅ - tag/release/demo/backlog | S-57 |
 | 2026-11-03 | S-61: CSP/egress ✅ — §3.29 (CSP report-only→enforce, egress-hook 4 клиентов) | S-61 |
+| 2026-11-03 | S-62: hash-lock ✅ — §3.30 (requirements.lock 46 пакетов с hash, sha256 Stockfish, pip-audit) | S-62 |

@@ -71,6 +71,7 @@
 | CI (GitHub) | `.github/workflows/ci.yml`: backend ruff → mypy → alembic → seeds → pytest (pg+redis); frontend npm test → npm run build (Node 22); e2e Playwright (API 8021 + worker + pg/redis) |
 | E2E-стенд | `.\scripts\e2e.ps1 test` — отдельные db 5439/redis 6386, API 8021, web 3201, reset/cleanup |
 | RAG chess eval | `docker compose -f docker-compose.dev.yml run --rm api python scripts/chess_rag_eval.py` — 13/13 (10 текстовых + 3 FEN) |
+| Hash-lock (S-62) | сборка — только из `backend/requirements.lock` (Dockerfile `--require-hashes`); обновление зависимостей: `docker compose … run --rm --no-deps api sh -c "pip install -q pip-tools && pip-compile --generate-hashes --output-file /srv/backend/requirements.lock /srv/backend/pyproject.toml"` → пересборка + `bash backend/scripts/pip_audit.sh` (`PIP_AUDIT_SERVICE=osv` из сетей, где pypi.org заблокирован) |
 | Бэкап / restore | `.\scripts\backup.ps1`; `.\scripts\restore-test.ps1` — sha256, temp DB, проверка users/alembic |
 | Edge TLS | `deploy/nginx/edge.conf` + `deploy/certs`; self-signed — `.\scripts\gen-self-signed-cert.ps1`; smoke — `smoke-prod.ps1 -EdgeBase https://localhost` |
 

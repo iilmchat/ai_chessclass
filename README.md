@@ -124,7 +124,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 |------------|----------|
 | Версия | **v0.3.0** (2026-11-03, релиз) |
 | Спринты | **12/12** (S-46…S-57), этапы E-17…E-20 ✅ |
-| Тесты backend | **216 passed** (203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61) |
+| Тесты backend | **219 passed** (203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **7 passed** (Playwright: полный journey) |
 | Миграции | Alembic head **0028_rag_editor** (28) |
