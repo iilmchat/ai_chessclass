@@ -9,6 +9,16 @@
 
 ### Добавлено
 
+#### S-64 — RAG-редактор UI и gold-set eval (2026-11-03)
+- Страница `/rag` (teacher/admin, доступ по роли): список документов с
+  фильтром статусов, редактор (создание черновика / правка → новая версия),
+  панели версий с rollback, импорт файлом (.md/.txt/.pdf → base64 → draft),
+  поиск-превью топ-5 (published), панель eval.
+- **Gold-set eval 3→21 кейса** (`rag/eval_cases.py`, подстроки от
+  сид-корпуса 17 доков; sentinel-скрипт `scripts/rag_gold_check.py`);
+  `GET /admin/rag/eval` дополнен `results` (по кейсу: vectorHit/hybridHit).
+- Deps: axe-core остаётся devDep (S-63); новых пакетов нет.
+
 #### S-63 — Ворота CI (2026-11-03)
 - Gate-матрица: backend + **pip-audit** (по `requirements.lock`), e2e +
   **axe-core** (0 critical/serious на 5 маршрутах; скрипт из node_modules) +

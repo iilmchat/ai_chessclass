@@ -7,6 +7,7 @@ import { ExportPage } from '../pages/ExportPage';
 import { ObservabilityPage } from '../pages/ObservabilityPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { PythonPage } from '../pages/PythonPage';
+import { RagEditorPage } from '../pages/RagEditorPage';
 import { ReviewPage } from '../pages/ReviewPage';
 import { SkillsPage } from '../pages/SkillsPage';
 import { TournamentsPage } from '../pages/TournamentsPage';
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { to: '/tournaments', label: 'Турниры' },
   { to: '/skills', label: 'Навыки' },
   { to: '/classes', label: 'Классы' },
+  { to: '/rag', label: 'RAG-база' },
   { to: '/profile', label: 'Профиль' },
   { to: '/export', label: 'Экспорт' },
   { to: '/ops', label: 'Наблюдаемость' },
@@ -61,6 +63,7 @@ export function App() {
           <Route path="/bots" element={<BotsPage />} />
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/classes" element={<ClassesPage />} />
+          <Route path="/rag" element={<RagEditorPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/tournaments" element={<TournamentsPage />} />
           <Route path="/export" element={<ExportPage />} />

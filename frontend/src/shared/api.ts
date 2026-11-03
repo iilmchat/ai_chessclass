@@ -747,8 +747,136 @@ export function fetchRetentionStatus(): Promise<RetentionStatusDto> {
 }
 
 export function runRetention(dryRun: boolean): Promise<RetentionResultDto[]> {
-  return apiFetch('/admin/observability/retention/run', {
-    method: 'POST',
+  return apiFetch('/admin/observability/retention/run', {    method: 'POST',
     body: JSON.stringify({ dryRun }),
   });
+}
+
+// --- rag-редактор (S-54 API / S-64 UI)
+
+export interface RagDocDto {
+  id: string;
+  titleRu: string;
+  source: string;
+  domain: string;
+  kind: string;
+  license: string;
+  status: string;
+  version: number;
+  text: string;
+  createdAt: string;
+}
+
+export interface RagVersionDto {
+  version: number;
+  titleRu: string;
+  source: string;
+  domain: string;
+  kind: string;
+  text: string;
+  license: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface RagDocBody {
+  titleRu: string;
+  domain: string;
+  kind: string;
+  license: string;
+  source?: string;
+  text: string;
+}
+
+export interface RagImportBody {
+  filename: string;
+  contentBase64: string;
+  titleRu?: string;
+  license: string;
+  domain: string;
+  kind: string;
+}
+
+export interface RagSearchHitDto {
+  chunkId: string;
+  documentId: string;
+  titleRu: string;
+  text: string;
+  similarity: number;
+  lexical: number;
+}
+
+export interface RagSearchDto {
+  query: string;
+  hits: RagSearchHitDto[];
+}
+
+export interface RagEvalCaseDto {
+  order: number;
+  query: string;
+  expected: string;
+  vectorHit: boolean;
+  hybridHit: boolean;
+}
+
+export interface RagEvalDto {
+  baseline: number;
+  hybrid: number;
+  passed: boolean;
+  cases: number;
+  results: RagEvalCaseDto[];
+}
+
+export function fetchRagDocs(status = ''): Promise<RagDocDto[]> {
+  const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiFetch<RagDocDto[]>(`/admin/rag/documents${suffix}`);
+}
+
+export function createRagDoc(body: RagDocBody): Promise<RagDocDto> {
+  return apiFetch<RagDocDto>('/admin/rag/documents', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function patchRagDoc(id: string, body: Partial<RagDocBody>): Promise<RagDocDto> {
+  return apiFetch<RagDocDto>(`/admin/rag/documents/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function publishRagDoc(id: string): Promise<RagDocDto> {
+  return apiFetch<RagDocDto>(`/admin/rag/documents/${id}/publish`, { method: 'POST' });
+}
+
+export function archiveRagDoc(id: string): Promise<RagDocDto> {
+  return apiFetch<RagDocDto>(`/admin/rag/documents/${id}/archive`, { method: 'POST' });
+}
+
+export function fetchRagVersions(id: string): Promise<RagVersionDto[]> {
+  return apiFetch<RagVersionDto[]>(`/admin/rag/documents/${id}/versions`);
+}
+
+export function rollbackRagDoc(id: string, version: number): Promise<RagDocDto> {
+  return apiFetch<RagDocDto>(`/admin/rag/documents/${id}/rollback/${version}`, {
+    method: 'POST',
+  });
+}
+
+export function importRagDoc(body: RagImportBody): Promise<RagDocDto> {
+  return apiFetch<RagDocDto>('/admin/rag/import', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function ragSearch(q: string, k = 5): Promise<RagSearchDto> {
+  return apiFetch<RagSearchDto>(
+    `/admin/rag/search?q=${encodeURIComponent(q)}&k=${k}`,
+  );
+}
+
+export function ragEval(): Promise<RagEvalDto> {
+  return apiFetch<RagEvalDto>('/admin/rag/eval');
 }

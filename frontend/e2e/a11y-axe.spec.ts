@@ -25,7 +25,7 @@ const axeScript = readFileSync(
   'utf-8',
 );
 
-const PAGES = ['/', '/python', '/chess', '/bots', '/skills'] as const;
+const PAGES = ['/', '/python', '/chess', '/bots', '/skills', '/rag'] as const;
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa'];
 

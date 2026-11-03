@@ -75,6 +75,25 @@ async def test_rag_editor_publish_versions_rollback(admin_client):
     assert response.json()["passed"] is True
 
 
+async def test_eval_gold_set_min_20_cases(admin_client):
+    """S-64: gold-set eval — ≥ 20 кейсов с деталями (результат по каждому)."""
+    response = await admin_client.get(f"{API}/admin/rag/eval")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cases"] >= 20
+    assert len(body["results"]) == body["cases"]
+    assert {case["order"] for case in body["results"]} == set(
+        range(1, body["cases"] + 1)
+    )
+    assert all(
+        isinstance(case["vectorHit"], bool)
+        and isinstance(case["hybridHit"], bool)
+        and case["query"]
+        for case in body["results"]
+    )
+    assert isinstance(body["passed"], bool)
+
+
 async def test_rag_import_markdown_and_pdf(admin_client):
     markdown = "# План\n\nПешечная структура и открытые линии."
     response = await admin_client.post(

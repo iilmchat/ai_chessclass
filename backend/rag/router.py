@@ -10,6 +10,7 @@ from core.base import CamelModel
 from domains.auth.deps import DbSession, require_role
 from domains.auth.models import User, UserRole
 from rag import editor, retrieval
+from rag.eval_cases import GOLD_SET
 from rag.ingest import ingest_document
 from rag.models import RagDocument, RagDocumentVersion
 
@@ -115,11 +116,20 @@ class SearchOut(CamelModel):
     hits: list[SearchHitOut]
 
 
+class EvalCaseOut(CamelModel):
+    order: int
+    query: str
+    expected: str
+    vectorHit: bool
+    hybridHit: bool
+
+
 class EvalOut(CamelModel):
     baseline: float
     hybrid: float
     passed: bool
     cases: int
+    results: list[EvalCaseOut] = []
 
 
 def _doc_out(document: RagDocument) -> DocumentOut:
@@ -298,11 +308,7 @@ async def search(
     return SearchOut(query=q, hits=[SearchHitOut(**h) for h in hits])
 
 
-_EVAL_CASES = (
-    ("висячие фигуры", "висяч"),
-    ("return python", "return"),
-    ("рокировка", "рокир"),
-)
+_EVAL_CASES = GOLD_SET  # S-64: gold-set 21 кейс (rag/eval_cases); 3→21
 
 
 @router.get("/eval", response_model=EvalOut)
@@ -310,17 +316,30 @@ async def eval_retrieval(
     _guard: TeacherOrAdmin, session: DbSession
 ) -> EvalOut:
     baseline = hybrid = 0
-    for query, expected in _EVAL_CASES:
+    results: list[EvalCaseOut] = []
+    for order, (query, expected) in enumerate(_EVAL_CASES, start=1):
         vec_hits = await retrieval.search(session, query, k=5, mode="vector")
         hyb_hits = await retrieval.search(session, query, k=5, mode="hybrid")
-        if any(expected in hit["text"].lower() for hit in vec_hits):
+        vector_hit = any(expected.lower() in hit["text"].lower() for hit in vec_hits)
+        hybrid_hit = any(expected.lower() in hit["text"].lower() for hit in hyb_hits)
+        if vector_hit:
             baseline += 1
-        if any(expected in hit["text"].lower() for hit in hyb_hits):
+        if hybrid_hit:
             hybrid += 1
+        results.append(
+            EvalCaseOut(
+                order=order,
+                query=query,
+                expected=expected,
+                vectorHit=vector_hit,
+                hybridHit=hybrid_hit,
+            )
+        )
     total = len(_EVAL_CASES)
     return EvalOut(
         baseline=round(baseline / total, 3),
         hybrid=round(hybrid / total, 3),
         passed=hybrid >= baseline,
         cases=total,
+        results=results,
     )

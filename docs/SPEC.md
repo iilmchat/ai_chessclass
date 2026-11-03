@@ -719,14 +719,16 @@ interface TournamentDetailOut extends TournamentOut {
 - Batch-лимит 1–20 + общий `study_daily_limit`; метрики — generated,
   autoReviewed, defects, defectRate, duplicateFens.
 
-### 3.25. RAG/контент-редактура (S-54)
+### 3.25. RAG/контент-редактура (S-54, UI S-64)
 
 ```ts
 // GET/POST /admin/rag/documents; PATCH /admin/rag/documents/{id}
 // POST /admin/rag/documents/{id}/publish|archive|rollback/{version}
 // GET  /admin/rag/documents/{id}/versions
 // POST /admin/rag/import { filename, contentBase64, license, ... }
-// GET  /admin/rag/eval → { baseline, hybrid, passed, cases }
+// GET  /admin/rag/eval → { baseline, hybrid, passed, cases,
+//                          results: [{ order, query, expected,
+//                                      vectorHit, hybridHit }] (S-64) }
 ```
 
 - `rag_documents`: license/status (draft|published|archived)/version;
@@ -737,8 +739,12 @@ interface TournamentDetailOut extends TournamentOut {
   `mode=vector` — baseline для eval.
 - Импорт: `.md/.markdown/.txt/.pdf` (pypdf) через base64; source=filename,
   license сохраняется.
-- Eval: 3 эталонных запроса, сравнение vector/hybrid; passed = hybrid ≥
-  baseline; деградация видна администратору.
+- Eval (S-64): **gold-set 21 кейс** (`rag/eval_cases.py`, подстроки от
+  сид-корпуса 17 доков; `scripts/rag_gold_check.py` — «все подстроки в
+  corpus»), сравнение vector/hybrid по каждому кейсу (results-таблица);
+  passed = hybrid ≥ baseline. UI `/rag` (teacher/admin): список/фильтры
+  статусов, редактор (правка → новая версия), versions+rollback,
+  импорт файлом (base64), поиск-превью, eval-панель.
 
 ### 3.26. Качество, нагрузка и безопасность (S-55)
 
@@ -1105,3 +1111,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-03 | S-57: release v0.3.0 ✅ - tag/release/demo/backlog | S-57 |
 | 2026-11-03 | S-61: CSP/egress ✅ — §3.29 (CSP report-only→enforce, egress-hook 4 клиентов) | S-61 |
 | 2026-11-03 | S-62: hash-lock ✅ — §3.30 (requirements.lock 46 пакетов с hash, sha256 Stockfish, pip-audit) | S-62 |
+| 2026-11-03 | S-64: RAG-редактор UI ✅ — §3.25 (gold-set 21, results, «/rag» teacher/admin) | S-64 |
