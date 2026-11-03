@@ -61,5 +61,9 @@ Live LLM/voice:
 ```powershell
 git tag -a v0.3.0 -m "ChessClass v0.3.0"
 git push origin v0.3.0
-gh release create v0.3.0 --title "ChessClass v0.3.0" --notes-file docs/CHANGELOG.md
+gh release create v0.3.0 --title "ChessClass v0.3.0" --notes-file docs/release-notes-v0.3.0.md
 ```
+
+Образы в `docker-compose.prod.yml` помечены `IMAGE_TAG` (default `0.3.0`):
+при релизе обновлять `IMAGE_TAG` и git-тег одновременно с версией в
+`pyproject.toml`/`package.json`.

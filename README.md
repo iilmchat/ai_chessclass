@@ -18,11 +18,11 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
 
 ---
 
-## Возможности v0.2.0
+## Возможности
 
 - **Инфраструктура** — docker-compose dev-стек: PostgreSQL 17 (+pgvector) :5438,
   Redis :6384, FastAPI :8020, arq-воркер, Vite-фронтенд :3200; `/healthz` и
-  `/readyz` (готовность + сверка ревизии миграций); 21 миграция Alembic.
+  `/readyz` (готовность + сверка ревизии миграций); 28 миграций Alembic.
 - **Аутентификация** — регистрация/логин, Argon2id, access-JWT (15 мин) +
   refresh в HttpOnly-cookie (30 дней) с ротацией и защитой от reuse, email-
   верификация, rate-limit/lockout, сброс пароля.
@@ -123,14 +123,14 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Показатель | Значение |
 |------------|----------|
 | Версия | **v0.3.0** (2026-11-03, релиз) |
-| Спринты | **16/16** (S-30…S-45), этапы E-11…E-16 ✅ |
-| Тесты backend | **174 passed** (юнит + интеграционные + e2e-journey) |
+| Спринты | **12/12** (S-46…S-57), этапы E-17…E-20 ✅ |
+| Тесты backend | **195 passed** (юнит + интеграционные + e2e-journey) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **7 passed** (Playwright: полный journey) |
-| Миграции | Alembic head **0021_tournaments** (21) |
+| Миграции | Alembic head **0028_rag_editor** (28) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 13 RAG-док |
-| Следующий этап | **v0.3** — backlog Design §2.2 (PvP, Telegram, LMS-адаптеры), план — [TODO_V0.3.md](TODO_V0.3.md) |
+| Следующий этап | **v0.4** — план [TODO_V0.4.md](TODO_V0.4.md) |
 
 ---
 
@@ -142,7 +142,9 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [docs/SPEC.md](docs/SPEC.md) — контракты API v1 (эндпоинты, DTO, коды ошибок)
 - [docs/RULES.md](docs/RULES.md) — процесс: спринты, git, docker-безопасность, отчёт
 - [TODO_V0.2.md](TODO_V0.2.md) — завершённый план v0.2.0 (S-30…S-45)
-- [TODO_V0.3.md](TODO_V0.3.md) — план v0.3.0 (S-46…S-57)
+- [TODO_V0.3.md](TODO_V0.3.md) — завершённый план v0.3.0 (S-46…S-57)
+- [TODO_V0.4.md](TODO_V0.4.md) — план v0.4.0 (S-58…S-69)
+- [docs/release-notes-v0.3.0.md](docs/release-notes-v0.3.0.md) — release notes v0.3.0
 - [TODO_V0.1.md](TODO_V0.1.md) — архив плана v0.1.0 (S-01…S-29)
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — изменения по спринтам
 - [docs/runbooks/llm-gateway.md](docs/runbooks/llm-gateway.md) — LLM-шлюз: ключи, health, fallback

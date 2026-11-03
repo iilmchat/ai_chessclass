@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.2.0 Draft · **Дата:** 2026-11-02
+**Версия:** v0.3.0 · **Дата:** 2026-11-03
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 
@@ -118,13 +118,17 @@
 | F-11 | PDF-отчёт родителям | fpdf2 + TTF, качество из annotator | reports |
 | F-12 | Инфраструктура | docker-compose dev/prod/observability, порты, логи, миграции | infra |
 
-### 2.2. v0.2 и Backlog (не в MVP)
+### 2.2. v0.2, v0.3 и Backlog (не в MVP)
 
 - **v0.2:** озвучка ответов (ElevenLabs Voice Turbo); генерация этюдов/задач
   «код + LLM»; роль auditor; группы/классы учителя; турниры ботов; достижения
   и стрики; экспорт в LMS.
-- **Backlog:** Telegram-бот, spaced-repetition тренажёр, разбор чужих партий
-  юзеров, интеграции с школами, многопользовательские матчи (PvP ботов).
+- **v0.3:** наблюдаемость/retention (S-46); RS256/JWKS, auditor scope и PII
+  (S-47); async-турниры, replay и SF-античит (S-48); LMS LRS (S-49);
+  Telegram (S-50); PvP-комнаты (S-51); spaced repetition (S-52); этюды v2
+  (S-53); RAG-редактор (S-54); load/a11y/security (S-55); RC и релиз v0.3.0
+  (S-56…S-57).
+- **Backlog:** разбор чужих партий юзеров, интеграции с школами.
 
 ### 2.3. Не-функциональные требования (NFR)
 

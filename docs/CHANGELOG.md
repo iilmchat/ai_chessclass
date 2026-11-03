@@ -5,6 +5,19 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0). Детали — в
 `docs/sprint-reports/`.
 
+## [Unreleased]
+
+### Документация
+
+- README/Design/TODO_V0.3/статусы документов приведены к факту релиза v0.3.0:
+  возможности, 12/12 спринтов (S-46…S-57, E-17…E-20), 195 backend-тестов,
+  head `0028_rag_editor` (28 миграций), версия Design v0.3.0.
+- Brand и prod-образы версионированы: бренд/версия из build-env, теги
+  образов `IMAGE_TAG` в `docker-compose.prod.yml`.
+- Runbook `docs/runbooks/release-v0.3.0.md` §7: `--notes-file
+  docs/release-notes-v0.3.0.md`; синхронизация `IMAGE_TAG`, git-тега и версий.
+- Добавлен `TODO_V0.4.md` — план v0.4.0 (S-58…S-69, этапы E-21…E-24).
+
 ## [v0.3.0] — 2026-11-03
 
 ### Добавлено
