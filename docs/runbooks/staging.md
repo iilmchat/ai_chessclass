@@ -77,6 +77,22 @@ curl.exe -k -i -X OPTIONS https://localhost:8443/api/v1/auth/login `
 
 CORS-allowlist задаётся в `.env.staging`: `CORS_ORIGINS=https://localhost:8443,http://localhost:3202`.
 
+**CSP (S-61).** Web-nginx излучает CSP; в staging стоит `CSP_MODE=report-only`
+(в `.env.staging.example`) — браузер пишет нарушения в консоль, не блокируя.
+Аудит: в e2e/Playwright слушать `console`-события `csp-violation` — пусто
+→ перевести `CSP_MODE=report-only` → удалить (enforce, как в prod).
+
+**Egress (S-61).** Все исходящие звонки (LLM/voice/Telegram/LRS) проходят
+allowlist `core/egress.py`: базовые URL провайдеров разрешены сами; прочие
+хосты — в `ALLOWED_EGRESS_HOSTS` (комма/JSON, `host` или `*.host`).
+Проверка:
+
+```powershell
+docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T api `
+  python -c "from core.egress import ensure_egress_allowed as f; f('https://api.example.com/x')"
+# ожидаемо 502 egress_blocked, если host не в списке
+```
+
 LLM/voice smoke (S-59; без ключей — echo-базлайн, с ключами — live,
 подробности — `llm-gateway.md` §2.2):
 
@@ -122,6 +138,8 @@ docker compose --env-file .env.staging -f docker-compose.staging.yml down -v
 | образы | `:dev` | backend `IMAGE_TAG` (0.3.0), frontend `0.3.0-staging` | `IMAGE_TAG` (0.3.0) |
 | сеть / volumes | `chessclass-net` / `chessclass_*` | `chessclass-staging-net` / `chessclass_staging_*` | `chessclass-prod-net` / `chessclass_prod_*` |
 | `WEB_BASE_URL` | — | `https://localhost:8443` | `https://chessclass.example` |
+| `CSP_MODE` (S-61) | default `enforce` (задавать не нужно) | `report-only` (до аудита) | default `enforce` |
+| `ALLOWED_EGRESS_HOSTS` (S-61) | доп. хосты сверх базовых URL | то же | то же |
 
 ## 8. Известные ограничения
 

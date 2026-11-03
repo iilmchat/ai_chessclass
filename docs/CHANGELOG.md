@@ -9,6 +9,21 @@
 
 ### Добавлено
 
+#### S-61 — CSP и egress-allowlist (2026-11-03)
+- **CSP** в web-nginx (`frontend/nginx.conf`, enforce) + режим
+  `CSP_MODE=report-only` для staging (entrypoint-скрипт; audit Vite
+  inline-стилей → allowlist `style-src 'unsafe-inline'`, скрипты self);
+  edge не дублирует (заголовок проходит сквозь).
+- **Egress allowlist** `core/egress.py`: hook на все исходящие
+  httpx-клиенты (LLM/voice/Telegram/LRS) — loopback + `ALLOWED_EGRESS_HOSTS`
+  (host/`*.host`) + настроенные базовые URL; нарушение → 502
+  `egress_blocked` (bypass-тест тем же клиентом краснеет).
+- Env: `ALLOWED_EGRESS_HOSTS` (все три примера), `CSP_MODE` (staging);
+  `env_ignore_empty` в Settings (пустая env = дефолт из кода).
+- Tests +13 (egress 8 / CSP release-truth 3 / env-контракт 2); dev-compose
+  api монтирует репо в `/repo:ro` для doc-lint/release-truth тестов.
+- `.env.prod` добавлен в `.gitignore` (секреты только локально).
+
 #### S-58 — Staging-контур и CORS (2026-11-03)
 - `docker-compose.staging.yml` + `.env.staging.example`: prod-parity staging
   (11 сервисов), порты pg **5440** / redis **6387** / api **8032** / web

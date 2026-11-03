@@ -14,6 +14,10 @@ RUN npm run build
 
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# S-61: CSP_MODE (enforce|report-only) — роль мини-скрипта в docker-entrypoint.d;
+# staging-контур ставит CSP_MODE=report-only до закрытия аудита CSP.
+COPY docker-entrypoint.d/40-csp.sh /docker-entrypoint.d/40-csp.sh
+RUN chmod 0755 /docker-entrypoint.d/40-csp.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80

@@ -762,13 +762,46 @@ interface TournamentDetailOut extends TournamentOut {
 - Runbook: `docs/runbooks/release-v0.3.0.md`; отчёт S-56.
 
 ### 3.28. Релиз v0.3.0 (S-57)
-
 - Тег `v0.3.0` (annotated), GitHub Release с release-notes; CI
   backend/frontend/e2e зелёный.
 - Demo-обход: ученик → учитель → родитель → auditor → admin (e2e/тесты/API);
   известные ограничения — в release-notes.
 - Backlog v0.4: LMS mapping/LRS OAuth2, Telegram webhook, PvP UI, RAG eval/OCR,
   CSP/egress, hash-lock, axe, staging load, live LLM/voice.
+
+### 3.29. Security: CSP и egress-allowlist (S-61)
+
+**CSP (frontend-nginx).** Политика одна — излучается web-nginx (`frontend/
+nginx.conf`), edge её не дублирует (заголовок проходит сквозь; в `location /`
+edge нет своего CSP):
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+img-src 'self' data:; font-src 'self' data:; connect-src 'self';
+worker-src 'self'; frame-ancestors 'none'; base-uri 'self';
+form-action 'self'; object-src 'none'
+```
+
+- Режим задаётся env `CSP_MODE` (web-контейнер), обработчик —
+  `frontend/docker-entrypoint.d/40-csp.sh` (sed-свод в Report-Only):
+  `enforce` (default — prod/e2e) · `report-only` (staging на период аудита,
+  compose ставит `CSP_MODE: report-only`); после аудита — enforce.
+- `unsafe-inline` для стилей — осознанный допуск (Vite/React растёт
+  inline-стилями: react-chessboard и т.п.); скрипты — только self.
+- Release-truth тесты: `tests/test_csp_conf.py` (заголовок enforce в образе,
+  механизм Report-Only, отсутствие дублей на edge).
+
+**Egress allowlist (backend).** Все исходящие httpx-клиенты (LLM, voice,
+Telegram, LRS) проходят через `core/egress.py` — request-hook `make_egress_hook`:
+
+- разрешено: loopback; `ALLOWED_EGRESS_HOSTS` (env comma/JSON, записи `host`
+  или `*.host` — только поддомены); хосты настроенных базовых URL
+  (`LLM_BASE_URL`/`LLM_LOCAL_BASE_URL`/`VOICE_BASE_URL`/`TELEGRAM_API_BASE`/
+  `LRS_ENDPOINT`); extra-хост клиента (его base_url);
+- запрещено: любой другой хост → `AppError("egress_blocked", …, 502)` —
+  запрос не уходит (SSRF/deep-defense для детского prod);
+- тесты: `tests/test_egress.py` (bypass — тот же LLM-клиент на чужой хост
+  краснеет; allowlist/wildcard/поддомены).
 
 ## 9. Engine Stockfish (S-10)
 
@@ -1047,3 +1080,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-03 | S-55: quality ✅ - load p95, a11y, security headers/audit | S-55 |
 | 2026-11-03 | S-56: RC ✅ - migrations/backup/e2e/smoke, versions 0.3.0 | S-56 |
 | 2026-11-03 | S-57: release v0.3.0 ✅ - tag/release/demo/backlog | S-57 |
+| 2026-11-03 | S-61: CSP/egress ✅ — §3.29 (CSP report-only→enforce, egress-hook 4 клиентов) | S-61 |

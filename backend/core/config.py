@@ -15,6 +15,9 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        # S-61: пустая env-переменная = «не задано» (дефолт из кода), иначе
+        # `LLM_COST_JUDGE_OUT=` в локальном .env роняет Decimal-поле.
+        env_ignore_empty=True,
     )
 
     # --- app
@@ -53,6 +56,10 @@ class Settings(BaseSettings):
         "http://web:3200",
         "http://localhost:3201",
     ]
+    # S-61: egress allowlist (`ALLOWED_EGRESS_HOSTS`, comma/JSON) — записи
+    # вида `host` или `*.host`; базовые URL провайдеров разрешены сами;
+    # loopback разрешён всегда. См. core/egress.py.
+    allowed_egress_hosts: Annotated[list[str], NoDecode] = []
 
     # --- rag (E-05)
     embedding_dim: int = 768
@@ -168,18 +175,28 @@ class Settings(BaseSettings):
     @classmethod
     def _parse_cors_origins(cls, value: object) -> object:
         """S-58: CORS_ORIGINS — JSON-массив или список через запятую."""
-        if value is None:
+        return _parse_string_list(value)
+
+    @field_validator("allowed_egress_hosts", mode="before")
+    @classmethod
+    def _parse_allowed_egress_hosts(cls, value: object) -> object:
+        """S-61: ALLOWED_EGRESS_HOSTS — JSON-массив или список через запятую."""
+        return _parse_string_list(value)
+
+def _parse_string_list(value: object) -> object:
+    """Comma/JSON — общий формат строковых списков env (CORS, egress)."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
             return []
-        if isinstance(value, str):
-            raw = value.strip()
-            if not raw:
-                return []
-            if raw.startswith("["):
-                return json.loads(raw)
-            return [item.strip() for item in raw.split(",") if item.strip()]
-        if isinstance(value, (list, tuple)):
-            return list(value)
-        return value
+        if raw.startswith("["):
+            return json.loads(raw)
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return value
 
 
 @lru_cache

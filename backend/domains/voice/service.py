@@ -40,7 +40,15 @@ async def _fetch_audio(text: str, voice_id: str, model_id: str) -> bytes:
         )
     url = f"{settings.voice_base_url.rstrip('/')}/v1/text-to-speech/{voice_id}"
     headers = {"xi-api-key": settings.voice_api_key}
-    async with httpx.AsyncClient(timeout=settings.voice_timeout_s) as client:
+    from core.egress import hostname_of, make_egress_hook
+
+    async with httpx.AsyncClient(
+        timeout=settings.voice_timeout_s,
+        event_hooks={
+            # S-61: egress allowlist (voice_base_url разрешён как настроенный)
+            "request": [make_egress_hook(hostname_of(settings.voice_base_url) or "")]
+        },
+    ) as client:
         response = await client.post(
             url,
             headers=headers,

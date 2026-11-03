@@ -10,6 +10,7 @@ import logging
 import httpx
 
 from core.config import settings
+from core.egress import hostname_of, make_egress_hook
 from llm.base import LLMMessage, LLMProvider, LLMUnavailableError, LLMUsage
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,11 @@ class OpenAICompatProvider(LLMProvider):
             ),
             timeout=httpx.Timeout(settings.llm_timeout_s),
             transport=transport,
+            # S-61: egress allowlist; собственный base_url клиента разрешён
+            # явно (админ конфигурирует провайдера намеренно).
+            event_hooks={
+                "request": [make_egress_hook(hostname_of(self.base_url) or "")]
+            },
         )
 
     def is_configured(self) -> bool:

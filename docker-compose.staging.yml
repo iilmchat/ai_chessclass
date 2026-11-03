@@ -242,6 +242,9 @@ services:
     # Отдельный тег: staging-бинарь отличается от prod только брендом стадии.
     image: chessclass/frontend:${IMAGE_TAG:-0.3.0}-staging
     container_name: chessclass-staging-web
+    # S-61: CSP report-only до закрытия аудита (после — enforce, как в prod).
+    environment:
+      CSP_MODE: report-only
     ports:
       - "${WEB_PORT:-3202}:80"
     depends_on:

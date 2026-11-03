@@ -152,7 +152,15 @@ async def _send(payload: dict) -> int:
     if not settings.lrs_enabled or not settings.lrs_endpoint:
         raise RuntimeError("LRS не настроен")
     url = f"{settings.lrs_endpoint.rstrip('/')}/statements"
-    async with httpx.AsyncClient(timeout=settings.lrs_timeout_s) as client:
+    from core.egress import hostname_of, make_egress_hook
+
+    async with httpx.AsyncClient(
+        timeout=settings.lrs_timeout_s,
+        event_hooks={
+            # S-61: egress allowlist (lrs_endpoint разрешён как настроенный)
+            "request": [make_egress_hook(hostname_of(settings.lrs_endpoint) or "")]
+        },
+    ) as client:
         response = await client.put(
             url,
             params={"statementId": payload["id"]},

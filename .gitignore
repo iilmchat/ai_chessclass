@@ -17,6 +17,7 @@ frontend/blob-report/
 # --- env / secrets
 .env
 .env.staging
+.env.prod
 .env.local
 *.env
 

@@ -111,7 +111,17 @@ async def _send(chat_id: str, text: str) -> int:
         f"{settings.telegram_api_base.rstrip('/')}"
         f"/bot{settings.telegram_bot_token}/sendMessage"
     )
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    from core.egress import hostname_of, make_egress_hook
+
+    async with httpx.AsyncClient(
+        timeout=15.0,
+        event_hooks={
+            # S-61: egress allowlist (telegram_api_base разрешён как настроенный)
+            "request": [
+                make_egress_hook(hostname_of(settings.telegram_api_base) or "")
+            ]
+        },
+    ) as client:
         response = await client.post(
             url,
             json={"chat_id": chat_id, "text": text, "disable_web_page_preview": True},

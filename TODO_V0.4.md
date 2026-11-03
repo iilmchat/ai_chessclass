@@ -12,8 +12,8 @@ head `0028_rag_editor`).
 > Статусы: ☐ не начат · 🔶 в работе · ✅ готов · 🚫 блокер.
 > Оценка: **S** ≤ 3 дней · **M** ≤ 1 недели · **L** ≈ 2 недели.
 
-**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 3/12 закрыто (S-58 ✅,
-S-59 ✅ с ограничением voice, S-60 ✅); S-61…S-69 ☐.**
+**Сводно:** 12 спринтов / 4 этапа. **Прогресс: 4/12 закрыто (S-58 ✅,
+S-59 ✅ с ограничением voice, S-60 ✅, S-61 ✅); S-62…S-69 ☐.**
 Приоритет: **сначала staging и живая приёмка провайдеров, затем edge/CI,
 продуктовая полнота UI и интеграции**. v0.4 — этап готовности к реальному
 запуску, а не фичер-релиз: новых доменов нет.
@@ -106,15 +106,26 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 
 ## E-22 · Edge, supply chain и ворота CI (S-61…S-63)
 
-### S-61 ☐ CSP и egress allowlist
-- [ ] CSP report-only на staging (аудит inline-стилей Vite) → enforce в
+### S-61 ✅ CSP и egress allowlist (2026-11-03)
+- [x] CSP report-only на staging (аудит inline-стилей Vite) → enforce в
       `frontend/nginx.conf` и `deploy/nginx/edge.conf`
-- [ ] egress allowlist для LLM/voice/Telegram/LRS: `ALLOWED_EGRESS_HOSTS` +
+- [x] egress allowlist для LLM/voice/Telegram/LRS: `ALLOWED_EGRESS_HOSTS` +
       проверка в httpx-клиентах
 - **DoD:** `Content-Security-Policy` в staging/prod, 0 violations в e2e;
-  egress-тест краснеет при обходе allowlist.
-- **Depends:** S-58 · **Effort:** L · **Закрывает:** XSS-поверхность и
-  неконтролируемый egress для детского prod (security-review §4).
+  egress-тест краснеет при обходе allowlist. ✅
+  (2026-11-03: CSP излучается web-nginx — enforce в prod/e2e, report-only на
+  staging по `CSP_MODE`; edge не дублирует; egress-hook на 4 исходящих
+  клиентах + bypass-тест; 216 backend-тестов; отчёт —
+  `docs/sprint-reports/S-61-2026-11-03.md`)
+- **Реализация:** CSP — `frontend/nginx.conf` (enforce) +
+  `frontend/docker-entrypoint.d/40-csp.sh` (`CSP_MODE`), staging compose —
+  `report-only`; egress — `backend/core/egress.py` (hook `make_egress_hook`,
+  подписано в `llm/client.py`, `voice/telegram/lms service`);
+  env `ALLOWED_EGRESS_HOSTS` (все примеры), `env_ignore_empty` в Settings.
+- **Отчёт:** `docs/sprint-reports/S-61-2026-11-03.md`.
+- **Depends:** S-58 ✅ · **Effort:** L (фактически S) · **Закрывает:**
+  XSS-поверхность и неконтролируемый egress для детского prod (security
+  review §4).
 
 ### S-62 ☐ Hash-lock и воспроизводимая сборка
 - [ ] `pip-compile --generate-hashes` → `backend/requirements.lock` +
