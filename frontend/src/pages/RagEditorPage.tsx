@@ -191,7 +191,7 @@ export function RagEditorPage() {
     return (
       <section>
         <h1 className="page-title">RAG-база знаний</h1>
-        <p className="page-subtitle">Редактура доступна после входа</p>
+        <p className="page-subtitle" role="status" aria-live="polite">Редактура доступна после входа</p>
         <LoginGate hint="Панель учителя/админа" onReady={() => setAuthed(true)} />
       </section>
     );
@@ -210,7 +210,7 @@ export function RagEditorPage() {
   return (
     <section>
       <h1 className="page-title">RAG-база знаний</h1>
-      <p className="page-subtitle">
+      <p className="page-subtitle" role="status" aria-live="polite">
         Список / редактор / версии / импорт / поиск / eval (S-64) ·{' '}
         {busy || notice || '—'}
         <button
@@ -224,7 +224,7 @@ export function RagEditorPage() {
           Выйти
         </button>
       </p>
-      {error && <p className="verdict failed-note">{error}</p>}
+      {error && <p role="status" aria-live="assertive" className="verdict failed-note">{error}</p>}
 
       {/* --- Eval (gold-set) --- */}
       {evalReport && (
@@ -440,6 +440,8 @@ export function RagEditorPage() {
         <h2>Импорт (.md/.markdown/.txt/.pdf)</h2>
         <input
           type="file"
+          aria-label="Файл для импорта"
+          className="field"
           accept=".md,.markdown,.txt,.pdf"
           onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
         />

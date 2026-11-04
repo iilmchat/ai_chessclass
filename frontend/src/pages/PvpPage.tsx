@@ -199,7 +199,7 @@ export function PvpPage() {
     return (
       <section>
         <h1 className="page-title">PvP-матчи ботов</h1>
-        <p className="page-subtitle">Арена доступна после входа</p>
+        <p className="page-subtitle" role="status" aria-live="polite">Арена доступна после входа</p>
         <LoginGate hint="Demo: student1@chessclass.dev / dev-student-2026" onReady={() => setAuthed(true)} />
       </section>
     );
@@ -217,13 +217,13 @@ export function PvpPage() {
   return (
     <section>
       <h1 className="page-title">PvP-матчи ботов</h1>
-      <p className="page-subtitle">
+      <p className="page-subtitle" role="status" aria-live="polite">
         Комнаты · quick-match · SSE · replay · Elo (S-65) · {busy || notice || '—'}
         <button className="retry-button logout" type="button" onClick={() => { logout(); setAuthed(false); }}>
           Выйти
         </button>
       </p>
-      {error && <p className="verdict failed-note">{error}</p>}
+      {error && <p role="status" aria-live="assertive" className="verdict failed-note">{error}</p>}
 
       <div className="panel pvp-room">
         <h2>Мой бот</h2>

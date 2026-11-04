@@ -81,7 +81,7 @@ export function ComplaintsPage() {
     return (
       <section>
         <h1 className="page-title">Очередь жалоб PvP</h1>
-        <p className="page-subtitle">Разбор доступен после входа</p>
+        <p className="page-subtitle" role="status" aria-live="polite">Разбор доступен после входа</p>
         <LoginGate hint="Разбор жалоб — учитель/админ" onReady={() => setAuthed(true)} />
       </section>
     );
@@ -98,7 +98,7 @@ export function ComplaintsPage() {
   return (
     <section>
       <h1 className="page-title">Очередь жалоб PvP</h1>
-      <p className="page-subtitle">
+      <p className="page-subtitle" role="status" aria-live="polite">
         open → reviewed / rejected (S-65, вердикт за учителем) · {busy || notice || '—'}
         <button
           className="retry-button logout"
@@ -111,7 +111,7 @@ export function ComplaintsPage() {
           Выйти
         </button>
       </p>
-      {error && <p className="verdict failed-note">{error}</p>}
+      {error && <p role="status" aria-live="assertive" className="verdict failed-note">{error}</p>}
 
       <div className="panel">
         <div className="rag-toolbar">

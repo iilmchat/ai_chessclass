@@ -87,7 +87,7 @@ export function ReviewPage() {
         SM-2: карточки ошибок Python и шахмат, дневной лимит{' '}
         {queue?.dailyLimit ?? stats?.dailyLimit ?? 20}
       </p>
-      {error && <p className="verdict failed-note">{error}</p>}
+      {error && <p role="status" aria-live="assertive" className="verdict failed-note">{error}</p>}
 
       {stats && (
         <div className="panel">

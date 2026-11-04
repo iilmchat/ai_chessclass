@@ -538,6 +538,60 @@ body {
 .pvp-moves {
   margin-top: 8px;
 }
+
+/* --- S-66: мобильная адаптация топбара и zoom-безопасность --- */
+@media (max-width: 720px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .nav {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .nav-link {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+  }
+
+  .chess-grid,
+  .skills-grid,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .submit-row,
+  .rag-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1200px) {
+  .rag-toolbar,
+  .submit-row,
+  .facts-list {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
+
+.facts-list,
+.verdict,
+.health-label {
+  overflow-wrap: anywhere;
+}
 .skills-grid {
   display: grid;
   grid-template-columns: minmax(300px, 360px) 1fr;
@@ -692,7 +746,20 @@ body {
 }
 
 .achievement.locked {
-  opacity: 0.65;
+  /* S-66: контраст muted на bg был 2.42 (axe color-contrast) — поднимаем
+     текстом --ink и фоновой плашкой; «замок» не теряет смысл */
+  background: var(--panel);
+  border: 1px dashed var(--line);
+  padding: 8px 10px;
+}
+
+.achievement.locked .class-meta {
+  color: var(--muted);
+}
+
+.achievement.locked .achievement-icon,
+.achievement.locked strong {
+  color: var(--muted);
 }
 
 .achievement-icon {

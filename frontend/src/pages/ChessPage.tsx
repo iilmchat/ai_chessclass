@@ -674,6 +674,7 @@ export function ChessPage() {
           <h2>Инсайт</h2>
           <select
             className="field"
+            aria-label="Уровень объяснения"
             value={level}
             onChange={(e) => setLevel(e.target.value)}
           >

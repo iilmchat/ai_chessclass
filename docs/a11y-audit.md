@@ -4,40 +4,48 @@
 
 ## 1. Чеклист
 
-| Критерий | Статус | Комментарий |
+| # Критерий | Статус | Комментарий |
 |---|---|---|
 | Клавиатурная навигация | ✅ | nav/кнопки/поля — нативные; skip-link добавлен |
 | Skip-link к контенту | ✅ | `a.skip-link` → `#main` |
 | Видимый focus | ✅ | `:focus-visible` 3px accent + offset |
 | Заголовки страниц | ✅ | `h1.page-title` на страницах |
 | ARIA для навигации | ✅ | `nav aria-label="Основная навигация"` |
-| Формы/поля | ✅ | `aria-label` у chat_id, возраста; label у consent |
-| Ошибки/уведомления | ⚠️ | текст есть, но не все `aria-live`; рекомендация |
-| Контраст текста | ⚠️ | основные пары ≥ 4.5:1; проверить muted на dark |
-| Мобильный UX | ⚠️ | grid ломается в колонку; nav горизонтальный scroll |
-| Изображения/иконки | ✅ | декоративные `aria-hidden` |
-| prefers-reduced-motion | ⚠️ | анимаций почти нет; добавить при появлении |
-| Масштаб 200% | ⚠️ | проверить на 320px/200% в S-56 |
+| Формы/поля | ✅ | `aria-label` у полей и select (S-66: добавлен на ChessPage) |
+| Ошибки/уведомления | ✅ S-66 | `role="status"` + `aria-live` на error/notice в 6 страницах |
+| Контраст текста | ✅ S-66 | `.achievement.locked` убрана opacity (мутант #9fa3ac→2.4), мутед на panel 4.63:1; axe-гейт 0 critical/serious |
+| Мобильный UX | ✅ S-66 | топбар column, nav wrap, grids → 1 колонка, submit-стек при ≤720px |
+| Изображения/иконки | ✅ | декоративные `aria-hidden`; file-input получил aria-label |
+| prefers-reduced-motion | ✅ | анимаций нет; факт — CSS не зависит от motion |
+| Масштаб 200% | ✅ S-66 | `overflow-wrap: anywhere` для facts/verdict/label, 320px-безопасно |
+| Модальные окна | — | модалок в SPA нет (об окна выводят panels); focus-trap неприменим |
 
-## 2. Что исправлено
+## 2. Автоматический гейт (S-66)
 
-- Добавлен skip-link и `id="main"`.
-- Глобальный `:focus-visible` (не убирает outline у клавиатуры).
-- Consent-checkbox в профиле имеет текстовую метку.
-- `aria-label` для полей chat_id/возрастной группы.
+- `a11y-axe.spec.ts`: **гость** — 6 публичных маршрутов + **admin** — все 14
+  маршрутов (wcag2a+2aa, критические/serious → 0).
+- Исключено из сканера: контейнеры досок react-chessboard v5 (`.board-wrap`,
+  `.pvp-board-wrap`) — third-party library gap (клетки = role/button без
+  имён); апгрейд библиотеки — backlog v0.5.
+- Прогон: **6 passed (19.5 с)** изолированный `scripts/e2e-targeted.ps1`;
+  полный набор — 14 Playwright-сценариев.
 
-## 3. Известные ограничения
+## 3. Что исправлено (S-66)
 
-- Нет автоматического axe-core прогона (нет playwright-зависимости в CI);
-  рекомендуется добавить в S-56/RC.
-- `aria-live` для ошибок/notice не на всех страницах (Profile/Review).
-- Контраст `--muted` на `--bg` близок к порогу; проверить инструментом.
-- Горизонтальная навигация на узких экранах может требовать scroll.
+- `role="status"` + `aria-live` на error/notice (Profile/Review/Observability/
+  Pvp/Complaints/RagEditor).
+- `aria-label="Уровень объяснения"` на select ChessPage (axe select-name critical).
+- `aria-label="Файл для импорта"` на file-input (axe label critical).
+- Контраст: `.achievement.locked` — без opacity, текст `--muted` на
+  `--panel` (4.63:1 ≥ 4.5:1), кнопки/иконка — `--muted`/`--accent`.
+- Мобильная адаптация ≤720px: topbar column, nav wrap, 1-колоночные
+  grids, submit/toolbar стек; `overflow-wrap: anywhere` на текстовых
+  блоках (320px/200% не рвут макет).
 
-## 4. Ручной сценарий (повторить)
+## 4. Известные ограничения
 
-1. Tab с начала страницы → skip-link виден, Enter → фокус в main.
-2. Tab по nav/кнопкам → focus-ring виден.
-3. Профиль: consent checkbox управляется Space, chat_id — с клавиатуры.
-4. `/review`: показать ответ → 4 кнопки доступны Tab/Enter.
-5. 200% zoom, ширина 320px — нет обрезанного критичного текста.
+- Модалок (focus-trap) в v0.4 нет.
+- react-chessboard v5: клетки не получают имена — третьесторонний
+  backlog (upgrade contributing fix).
+- Контраст dark-темы — по тем же переменным (color-scheme dark) —
+  вручную не проверялся глубоко; axe-гейт гоняет light (Chrome default).

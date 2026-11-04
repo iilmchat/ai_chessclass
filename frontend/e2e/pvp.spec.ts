@@ -74,7 +74,10 @@ test('PvP: два браузера играют матч, жалоба закр�
     data: { botVersionId: hostBotId, rated: true },
     headers: { Authorization: `Bearer ${hostToken}` },
   });
-  expect(room.status()).toBe(201);
+  expect(
+    room.status(),
+    `create room: HTTP ${room.status()} ${await room.text()}`,
+  ).toBe(201);
   const code = ((await room.json()) as { code: string }).code;
 
   const pageHost = await asPage(browser, hostToken);

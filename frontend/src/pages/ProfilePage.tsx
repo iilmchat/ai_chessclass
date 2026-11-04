@@ -169,7 +169,7 @@ export function ProfilePage() {
           Выйти
         </button>
       </p>
-      {error && <p className="verdict failed-note">{error}</p>}
+      {error && <p role="status" aria-live="assertive" className="verdict failed-note">{error}</p>}
       {notice && <p className="link-hint">{notice}</p>}
 
       {profile && (
