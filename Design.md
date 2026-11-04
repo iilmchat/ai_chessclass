@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.3.0 · **Дата:** 2026-11-03
+**Версия:** v0.4.0 · **Дата:** 2026-11-04
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 

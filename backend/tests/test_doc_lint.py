@@ -49,7 +49,7 @@ def test_collect_versions_consistent() -> None:
     versions = doc_lint._collect_versions(REPO)
 
     assert versions
-    assert all(value == "0.3.0" for value in versions.values())
+    assert all(value == "0.4.0" for value in versions.values())
 
 
 def test_stale_markers_detected(tmp_path: Path) -> None:

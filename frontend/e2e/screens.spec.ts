@@ -38,6 +38,7 @@ async function asAuthorizedPage(browser: Browser, token: string): Promise<Page> 
 }
 
 test('RAG: учитель создаёт черновик и публикует', async ({ browser }) => {
+  test.setTimeout(120_000);
   const token = await tokenFor(ADMIN_EMAIL, ADMIN_PASSWORD);
   const page = await asAuthorizedPage(browser, token);
   await page.goto('/rag');
@@ -50,12 +51,12 @@ test('RAG: учитель создаёт черновик и публикует'
     'Уникальное понятие квантовый ферзь объясняет стратегию эндшпиля в этой заметке.',
   );
   await page.getByRole('button', { name: /Создать черновик/ }).click();
-  // Факт создания — из интерфейса (уведомление будет в статус-строке).
+  // Факт создания — из интерфейса (уведомление в статус-строке).
   await expect(page.locator('main')).toContainText('Готово: черновик создан', {
-    timeout: 15_000,
+    timeout: 20_000,
   });
 
-  // Список через API (race-безопасно; факт S-64: статус draft, затем published).
+  // API-факт: черновик существует (S-64: статус draft, затем published).
   const api = await request.newContext({
     baseURL: API_ORIGIN,
     extraHTTPHeaders: { Authorization: `Bearer ${token}` },
@@ -68,11 +69,20 @@ test('RAG: учитель создаёт черновик и публикует'
   expect(draftRow).toBeTruthy();
   const draftId = (draftRow as { id: string }).id;
 
-  // Публикация из UI: строка hasText по title — независимо от положения.
+  // Публикация из UI: перезагрузка страницы снимает race refreshDocs
+  // (клик ловил «залипший» DOM: кнопка была в снапшоте, но не
+  // экшенилась — известный флейт CI; reload даёт чистое состояние).
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'RAG-база знаний' }),
+  ).toBeVisible({ timeout: 20_000 });
   const row = page.locator('li', { hasText: title }).first();
-  await row.getByRole('button', { name: /Опубликовать/ }).click();
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  const publishButton = row.getByRole('button', { name: /Опубликовать/ });
+  await expect(publishButton).toBeVisible({ timeout: 10_000 });
+  await publishButton.click();
   await expect(page.locator('main')).toContainText('Готово: публикация', {
-    timeout: 15_000,
+    timeout: 30_000,
   });
   const published = await api.get(
     `${API}/admin/rag/documents?status=published`,

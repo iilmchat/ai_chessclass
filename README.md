@@ -4,7 +4,7 @@
 лаборатория с разбором партий, конструктор ботов с лестницей Elo и когнитивный
 дашборд навыков — **один профиль, один уровень, один LLM-ассистент** на все домены.
 
-**Версия:** v0.3.0 (12/12 спринтов, релиз) · **Предыдущая:** v0.2.1
+**Версия:** v0.4.0 (12/12 спринтов, релиз) · **Предыдущая:** v0.2.1
 ([TODO_V0.2.md](TODO_V0.2.md)) · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
@@ -71,6 +71,11 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
 - **Auth-hardening (S-47)** — RS256/JWKS, аудит логинов/ролей, auditor scope,
   PII-анонимизация.
 - **Prod** — edge TLS/HSTS, бэкапы/restore, runbook (S-38).
+- **v0.4.0 (S-58…S-69)** — staging-контур (S-58), egress allowlist и CSP
+  (S-61), hash-lock-сборка backend (S-62), CI-гейты + gitleaks + load-cron
+  (S-63), gold-set eval и RAG-редактор (S-64), PvP-жалобы (S-65), a11y-гейт
+  axe на 20 маршрутов и e2e 14 сценариев (S-66), LRS OAuth2 + LMS-mapping
+  (S-67), Telegram webhook и teacher-события (S-68), релиз v0.4.0 (S-69).
 
 ---
 
@@ -125,15 +130,15 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v0.3.0** (2026-11-03, релиз) |
-| Спринты | **12/12** (S-46…S-57), этапы E-17…E-20 ✅ |
+| Версия | **v0.4.0** (2026-11-04, релиз) |
+| Спринты | **40/40** (S-30…S-69), этапы E-11…E-24 ✅ |
 | Тесты backend | **235 passed** (число собранных тестов; факт — 232 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **14 passed** (Playwright: journey 7 + axe 2 + PvP 1 + RAG/review/ops/telegram 4) |
 | Миграции | Alembic head **0030_s67_lms_oauth** (30) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
-| Следующий этап | **v0.4** — план [TODO_V0.4.md](TODO_V0.4.md) |
+| Следующий этап | backlog v0.5 (live-TTS ElevenLabs, react-chessboard a11y, LRS-провайдер) |
 
 ---
 
@@ -146,8 +151,8 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [docs/RULES.md](docs/RULES.md) — процесс: спринты, git, docker-безопасность, отчёт
 - [TODO_V0.2.md](TODO_V0.2.md) — завершённый план v0.2.0 (S-30…S-45)
 - [TODO_V0.3.md](TODO_V0.3.md) — завершённый план v0.3.0 (S-46…S-57)
-- [TODO_V0.4.md](TODO_V0.4.md) — план v0.4.0 (S-58…S-69)
-- [docs/release-notes-v0.3.0.md](docs/release-notes-v0.3.0.md) — release notes v0.3.0
+- [TODO_V0.4.md](TODO_V0.4.md) — завершённый план v0.4.0 (S-58…S-69)
+- [docs/release-notes-v0.4.0.md](docs/release-notes-v0.4.0.md) — release notes v0.4.0
 - [TODO_V0.1.md](TODO_V0.1.md) — архив плана v0.1.0 (S-01…S-29)
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — изменения по спринтам
 - [docs/runbooks/llm-gateway.md](docs/runbooks/llm-gateway.md) — LLM-шлюз: ключи, health, fallback

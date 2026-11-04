@@ -2,12 +2,51 @@
 
 Формат — по мотивам [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/);
 версии соответствуют этапам дорожной карты (`TODO_V0.1.md` — архив,
-`TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0). Детали — в
-`docs/sprint-reports/`.
+`TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
+Детали — в `docs/sprint-reports/`.
 
-## [Unreleased]
+## [v0.4.0] — 2026-11-04
 
 ### Добавлено
+
+#### S-69 — Релиз v0.4.0 (2026-11-04)
+- Версия 0.4.0 (backend/frontend/API/IMAGE_TAG), миграция head 0030,
+  e2e 14 сценариев, backend 235 collected.
+- Тег `v0.4.0`, release-notes `docs/release-notes-v0.4.0.md`, runbook
+  `docs/runbooks/release-v0.4.0.md`; staging/prod приёмка — фиксированные
+  ограничения (живые ключи unavailable локально) в runbook §5.
+- Backlog v0.5: live-TTS ElevenLabs (geo-block), react-chessboard v5
+  a11y, live LRS-провайдер, gamification.
+
+#### S-68 — Telegram webhook, teacher-события, алерты (2026-11-04)
+- `POST /telegram/webhook`: secret `TELEGRAM_WEBHOOK_SECRET`
+  (X-Telegram-Bot-Api-Secret-Token; пусто → 404), `/start <link_code>`
+  — связывание через Redis-код, `/stop` — отписка, прочее — help;
+  long-poll fallback `poll_updates_once` (getUpdates, offset в Redis,
+  Redis-лок) + worker-cron `telegram_poll` (2 мин).
+- Teacher-события: `enqueue_teacher_events` учителям всех классов
+  ученика (kind: submission/tournament/complaint; хуки в progress/
+  tournaments/pvp); алерты `telegram_outbox_failed` и
+  `lrs_deliveries_failed` в `/ops`.
+- Тесты `test_telegram_webhook.py` (+8); env во всех `.env*.example`.
+
+#### S-67 — LRS OAuth2 и LMS-mapping (2026-11-04)
+- Миграция `0030_s67_lms_oauth`: `lms_courses`, `lms_class_map`
+  (class unique, activity_ref), FK на classes/lms_courses.
+- OAuth2 client_credentials (`lrs_oauth_*`): Bearer с токен-кэшем и
+  refresh за 60 c до expiry; Basic — fallback; `lrs_oauth_token_url`
+  в egress-allowlist. CRUD `/admin/lms/courses|class-map` +
+  `/oauth-status` (audit, teacher/admin read); skill-объекты мапнутых
+  классов ссылаются на activity_ref курса.
+- Админ-панель LMS в `/ops`; тесты `test_lms_oauth.py` (+5).
+
+#### S-66 — A11y/mobile гейт и e2e 14 (2026-11-03)
+- axe-core гейт 2 теста (гость 6 маршрутов + admin все 14,
+  wcag2a/2aa); aria-live 6 страниц; контраст `.achievement.locked`
+  2.42→4.63:1; select/file-input aria-label; mobile ≤720px +
+  `overflow-wrap` (320px/200%); a11y-audit.md — все пункты зелёные.
+- e2e `screens.spec.ts` +4 (RAG publish/review/ops/telegram-link) —
+  UI-e2e **14**; infer react-chessboard v5 cells — third-party backlog.
 
 #### S-65 — PvP UI и workflow жалоб (2026-11-03)
 - Страница `/pvp` (любая роль): выбор бота (rated-флаг), создание комнаты,
@@ -730,4 +769,7 @@
 ## Статусы версий
 
 - **v0.1.0** — выпущен 2026-11-01 (тег `v0.1.0`, 29/29 спринтов).
-- **v0.2.0** — планируется; активный план — `TODO_V0.2.md`.
+- **v0.2.0** — выпущен 2026-11-02 (16/16 спринтов).
+- **v0.2.1** — выпущен 2026-11-02.
+- **v0.3.0** — выпущен 2026-11-03 (12/12 спринтов).
+- **v0.4.0** — выпущен 2026-11-04 (12/12 спринтов S-58…S-69).
