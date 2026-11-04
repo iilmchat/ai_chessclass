@@ -1,6 +1,7 @@
-# Security-ревью (S-55)
+# Security-ревью (S-55, обновлено S-71)
 
-**Дата:** 2026-11-03 · OWASP-чеклист, зависимости, secrets scan.
+**Дата:** 2026-11-03 · **Обновление:** 2026-11-04 (S-71) · OWASP-чеклист,
+зависимости, secrets scan, OWASP LLM Top 10.
 
 ## 1. Итог
 
@@ -50,7 +51,48 @@ docker compose -f docker-compose.dev.yml run --rm api sh -c \
 - Telegram token в URL API (httpx не логирует URL по умолчанию); нельзя
   включать debug-логи httpx в prod.
 
-## 5. Рекомендации к S-56
+## 5. OWASP LLM Top 10 — меры S-71
+
+| Категория | Статус | Меры |
+|---|---|---|
+| LLM01 Prompt Injection | ✅ | Структурная изоляция trusted/untrusted в `builder.py`; санитизация служебных токенов и role-меток; adversarial-тесты |
+| LLM02 Insecure Output Handling | ✅ | `guard_llm_output` нейтрализует опасный HTML/JS; API отдаёт JSON, React рендерит текст без `dangerouslySetInnerHTML` |
+| LLM03 Supply Chain | ⚠️ | hash-lock + `pip-audit` (S-62); ревизия LLM-зависимостей — регулярно |
+| LLM04 Model DoS | ⚠️ | квоты/лимиты токенов и таймауты; token-aware rate limits — бэклог |
+| LLM05 Vector/Embedding Weaknesses | ⚠️ | retrieval только `published`, RAG-блок изолирован как untrusted; provenance источников — в развитии |
+| LLM06 Sensitive Information Disclosure | ✅ | Редактирование секретоподобных строк в промпте и ответе; логи без текста промптов/ответов |
+| LLM07 Insecure Plugin Design | n/a | tool-calling/плагинов у LLM нет |
+| LLM08 Excessive Agency | ⚠️ | LLM только генерирует текст; действия выполняет backend по RBAC |
+| LLM09 Overreliance | ⚠️ | античит — только флаги, финальное решение за учителем (ADR-005) |
+| LLM10 Model Theft | n/a | модели внешних провайдеров, весов локально нет |
+
+**LLM01 (Prompt Injection).** `llm/prompts/builder.py` собирает
+user-сообщение из четырёх блоков: `<trusted_instructions>`,
+`<trusted_facts>`, `<untrusted_user_input>`, `<untrusted_rag_context>`.
+Код и вопрос ученика больше не попадают в trusted facts (в т.ч. в
+`anticheat/judge.py`). `llm/security.py` санитизирует `<|im_start|>`,
+`<|im_end|>`, `[INST]`, `<<SYS>>`, role-метки (`system:`, `assistant:`),
+JSON-роль и попытки закрыть trusted-теги. Системный промпт всех маршрутов
+содержит `SECURITY_RULES`; `PROMPT_VERSIONS` поднят до 2. Матрица атак —
+`backend/tests/test_prompt_injection.py`.
+
+**LLM02 (Insecure Output Handling).** `guard_llm_output` в gateway
+нейтрализует `<script>/<iframe>/<img>/<svg>/…`, `on*`-обработчики,
+`javascript:` и `data:text/html`; в лог пишутся только имена находок, без
+содержимого ответа. Фронтенд не использует `dangerouslySetInnerHTML` —
+ответы отображаются как текст, поэтому HTML не исполняется.
+
+**LLM06 (Sensitive Information Disclosure).** `redact_secrets` заменяет
+`sk-*`, `ghp_*`, `github_pat_*`, `AIza*`, Bearer-токены, PEM-ключи и
+присваивания `api_key/secret/password/token` как во входящем промпте, так
+и в ответе модели. Секреты не логируются; диагностика output guard
+содержит только категории находок.
+
+**CI-гейты RAG (S-71).** После seeds в `.github/workflows/ci.yml` и
+`scripts/ci.ps1` блокирующе запускаются `scripts/chess_rag_eval.py`
+(MISS → exit 1) и `scripts/rag_gold_check.py` (мёртвый gold-кейс → exit 1).
+
+## 6. Рекомендации к S-56
 
 1. `pip-compile --generate-hashes` + constraints для prod.
 2. CSP report-only, затем enforce.

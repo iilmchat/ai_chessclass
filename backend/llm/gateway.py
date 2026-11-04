@@ -22,6 +22,7 @@ from llm.client import OpenAICompatProvider
 from llm.echo import EchoProvider
 from llm.models_registry import MODELS
 from llm.routes import get_route, resolve_tier
+from llm.security import guard_llm_output
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +151,14 @@ async def llm_generate(
             continue
 
         await cb.record_success(step.key)
+        guarded = guard_llm_output(text)
+        if guarded.suspicious:
+            # Содержимое ответа не логируем: только имена находок (LLM02/LLM06).
+            logger.warning(
+                "llm output guard: route=%s model=%s findings=%s",
+                route, step.model_used, ",".join(guarded.findings),
+            )
+        text = guarded.text
         latency_ms = int((time.monotonic() - started) * 1000)
         status = (
             economy.STATUS_OK if step.model_used != "echo" else economy.STATUS_ECHO

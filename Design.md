@@ -683,6 +683,11 @@ cloud RouterAI (по маршруту) → local LM Studio :1234 (если вк�
   (opening/middlegame/endgame), тема (blunder), ключевые термины; поверх
   vector-поиска — лексический rerank (стемминг, title/phase boost). В ответе
   и meta позиции — `knowledge[]`; ошибка RAG не ломает факты SF.
+- S-71 (ADR-018): user input и RAG-фрагменты передаются в `<untrusted_*>`-
+  блоках, инструкции/факты — в `<trusted_*>`; `llm/security.py` санитизирует
+  служебные токены, редактирует секреты в промпте/ответе и нейтрализует
+  опасный HTML/JS (LLM01/LLM02/LLM06). Output guard пишет в лог только
+  категории находок, без содержимого ответа.
 - Формат ответа в v0.1: текст + `facts` (JSON из engine_facts, если был
   вызов движка) — финальный контракт в SPEC.
 
@@ -1104,8 +1109,9 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
   отдельно); CSRF-less (JWT-only SPA; cookie — только refresh, SameSite=Lax).
 - Секреты только в `.env` (шаблон `.env.example`), в документах — имена
   переменных, не значения.
-- Инъекции: prompts — санитизация пользовательских данных (обрезка,
-  экранирование `system`-разделителей).
+- Инъекции: prompts — фиксированная структура trusted/untrusted, санитизация
+  служебных токенов (`<|im_start|>`, `[INST]`, role-метки); RAG/код ученика —
+  untrusted; секретоподобные строки редактируются (S-71, ADR-018).
 - Заголовки: `X-Content-Type-Options`, `X-Frame-Options`, HSTS (prod).
 
 ---
@@ -1255,6 +1261,9 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 | Frontend | vitest + RTL (ключевые экраны) | средний |
 | e2e | Playwright (7 сценариев: регистрация → задание → бот-матч → дашборд) | высокий |
 
+- S-71: после seeds CI блокирующе запускает `chess_rag_eval.py` (MISS →
+  exit 1) и `rag_gold_check.py` (мёртвый gold-кейс → exit 1); локально —
+  `scripts/ci.ps1`.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

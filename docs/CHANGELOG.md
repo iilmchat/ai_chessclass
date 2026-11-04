@@ -9,6 +9,14 @@
 
 ### Добавлено
 
+#### S-71 — OWASP LLM Hardening & CI Eval (2026-11-04)
+- Instruction isolation в `prompts/builder.py`: trusted/untrusted-блоки,
+  санитизация служебных токенов и role-меток (LLM01).
+- Output guardrails `llm/security.py`: нейтрализация HTML/JS (LLM02) и
+  редактирование секретоподобных строк в промпте/ответе (LLM06).
+- Блокирующие RAG-гейты в CI: `chess_rag_eval.py` и `rag_gold_check.py`.
+- Adversarial-матрица `tests/test_prompt_injection.py`; `PROMPT_VERSIONS` → 2.
+
 #### S-70 — LLM Gateway Resilience (2026-11-04)
 - Redis circuit breaker провайдеров (`closed`/`open`/`half_open`, 5 ошибок
   за 60 с, recovery 60 с, один probe через `SET NX`).

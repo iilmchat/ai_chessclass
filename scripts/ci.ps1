@@ -18,6 +18,9 @@ if (-not $SkipStack) {
     Write-Host "[ci] seeds..."
     docker compose -f $compose run --rm seed
     if ($LASTEXITCODE -ne 0) { throw "seed failed" }
+    Write-Host "[ci] RAG eval gates (S-71, blocking)..."
+    docker compose -f $compose run --rm api sh -c "python scripts/chess_rag_eval.py && python scripts/rag_gold_check.py"
+    if ($LASTEXITCODE -ne 0) { throw "rag eval failed" }
 }
 
 Write-Host "[ci] ruff + mypy + pytest (in container)..."
