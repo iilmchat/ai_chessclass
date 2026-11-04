@@ -126,7 +126,9 @@ async def test_readyz_details(make_client):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ready"
-    assert body["version"] == "0.3.0"
+    from app import __version__ as app_version
+
+    assert body["version"] == app_version
     assert body["db"]["ok"] is True
     assert body["db"]["migrationsUpToDate"] is True
     assert body["db"]["revision"] == body["db"]["head"]
