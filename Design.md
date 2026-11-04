@@ -1264,6 +1264,10 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 - S-71: после seeds CI блокирующе запускает `chess_rag_eval.py` (MISS →
   exit 1) и `rag_gold_check.py` (мёртвый gold-кейс → exit 1); локально —
   `scripts/ci.ps1`.
+- S-72: backend — **259 собранных тестов** (256 passed + 3 skipped);
+  RLS-изоляция проверяется сырым SQL без `WHERE` в `tests/test_rls_isolation.py`
+  (учитель A/B, admin, переключение A→B→A, `relrowsecurity`/`relforcerowsecurity`).
+  Миграций — **31**, head `0031_s72_rls_isolation`.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
@@ -1367,7 +1371,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 | ADR-012 | Матчи — arq очередь `matches`, concurrency 2, нулевой LLM-расход — **superseded S-37** | per-queue workers 2/1/1/1 + лимит 5 активных | 2026-10-31 |
 | ADR-013 | Порты смещены: pg 5436→**5438**, redis 6383→**6384** (KI-001: заняты контейнерами ai_teacher); внутри сети — родные 5432/6379 | не трогаем чужие контейнеры; сверка со свободными портами | 2026-10-31 |
 | ADR-014 | staging-контур (`docker-compose.staging.yml`) с собственными портами pg **5440**, redis **6387**, api **8032**, web **3202**, edge **8080/8443** и volumes `chessclass_staging_*`; e2e redis 6385→**6386** (KI-001: 6385 занят `ai-chess-annotator-redis-1`) | staging не пересекается с dev/prod и чужими контейнерами; честная приёмка перед prod | 2026-11-03 |
-| ADR-015 | Изоляция данных на уровне БД: PostgreSQL Row-Level Security (RLS) и контекст тенанта `class_id` | Изоляция классов сейчас только в коде (RBAC); при добавлении новых эндпоинтов есть риск утечки данных между классами/учителями | 2026-11-05 |
+| ADR-015 | Изоляция данных на уровне БД: PostgreSQL RLS по `user_id` (членство в классе) и контекст `app.current_user_id` / `app.current_user_role` | Изоляция классов сейчас только в коде (RBAC); при добавлении новых эндпоинтов есть риск утечки данных между классами/учителями | 2026-11-05 |
 | ADR-016 | Идемпотентность асинхронных задач и Dead Letter Queue (DLQ) | `run_match` и `analyze_game` могут дублироваться при рестарте воркера; нет видимости упавших задач | 2026-11-05 |
 | ADR-017 | Сквозная трассировка (OpenTelemetry) с прокидыванием `trace_id` через API → arq → LLM | Текущий `x-request-id` не связывает HTTP-запрос, фоновую задачу и вызов LLM в единую цепочку | 2026-11-05 |
 | ADR-018 | Защита от Prompt Injection (OWASP LLM01): структурное разделение trusted/untrusted контента | В `builder.py` RAG-документы и ввод пользователя склеиваются без изоляции, что открывает путь к indirect prompt injection | 2026-11-05 |
@@ -1378,8 +1382,8 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 
 **ADR-015: Изоляция данных на уровне БД (RLS)**
 *   **Контекст:** Изоляция классов сейчас держится только на фильтрах в коде (RBAC). При добавлении нового эндпоинта есть риск забыть фильтр и допустить cross-tenant утечку.
-*   **Решение:** Внедряем PostgreSQL Row-Level Security (RLS). В учебные таблицы (`bot_stats`, `cognitive_skill_events`, `anticheat_flags`) добавляется `class_id`. В `core/db.py` внедряется механизм установки контекста (`SET LOCAL app.current_class_id`), и RLS автоматически фильтрует данные на уровне СУБД.
-*   **Последствия:** Усложнение миграций и `session_factory`. Необходимо заполнить `class_id` для старых данных.
+*   **Решение:** Внедряем PostgreSQL Row-Level Security (RLS) на таблицах `bot_stats`, `cognitive_skill_events`, `anticheat_flags`. Политика разрешает строку, если текущая роль — `admin`, строка принадлежит самому пользователю или её `user_id` состоит в классе, где `classes.teacher_id` = `app.current_user_id`; принадлежность выводится через `class_members`, без денормализации `class_id`. Контекст задаётся в `core/db.py` транзакционно-локально (`set_config(..., true)` = `SET LOCAL`) в событии `after_begin`; приложение переключается на роль `chess_app` (`NOLOGIN NOBYPASSRLS`), потому что владелец схемы — суперпользователь и иначе обходил бы RLS.
+*   **Последствия:** Миграция `0031_s72_rls_isolation` не требует backfill и безопасна для существующих строк (`user_id` уже `NOT NULL`, `ondelete` не меняется); на таблицах включены `ENABLE` + `FORCE ROW LEVEL SECURITY`. Контекст сбрасывается вместе с транзакцией, поэтому не протекает между запросами в пуле. Индексы `ix_anticheat_flags_user`, `ix_cognitive_events_user_skill`, PK `bot_stats(user_id)`, `ix_class_members_user`, `ix_classes_teacher` покрывают проверку. Новые таблицы получают DML-гранты роли `chess_app` через `ALTER DEFAULT PRIVILEGES`.
 
 **ADR-016: Идемпотентность асинхронных задач и Dead Letter Queue (DLQ)**
 *   **Контекст:** Задачи матчей и анализа PGN могут дублироваться при рестарте воркера. Упавшие задачи теряются в логах.

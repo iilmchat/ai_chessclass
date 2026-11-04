@@ -39,16 +39,21 @@
 **Ветка:** `feat/s-72-multi-tenant`
 
 **Задачи:**
-- [ ] Добавить `class_id` (или `tenant_id`) в связанные таблицы (`bot_stats`, `cognitive_skill_events`, `anticheat_flags`).
-- [ ] Настроить PostgreSQL Row-Level Security (RLS) политики для этих таблиц.
-- [ ] Добавить `tenant_id` в JWT-клейм.
-- [ ] Обновить `core/db.py` для установки контекста сессии (SET LOCAL).
-- [ ] Тест на уровне БД: «учитель школы A не видит данные школы B» (прямой SQL-запрос без фильтров в коде).
+- [x] Обойтись без денормализации `class_id`: принадлежность выводится через
+  `class_members` → `classes.teacher_id` (контракт S-72).
+- [x] Настроить PostgreSQL Row-Level Security (RLS) политики для `bot_stats`,
+  `cognitive_skill_events`, `anticheat_flags`.
+- [x] Использовать существующие JWT-клеймы `sub`/`role` (отдельный `tenant_id`
+  не нужен: политика строит классы по `user_id` учителя).
+- [x] Обновить `core/db.py`: `SET LOCAL`-контекст `app.current_user_id` /
+  `app.current_user_role` на соединении из пула + `SET LOCAL ROLE chess_app`.
+- [x] Прокинуть `user_id`/`role` через HTTP-middleware и аргументы arq-задач.
+- [x] Тест на уровне БД: «учитель школы A не видит данные школы B» (прямой SQL-запрос без фильтров в коде).
 
 **DoD:**
-- [ ] Миграция безопасна для существующих данных.
-- [ ] Тест RLS проходит и падает, если RLS отключить.
-- [ ] CI зелёный. `doc_lint` обновлён. Отчёт: `docs/sprint-reports/S-72-YYYY-MM-DD.md`.
+- [x] Миграция безопасна для существующих данных (без backfill, `user_id NOT NULL`, `ondelete` не меняется).
+- [x] Тест RLS проходит и падает, если RLS отключить (проверка `relrowsecurity`/`relforcerowsecurity`).
+- [x] CI зелёный. `doc_lint` обновлён. Отчёт: `docs/sprint-reports/S-72-2026-11-05.md`.
 
 ---
 

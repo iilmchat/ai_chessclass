@@ -238,7 +238,9 @@ async def upload_game(session: AsyncSession, user, pgn: str) -> dict:
 
     pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     try:
-        await pool.enqueue_job("analyze_game", game.id)
+        await pool.enqueue_job(
+            "analyze_game", game.id, user.id, user.role.value
+        )
     finally:
         await pool.aclose()
 

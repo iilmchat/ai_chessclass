@@ -151,7 +151,9 @@ def _complaint_out(row: PvpComplaint) -> ComplaintOut:
     )
 
 
-async def _enqueue_tournament(tournament_id: int) -> None:
+async def _enqueue_tournament(
+    tournament_id: int, user_id: int, role: str
+) -> None:
     from arq.connections import RedisSettings, create_pool
 
     from core.config import settings
@@ -161,6 +163,8 @@ async def _enqueue_tournament(tournament_id: int) -> None:
         await pool.enqueue_job(
             "run_tournament_job",
             tournament_id,
+            user_id,
+            role,
             _job_id=f"tournament:{tournament_id}",
         )
     finally:
@@ -278,7 +282,7 @@ async def start_room(
         meta={"tournamentId": tournament.id},
     )
     await session.commit()
-    await _enqueue_tournament(tournament.id)
+    await _enqueue_tournament(tournament.id, user.id, user.role.value)
     return _out(room)
 
 

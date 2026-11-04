@@ -242,7 +242,13 @@ async def run_match(
     pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     try:
         await pool.enqueue_job(
-            "run_match", bot_id, body.opponent, match.id, _queue_name=queue
+            "run_match",
+            bot_id,
+            body.opponent,
+            match.id,
+            user.id,
+            user.role.value,
+            _queue_name=queue,
         )
     finally:
         await pool.aclose()

@@ -41,8 +41,8 @@ REPO = _find_script().parents[1]
 def test_alembic_graph_matches_repo() -> None:
     head, count = doc_lint._alembic_graph(REPO)
 
-    assert head == "0030_s67_lms_oauth"
-    assert count == 30
+    assert head == "0031_s72_rls_isolation"
+    assert count == 31
 
 
 def test_collect_versions_consistent() -> None:
@@ -61,7 +61,7 @@ def test_stale_markers_detected(tmp_path: Path) -> None:
     assert any("174 passed" in hit for hit in hits)
     assert any("v0.2.0 Draft" in hit for hit in hits)
 
-    clean = "# Документ\nАктивный этап v0.4.0, прогресс 1/12.\n"
+    clean = "# Документ\n" + "Активный этап v0.4.0, прогресс 1/12.\n"
     assert doc_lint._stale_hits(clean) == []
 
     (tmp_path / "dirty.md").write_text(dirty, encoding="utf-8")

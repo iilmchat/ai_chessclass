@@ -7,6 +7,7 @@ import arq
 from arq.connections import RedisSettings
 
 from core.config import settings
+from core.db import db_context
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +28,18 @@ async def analyze_position(ctx: dict, fen: str, level: str) -> dict:
     return {"facts": [line.model_dump() for line in lines]}
 
 
-async def analyze_game(ctx: dict, game_id: int) -> dict:
-    """Разбор партии: пошаговые eval'ы + blunder-детект (S-12)."""
+async def analyze_game(
+    ctx: dict, game_id: int, user_id: int | None = None, role: str = "admin"
+) -> dict:
+    """Разбор партии: пошаговые eval'ы + blunder-детект (S-12).
+
+    S-72: `user_id`/`role` приходят из API и задают RLS-контекст воркера.
+    """
     from domains.chess_lab import service as chess_svc
 
     logger.info("worker: analyze_game game_id=%s", game_id)
-    return await chess_svc.analyze_game_job(game_id, ctx["redis"])
+    async with db_context(user_id, role):
+        return await chess_svc.analyze_game_job(game_id, ctx["redis"])
 
 
 async def scores_recalc(ctx: dict) -> dict:
@@ -44,15 +51,16 @@ async def scores_recalc(ctx: dict) -> dict:
     from domains.cognitive import service as cognitive_svc
 
     logger.info("worker: scores_recalc (nightly)")
-    async with session_factory() as session:
-        user_ids = (
-            await session.execute(select(User.id).where(User.is_active.is_(True)))
-        ).scalars().all()
-    updated = 0
-    for user_id in user_ids:
+    async with db_context(None, "admin"):
         async with session_factory() as session:
-            updated += await cognitive_svc.recalc_user_scores(session, user_id)
-            await session.commit()
+            user_ids = (
+                await session.execute(select(User.id).where(User.is_active.is_(True)))
+            ).scalars().all()
+        updated = 0
+        for user_id in user_ids:
+            async with session_factory() as session:
+                updated += await cognitive_svc.recalc_user_scores(session, user_id)
+                await session.commit()
     return {"users": len(user_ids), "updatedRows": updated}
 
 
@@ -62,9 +70,10 @@ async def retention_run(ctx: dict) -> dict:
     from domains.retention import service as retention_svc
 
     logger.info("worker: retention_run (nightly)")
-    async with session_factory() as session:
-        results = await retention_svc.run_retention(session)
-        await session.commit()
+    async with db_context(None, "admin"):
+        async with session_factory() as session:
+            results = await retention_svc.run_retention(session)
+            await session.commit()
     return {
         "policies": {
             item.policy: {"rows": item.rows, "deleted": item.deleted}
@@ -74,9 +83,18 @@ async def retention_run(ctx: dict) -> dict:
 
 
 async def run_match(
-    ctx: dict, bot_version_id: int, opponent: str, match_id: int | None = None
+    ctx: dict,
+    bot_version_id: int,
+    opponent: str,
+    match_id: int | None = None,
+    user_id: int | None = None,
+    role: str = "admin",
 ) -> dict:
-    """Матч бота против оппонента лестницы (S-18; без LLM)."""
+    """Матч бота против оппонента лестницы (S-18; без LLM).
+
+    S-72: RLS-контекст владельца бота; старые задачи без аргументов
+    выполняются в системном контексте.
+    """
     from domains.bot_lab.match import run_match as run
     from domains.bot_lab.queues import ACTIVE_MATCH_TTL_S, active_key, queue_kind
 
@@ -88,19 +106,26 @@ async def run_match(
         await redis.expire(active, ACTIVE_MATCH_TTL_S)
 
     logger.info("worker: run_match bot=%s vs %s queue=%s", bot_version_id, opponent, kind)
-    try:
-        return await run(bot_version_id, opponent, redis, match_id=match_id)
-    finally:
-        if match_id is not None:
-            await redis.srem(active, match_id)
+    async with db_context(user_id, role):
+        try:
+            return await run(bot_version_id, opponent, redis, match_id=match_id)
+        finally:
+            if match_id is not None:
+                await redis.srem(active, match_id)
 
 
-async def run_tournament_job(ctx: dict, tournament_id: int) -> dict:
+async def run_tournament_job(
+    ctx: dict,
+    tournament_id: int,
+    user_id: int | None = None,
+    role: str = "admin",
+) -> dict:
     """Async-турнир: bracket/round-robin, replay, восстановление (S-48)."""
     from domains.tournaments.service import run_tournament_job as run
 
     logger.info("worker: tournament %s", tournament_id)
-    tournament = await run(tournament_id, ctx["redis"])
+    async with db_context(user_id, role):
+        tournament = await run(tournament_id, ctx["redis"])
     return {"tournamentId": tournament.id, "status": tournament.status}
 
 
@@ -119,9 +144,10 @@ async def lms_sync(ctx: dict) -> dict:
     from domains.lms import service as lms_svc
 
     logger.info("worker: lms_sync")
-    async with session_factory() as session:
-        result = await lms_svc.sync(session)
-        await session.commit()
+    async with db_context(None, "admin"):
+        async with session_factory() as session:
+            result = await lms_svc.sync(session)
+            await session.commit()
     return result
 
 
@@ -131,9 +157,10 @@ async def telegram_deliver(ctx: dict) -> dict:
     from domains.telegram import service as telegram_svc
 
     logger.info("worker: telegram_deliver")
-    async with session_factory() as session:
-        result = await telegram_svc.deliver_pending(session)
-        await session.commit()
+    async with db_context(None, "admin"):
+        async with session_factory() as session:
+            result = await telegram_svc.deliver_pending(session)
+            await session.commit()
     return result
 
 
@@ -142,9 +169,10 @@ async def telegram_poll(ctx: dict) -> dict:
     from core.db import session_factory
     from domains.telegram import service as telegram_svc
 
-    async with session_factory() as session:
-        result = await telegram_svc.poll_updates_once(session, ctx["redis"])
-        await session.commit()
+    async with db_context(None, "admin"):
+        async with session_factory() as session:
+            result = await telegram_svc.poll_updates_once(session, ctx["redis"])
+            await session.commit()
     if result.get("processed"):
         logger.info("worker: telegram_poll processed=%s", result["processed"])
     return result
