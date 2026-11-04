@@ -273,6 +273,23 @@ async def add_complaint(
     complaint = PvpComplaint(room_id=room_id, reporter_id=user.id, reason=text[:2000])
     session.add(complaint)
     await session.flush()
+
+    # S-68: teacher-событие «жалоба» учителям классов обоих игроков.
+    try:
+        from domains.telegram import service as telegram_svc
+
+        involved = [room.host_user_id, room.guest_user_id, user.id]
+        for child_user_id in {
+            int(value) for value in involved if value is not None
+        }:
+            await telegram_svc.enqueue_teacher_events(
+                session,
+                child_user_id=child_user_id,
+                kind="teacher_complaint",
+                text=f"Новая жалоба в PvP-матче №{room_id}",
+            )
+    except Exception as exc:  # noqa: BLE001 — жалоба важнее уведомлений
+        logger.warning("pvp: teacher event не поставлен: %s", exc)
     return complaint
 
 

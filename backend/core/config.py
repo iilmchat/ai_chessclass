@@ -167,6 +167,11 @@ class Settings(BaseSettings):
     telegram_api_base: str = "https://api.telegram.org"
     telegram_link_ttl_s: int = 600
     telegram_batch: int = 50
+    # S-68: webhook (секрет из X-Telegram-Bot-Api-Secret-Token; пусто →
+    # webhook отключён) и long-poll fallback (worker-cron).
+    telegram_webhook_secret: str = ""
+    telegram_poll_enabled: bool = False
+    telegram_poll_limit: int = 10
     # --- spaced repetition (S-52)
     review_daily_limit: int = 20
 

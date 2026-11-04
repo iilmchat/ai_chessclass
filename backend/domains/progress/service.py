@@ -5,6 +5,7 @@
 Бейдж выдаётся один раз (PK user_id+achievement_id).
 """
 
+import logging
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
@@ -14,6 +15,8 @@ from starlette.requests import Request
 from domains.audit import service as audit_svc
 from domains.auth.models import User
 from domains.progress.models import Achievement, PyProgress, UserAchievement
+
+logger = logging.getLogger(__name__)
 
 
 async def _get_or_create(session: AsyncSession, user_id: int) -> PyProgress:
@@ -132,6 +135,20 @@ async def record_passed_solution(
     awards = await _award_achievements(
         session, user, progress, request=request
     )
+
+    # S-68: teacher-событие «сдача» учителям классов ученика.
+    try:
+        from domains.telegram import service as telegram_svc
+
+        await telegram_svc.enqueue_teacher_events(
+            session,
+            child_user_id=user.id,
+            kind="teacher_submission",
+            text=f"Задание #{assignment_id} сдано ({topic})",
+        )
+    except Exception as exc:  # noqa: BLE001 — уведомления не роняют сдачу
+        logger.warning("progress: teacher event не поставлен: %s", exc)
+
     return progress, awards
 
 

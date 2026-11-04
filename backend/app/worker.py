@@ -137,6 +137,19 @@ async def telegram_deliver(ctx: dict) -> dict:
     return result
 
 
+async def telegram_poll(ctx: dict) -> dict:
+    """Cron (S-68): long-poll fallback getUpdates (webhook выключен)."""
+    from core.db import session_factory
+    from domains.telegram import service as telegram_svc
+
+    async with session_factory() as session:
+        result = await telegram_svc.poll_updates_once(session, ctx["redis"])
+        await session.commit()
+    if result.get("processed"):
+        logger.info("worker: telegram_poll processed=%s", result["processed"])
+    return result
+
+
 class WorkerSettings:
     functions = [
         heartbeat,
@@ -149,6 +162,7 @@ class WorkerSettings:
         resume_tournaments,
         lms_sync,
         telegram_deliver,
+        telegram_poll,
     ]
     #: nightly-пересчёт EMA (§10.3) — 03:40 UTC; retention — 04:10 UTC
     cron_jobs = [
@@ -157,6 +171,8 @@ class WorkerSettings:
         arq.cron("app.worker.resume_tournaments", minute=5, run_at_startup=True),
         arq.cron("app.worker.lms_sync", minute=15, run_at_startup=True),
         arq.cron("app.worker.telegram_deliver", minute=2, run_at_startup=True),
+        # S-68: долгая опроска каждые 2 мин (режим без webhook)
+        arq.cron("app.worker.telegram_poll", minute=0, second=25, run_at_startup=True),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     #: default queue — analyze/pdf; match workers получают WORKER_QUEUE из compose

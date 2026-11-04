@@ -12,6 +12,7 @@ from core.config import settings
 from domains.auth.models import User
 from domains.bot_lab.queues import MATCH_QUEUES, active_key
 from domains.retention import service as retention
+from domains.telegram.models import TelegramOutbox
 from domains.voice.usage import VoiceUsage
 from llm.models import LLMCall
 
@@ -176,6 +177,40 @@ async def alerts(session: AsyncSession, redis) -> list[dict]:
                     "message": "Retention не запускался > 2 дней",
                 }
             )
+
+    # --- S-68: тихие отказы интеграций ---
+    telegram_failed = (
+        await session.execute(
+            select(func.count())
+            .select_from(TelegramOutbox)
+            .where(TelegramOutbox.status == "failed")
+        )
+    ).scalar_one()
+    if telegram_failed > 0:
+        out.append(
+            {
+                "code": "telegram_outbox_failed",
+                "severity": "warning",
+                "message": f"Telegram outbox: {telegram_failed} failed",
+            }
+        )
+    from domains.lms.models import LrsDelivery
+
+    lrs_failed = (
+        await session.execute(
+            select(func.count())
+            .select_from(LrsDelivery)
+            .where(LrsDelivery.status == "failed")
+        )
+    ).scalar_one()
+    if lrs_failed > 0:
+        out.append(
+            {
+                "code": "lrs_deliveries_failed",
+                "severity": "warning",
+                "message": f"LRS deliveries: {lrs_failed} failed",
+            }
+        )
     return out
 
 

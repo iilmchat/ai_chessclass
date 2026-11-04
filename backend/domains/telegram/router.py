@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from pydantic import Field
 
 from core.base import CamelModel
+from core.errors import AppError
 from core.ratelimit import enforce_rate_limit
 from domains.audit import service as audit_svc
 from domains.auth.deps import CurrentUser, DbSession
@@ -146,3 +147,44 @@ async def unlink_telegram(
     )
     await session.commit()
     return _link_out(None)
+
+
+# --- S-68: публичный webhook обновлений ---
+
+
+class WebhookOut(CamelModel):
+    ok: bool
+
+
+@router.post("/webhook", response_model=WebhookOut)
+async def telegram_webhook(request: Request) -> WebhookOut:
+    """Update от Telegram (S-68): secret-заголовок → /start|/stop.
+
+    Метод публичный; аутентификация — сравнение
+    `X-Telegram-Bot-Api-Secret-Token` (Telegram присылает его сам при
+    setWebHook). Пустой секрет в конфигурации → 404.
+    """
+    from core.config import settings
+
+    if not settings.telegram_webhook_secret:
+        raise AppError("telegram_webhook_disabled", "Webhook не настроен", 404)
+    provided: str | None = request.headers.get(svc.WEBHOOK_HEADER)
+    if provided != settings.telegram_webhook_secret:
+        raise AppError("telegram_webhook_secret", "Неверный secret", 403)
+    try:
+        update = await request.json()
+    except Exception as exc:  # noqa: BLE001 — некорректный JSON
+        raise AppError("telegram_webhook_badjson", "Некорректный JSON", 400) from exc
+    if not isinstance(update, dict):
+        return WebhookOut(ok=True)
+    from core.db import session_factory
+
+    async with session_factory() as session:
+        reply = await svc.handle_update(session, request.app.state.redis, update)
+        await session.commit()
+        if reply is not None:
+            message = update.get("message") or {}
+            chat_id = str((message.get("chat") or {}).get("id") or "")
+            if chat_id:
+                await svc._reply(chat_id, reply)
+    return WebhookOut(ok=True)

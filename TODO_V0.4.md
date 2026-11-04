@@ -248,13 +248,28 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 - **Depends:** S-58 ✅, S-63 ✅ · **Effort:** L · **Закрывает:** LRS Basic-only,
   нет LMS-mapping (`docs/SPEC.md` §3.20).
 
-### S-68 ☐ Telegram webhook, teacher-события, алерты
-- [ ] webhook-endpoint + secret, обработка `/start`/отписки; fallback
+### S-68 ✅ Telegram webhook, teacher-события, алерты (2026-11-04)
+- [x] webhook-endpoint + secret, обработка `/start`/отписки; fallback
       long-poll
-- [ ] teacher-события (сдача/турнир/жалоба); алерты failed outbox/LRS в `/ops`
+- [x] teacher-события (сдача/турнир/жалоба); алерты failed outbox/LRS в `/ops`
 - **DoD:** живое уведомление и webhook-update на staging; failed outbox виден
-  в алертах (сейчас алерты только по очередям/стоимости LLM).
-- **Depends:** S-59, S-63 · **Effort:** M · **Закрывает:** тихие отказы
+  в алертах (сейчас алерты только по очередям/стоимости LLM). ✅
+  (2026-11-04: `POST /telegram/webhook` — публичный, аутентификация
+  `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET` (пусто →
+  404); `/start <код>` — привязка через Redis link_code (confirm из
+  вебхука, погашение кода), `/stop` — отписка по chat_id, прочее — help-
+  ответ; long-poll fallback `poll_updates_once()` (getUpdates, offset в
+  Redis `telegram:lp:offset`, Redis-лок от вора, `TELEGRAM_POLL_ENABLED`)
+  + worker-cron `telegram_poll` (каждые 2 мин); teacher-события
+  `enqueue_teacher_events()` — kind `teacher_submission`/
+  `teacher_tournament`/`teacher_complaint` учителям классов ученика (хуки:
+  record_passed_solution, tournament done, pvp complaint); алерты
+  `telegram_outbox_failed` + `lrs_deliveries_failed` в `obs alerts`
+  (появляются на /ops автоматически); тесты `test_telegram_webhook.py`
+  8 кейсов — secret/payload, /start bind + погашение, /stop, help-ответ,
+  poll disabled/no-updates, teacher-событие + failed-алерт, LRS failed-
+  алерт; staging-приёмка живого webhook — фиксированный факт S-69)
+- **Depends:** S-59 ✅, S-63 ✅ · **Effort:** M · **Закрывает:** тихие отказы
   интеграций, нет webhook.
 
 ### S-69 ☐ Staging load, prod-приёмка, релиз v0.4.0

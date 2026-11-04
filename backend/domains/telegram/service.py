@@ -1,4 +1,9 @@
-"""S-50: Telegram-привязка и outbox уведомлений."""
+"""S-50: Telegram-привязка и outbox уведомлений.
+
+S-68: webhook updates (/start — link_code, /stop — отписка), long-poll
+fallback (getUpdates, offset в Redis, блокировка вора), teacher-события
+(сдача/турнир/жалоба → уведомления учителям классов).
+"""
 
 import logging
 import secrets
@@ -20,6 +25,13 @@ STATUSES = ("pending", "sent", "failed")
 SenderFn = Callable[[str, str], Awaitable[int]]
 LINK_PREFIX = "telegram:link:"
 NOTIFY_PREFIX = "telegram:notify:"
+#: S-68: ключи webhook/long-poll контура.
+WEBHOOK_HEADER = "X-Telegram-Bot-Api-Secret-Token"
+POLL_OFFSET_PREFIX = "telegram:lp:offset"
+POLL_LOCK_KEY = "telegram:lp:lock"
+POLL_LOCK_TTL_S = 90
+#: Дневной лимит уведомлений на пользователя (S-50) — не трогаем.
+DAILY_LIMIT = 20
 
 
 async def get_link(session: AsyncSession, user_id: int) -> TelegramLink | None:
@@ -87,7 +99,7 @@ async def enqueue(
     if redis is not None:
         key = f"{NOTIFY_PREFIX}{user_id}:{datetime.now(UTC).date().isoformat()}"
         used = int(await redis.get(key) or 0)
-        if used >= 20:
+        if used >= DAILY_LIMIT:
             return False
         await redis.incr(key)
         await redis.expire(key, 2 * 24 * 3600)
@@ -205,3 +217,221 @@ async def status(session: AsyncSession, user: User) -> dict:
         "configured": bool(settings.telegram_bot_token),
         "counts": {name: counts.get(name, 0) for name in STATUSES},
     }
+
+
+# --- S-68: webhook updates, long-poll fallback, teacher-события ---
+
+
+def _http_client() -> httpx.AsyncClient:
+    """httpx с egress-hook (S-61) — точка инъекции транспорта в тестах."""
+    from core.egress import hostname_of, make_egress_hook
+
+    return httpx.AsyncClient(
+        timeout=15.0,
+        event_hooks={
+            "request": [
+                make_egress_hook(hostname_of(settings.telegram_api_base) or "")
+            ]
+        },
+    )
+
+
+async def _tg_request(
+    method: str,
+    *,
+    json_body: dict | None = None,
+    params: dict | None = None,
+) -> httpx.Response:
+    """Bot API запрос: POST method (+ тело/параметры)."""
+    if not settings.telegram_bot_token:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN не задан")
+    url = (
+        f"{settings.telegram_api_base.rstrip('/')}"
+        f"/bot{settings.telegram_bot_token}/{method}"
+    )
+    async with _http_client() as client:
+        return await client.post(url, json=json_body, params=params)
+
+
+async def _reply(chat_id: str, text: str) -> None:
+    """Прямой ответ в чат (webhook/long-poll); ошибка логируется."""
+    try:
+        response = await _tg_request(
+            "sendMessage",
+            json_body={
+                "chat_id": chat_id,
+                "text": text[:4000],
+                "disable_web_page_preview": True,
+            },
+        )
+        if response.status_code >= 300:
+            logger.warning(
+                "telegram: reply к %s — HTTP %s", chat_id, response.status_code
+            )
+    except Exception as exc:  # noqa: BLE001 — webhook всё равно отвечает 200
+        logger.warning("telegram: reply к %s не отправлен: %s", chat_id, exc)
+
+
+START_REPLY = "Готово: ChessClass уведомления привязаны к этому чату."
+STOP_REPLY = "Отписано: привязка к ChessClass удалена."
+HELP_REPLY = (
+    "Этот бот принимает уведомления ChessClass.\n"
+    "Привязка: /start <код> со ссылкой из профиля.\n"
+    "Отписка: /stop."
+)
+
+
+async def handle_update(
+    session: AsyncSession, redis, update: dict
+) -> str | None:
+    """Обработать один Telegram Update (S-68). Возвращает reply-текст."""
+    message = update.get("message")
+    if not isinstance(message, dict):
+        return None
+    chat = message.get("chat")
+    text = message.get("text")
+    if not isinstance(chat, dict) or not isinstance(text, str):
+        return None
+    chat_id = str(chat.get("id") or "").strip()
+    if not chat_id.isdigit() or not 5 <= len(chat_id) <= 32:
+        return None
+
+    parts = text.strip().split(maxsplit=1)
+    command = parts[0].lower().split("@", 1)[0]
+    argument = parts[1].strip() if len(parts) > 1 else ""
+
+    if command in ("/start", "/link"):
+        if not argument:
+            return HELP_REPLY
+        expected = await redis.get(f"{LINK_PREFIX}{argument}")
+        if expected is None:
+            return (
+                "Код привязки недействителен или истёк — "
+                "получите новый в профиле ChessClass."
+            )
+        user = (
+            await session.execute(
+                select(User).where(User.id == int(expected))
+            )
+        ).scalar_one_or_none()
+        if user is None:
+            return HELP_REPLY
+        await redis.delete(f"{LINK_PREFIX}{argument}")
+        await link(session, user, chat_id, True)
+        await session.flush()
+        return START_REPLY
+
+    if command in ("/stop", "/unsubscribe"):
+        row = (
+            await session.execute(
+                select(TelegramLink).where(TelegramLink.chat_id == chat_id)
+            )
+        ).scalar_one_or_none()
+        if row is not None:
+            await session.delete(row)
+            await session.flush()
+        return STOP_REPLY
+
+    return HELP_REPLY
+
+
+async def poll_updates_once(
+    session: AsyncSession, redis
+) -> dict[str, int]:
+    """Один цикл long-poll getUpdates (S-68 fallback).
+
+    Включается только через TELEGRAM_POLL_ENABLED; Redis-лок — защита от
+    нескольких воркеров, offset хранится в Redis. Обработанные update'ы
+    подтверждаются offset'ом после reply.
+    """
+    if not settings.telegram_poll_enabled or not settings.telegram_bot_token:
+        return {"offset": int(await redis.get(POLL_OFFSET_PREFIX) or 0) or 0,
+                "processed": 0, "disabled": 1}
+    got_lock = await redis.set(
+        POLL_LOCK_KEY, "1", ex=POLL_LOCK_TTL_S, nx=True
+    )
+    if not got_lock:
+        return {"offset": int(await redis.get(POLL_OFFSET_PREFIX) or 0) or 0,
+                "processed": 0, "locked": 1}
+    saved = int(await redis.get(POLL_OFFSET_PREFIX) or 0) or 0
+    response = await _tg_request(
+        "getUpdates",
+        params={
+            "timeout": 0,
+            "limit": min(settings.telegram_poll_limit, 50),
+            "offset": saved + 1,
+        },
+    )
+    if response.status_code >= 300:
+        logger.warning("telegram: getUpdates — HTTP %s", response.status_code)
+        return {"offset": saved, "processed": 0}
+    try:
+        updates = response.json() or []
+    except ValueError:  # пустое/битое тело — как пустой список
+        updates = []
+    if not isinstance(updates, list):
+        updates = []
+    last_id = saved
+    processed = 0
+    for update in updates:
+        update_id = update.get("update_id")
+        if not isinstance(update_id, int) or update_id <= last_id:
+            continue
+        try:
+            reply = await handle_update(session, redis, update)
+            if reply is not None:
+                chat = ((update.get("message") or {}).get("chat") or {})
+                chat_id = str(chat.get("id") or "")
+                if chat_id:
+                    await _reply(chat_id, reply)
+        except Exception as exc:  # noqa: BLE001 — не терять offset
+            logger.warning("telegram: update %s failed: %s", update_id, exc)
+        last_id = update_id
+        processed += 1
+    if last_id != saved:
+        await redis.set(POLL_OFFSET_PREFIX, str(last_id))
+    return {"offset": last_id, "processed": processed}
+
+
+async def enqueue_teacher_events(
+    session: AsyncSession,
+    *,
+    child_user_id: int,
+    kind: str,
+    text: str,
+    redis=None,
+) -> int:
+    """Уведомить учителей классов, где состоит ученик (S-68).
+
+    Возвращает число созданных outbox-строк (учитель без привязки —
+    пропускается enqueue-лимитом S-50). Однократная защита от дублей
+    вряд ли нужна: kind+текст уникальны по контексту события.
+    """
+    from domains.classes.models import ClassMember, Classroom
+
+    teacher_ids = list(
+        (
+            await session.execute(
+                select(Classroom.teacher_id)
+                .join(ClassMember, ClassMember.class_id == Classroom.id)
+                .where(ClassMember.user_id == child_user_id)
+                .distinct()
+            )
+        ).scalars()
+    )
+    child = (
+        await session.execute(select(User).where(User.id == child_user_id))
+    ).scalar_one_or_none()
+    label = (
+        child.email if child is not None else str(child_user_id)
+    )
+    enqueued = 0
+    for teacher_id in teacher_ids:
+        link_row = await get_link(session, teacher_id)
+        if link_row is None or not link_row.consent:
+            continue
+        if await enqueue(
+            session, teacher_id, kind, f"{text} (ученик: {label})", redis=redis
+        ):
+            enqueued += 1
+    return enqueued

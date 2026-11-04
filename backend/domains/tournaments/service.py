@@ -519,6 +519,23 @@ async def _run_job(
         await _publish(redis, tournament)
         await _finalize_pvp(session, tournament_id)
         await session.commit()
+
+        # S-68: teacher-событие «турнир завершён» учителям участников.
+        try:
+            from domains.telegram import service as telegram_svc
+
+            for user_id in {
+                p.user_id for p in participants if p.user_id is not None
+            }:
+                await telegram_svc.enqueue_teacher_events(
+                    session,
+                    child_user_id=int(user_id),
+                    kind="teacher_tournament",
+                    text=f"Турнир «{tournament.name}» завершён (место узнаете в ChessClass)",
+                )
+            await session.commit()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("tournaments: teacher event не поставлен: %s", exc)
         return tournament
     except Exception as exc:  # noqa: BLE001
         logger.exception("tournaments: job failed id=%s", tournament_id)
