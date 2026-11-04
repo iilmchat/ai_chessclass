@@ -1,8 +1,10 @@
 """Единый шлюз (Design §8.1/§8.4): llm_generate(route, level, …) → LLMResult.
 
 Цепочка fallback: cloud RouterAI → local LM Studio (флаг) → echo.
-Квота дня (Redis) + graceful downgrade до L1; каждый вызов → llm_calls
-(Design §8.5). Домены не знают моделей — только маршрут и уровень (ADR-004).
+Перед шагом — circuit breaker в Redis: упавший провайдер пропускается,
+после 60 с — один HALF_OPEN-probe (S-70). Квота дня (Redis) + graceful
+downgrade до L1; каждый вызов → llm_calls (Design §8.5). Домены не знают
+моделей — только маршрут и уровень (ADR-004).
 """
 
 import logging
@@ -15,6 +17,7 @@ import llm.economy as economy
 from core.config import settings
 from core.levels import Level
 from llm.base import LLMMessage, LLMProvider, LLMUsage
+from llm.circuit_breaker import CircuitBreaker
 from llm.client import OpenAICompatProvider
 from llm.echo import EchoProvider
 from llm.models_registry import MODELS
@@ -42,7 +45,16 @@ class LLMResult:
     text: str
     usage: LLMUsage
     status: str           # ok | echo
-    fallback_from: str | None  # причина/слаг, после которого переключились
+    fallback_from: str | None  # причина: failover:* | quota_*
+
+
+@dataclass(frozen=True, slots=True)
+class _ProviderStep:
+    """Шаг цепочки: провайдер, его model_used и ключ circuit breaker."""
+
+    provider: LLMProvider
+    model_used: str
+    key: str
 
 
 _providers: dict[str, LLMProvider] = {}
@@ -95,63 +107,72 @@ async def llm_generate(
         )
 
     effective = verdict.effective_spec
-    chain: list[tuple[LLMProvider, str]] = []  # (provider, marker model_used)
+    chain: list[_ProviderStep] = []
+    fallback_reason: str | None = None
     if provider is not None:
-        chain.append((provider, effective.slug))
+        chain.append(_ProviderStep(provider, effective.slug, "cloud"))
         if local_provider is not None:  # тест-инъекция local после облака
-            chain.append((local_provider, "lmstudio"))
+            chain.append(_ProviderStep(local_provider, "lmstudio", "local"))
     else:
         cloud = get_cloud_provider()
         if cloud.is_configured():
-            chain.append((cloud, effective.slug))
+            chain.append(_ProviderStep(cloud, effective.slug, "cloud"))
+        else:
+            fallback_reason = "failover:no_config"
         if settings.llm_local_fallback:
-            chain.append((get_local_provider(), "lmstudio"))
-    chain.append((EchoProvider(), "echo"))
+            chain.append(_ProviderStep(get_local_provider(), "lmstudio", "local"))
+    chain.append(_ProviderStep(EchoProvider(), "echo", "echo"))
 
+    cb = CircuitBreaker(redis)
     started = time.monotonic()
     last_error: Exception | None = None
-    for index, (step_provider, model_used) in enumerate(chain):
+    for index, step in enumerate(chain):
+        if not await cb.is_allowed(step.key):
+            fallback_reason = "failover:cb_open"
+            logger.warning(
+                "llm failover: %s (%s) открыт circuit breaker — пропускаем",
+                step.key, effective.slug,
+            )
+            continue
         try:
-            text, usage = await step_provider.generate(
+            text, usage = await step.provider.generate(
                 effective.slug, messages,
                 temperature=temperature, max_tokens=max_tokens,
             )
         except Exception as exc:  # noqa: BLE001 — идём дальше по цепочке
             last_error = exc
+            await cb.record_failure(step.key)
+            fallback_reason = f"failover:{step.key}"
             logger.warning(
-                "llm fallback: %s (%s) не ответил: %s — пробуем следующий шаг",
-                model_used, effective.slug, exc,
+                "llm failover: %s (%s) не ответил: %s — пробуем следующий шаг",
+                step.model_used, effective.slug, exc,
             )
             continue
 
+        await cb.record_success(step.key)
         latency_ms = int((time.monotonic() - started) * 1000)
-        status = economy.STATUS_OK if model_used != "echo" else economy.STATUS_ECHO
+        status = (
+            economy.STATUS_OK if step.model_used != "echo" else economy.STATUS_ECHO
+        )
         fallback_from = None
         if not (index == 0 and status == economy.STATUS_OK):
-            fallback_from = _prev_marker(chain, index, effective.slug)
+            fallback_from = fallback_reason
         if effective.tier != spec.tier and status == economy.STATUS_OK:
             fallback_from = f"quota_downgrade:{spec.tier}"
         # Ошибка записи FinOps не должна повторять уже оплаченный LLM-вызов.
         await economy.register_call(
             session, redis,
             user_id=ctx.user_id, route=route, level=level.value,
-            model_requested=spec.slug, model_used=model_used,
+            model_requested=spec.slug, model_used=step.model_used,
             fallback_from=fallback_from, usage=usage, latency_ms=latency_ms,
             status=status, spec=effective, task_kind=ctx.task_kind,
         )
         return LLMResult(
             route=route, level=level, tier=effective.tier,
-            model_requested=spec.slug, model_used=model_used,
+            model_requested=spec.slug, model_used=step.model_used,
             text=text, usage=usage, status=status, fallback_from=fallback_from,
         )
     raise RuntimeError(f"llm: цепочка fallback исчерпана: {last_error}")
-
-
-def _prev_marker(chain: list[tuple[LLMProvider, str]], index: int, cloud_slug: str) -> str:
-    """Причина переключения: слаг облачной модели или маркер предыдущего шага."""
-    if index == 0:
-        return "cloud_not_configured"
-    return chain[index - 1][1] if chain[index - 1][1] != cloud_slug else cloud_slug
 
 
 async def _echo(

@@ -1,11 +1,12 @@
 """OpenAI-совместимый транспорт (RouterAI / LM Studio) на httpx.
 
-Ретрай: 1 повтор через LLM_RETRY_DELAY_S (Design §8.4); общий таймаут
-LLM_TIMEOUT_S. Транспорт инъекцируется (httpx.MockTransport) — для тестов.
+Ретрай: 1 повтор с экспоненциальным backoff и jitter (Design §8.4);
+общий таймаут LLM_TIMEOUT_S. Транспорт инъекцируется (httpx.MockTransport).
 """
 
 import asyncio
 import logging
+import random
 
 import httpx
 
@@ -67,7 +68,6 @@ class OpenAICompatProvider(LLMProvider):
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
 
-        delay = settings.llm_retry_delay_s
         last_error: Exception | None = None
         for attempt in (1, 2):  # 1 retry (Design §8.4)
             try:
@@ -91,6 +91,12 @@ class OpenAICompatProvider(LLMProvider):
                     "llm: попытка %d к %s (%s) не удалась: %s", attempt, model, self.base_url, exc
                 )
                 if attempt == 1:
+                    # Экспонента от base_delay + jitter: не синхронизируем
+                    # одновременные ретраи api/worker (S-70).
+                    delay = (
+                        settings.llm_retry_delay_s * (2 ** (attempt - 1))
+                        + random.uniform(0, 0.5)
+                    )
                     await asyncio.sleep(delay)
         raise LLMUnavailableError(f"LLM недоступен после ретрая: {last_error}") from last_error
 

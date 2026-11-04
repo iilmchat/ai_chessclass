@@ -973,10 +973,14 @@ Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfi
 ### 6.4. Экономика (S-05, зафиксировано)
 
 **Fallback-цепочка** (Design §8.4): cloud RouterAI → local LM Studio
-(флаг `LLM_LOCAL_FALLBACK`) → echo; в каждом шаге — 1 retry через
-`LLM_RETRY_DELAY_S`. Причина переключения — `fallback_from`:
-`cloud_not_configured` · слаг упавшей облачной модели · `lmstudio`-маркер ·
-`quota_exhausted` · `quota_downgrade:{tier}`.
+(флаг `LLM_LOCAL_FALLBACK`) → echo; в каждом шаге — 1 retry с
+экспоненциальным backoff и jitter. Перед шагом — circuit breaker (Redis,
+S-70): 5 ошибок за 60 с → OPEN, через 60 с → HALF_OPEN с одним probe.
+Причина переключения — `fallback_from`:
+`failover:cloud`/`failover:local` (ошибка провайдера) · `failover:cb_open`
+(breaker открыт) · `failover:no_config` (провайдер/ключ не настроен) ·
+`quota_exhausted` (квота исчерпана) · `quota_downgrade:{tier}`.
+`failover:*` — отказ провайдера; `quota_*` — graceful fallback по квоте.
 
 **llm_calls** (журнал, миграция 0004): `user_id` (nullable — system-вызовы),
 `route`, `level`, `model_requested`, `model_used` (слаг / `lmstudio` / `echo`),

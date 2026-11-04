@@ -5,6 +5,17 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
+## [Unreleased]
+
+### Добавлено
+
+#### S-70 — LLM Gateway Resilience (2026-11-04)
+- Redis circuit breaker провайдеров (`closed`/`open`/`half_open`, 5 ошибок
+  за 60 с, recovery 60 с, один probe через `SET NX`).
+- Retry LLM-клиента — экспоненциальный backoff с jitter.
+- `fallback_from` разделён: `failover:*` (ошибка/CB/нет конфигурации) и
+  `quota_*` (квота).
+
 ## [v0.4.0] — 2026-11-04
 
 ### Добавлено

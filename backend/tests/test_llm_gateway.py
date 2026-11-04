@@ -1,5 +1,8 @@
 """Шлюз: generate по маршруту (route→tier→текст), fallback-цепочка (S-05),
-бутстрап-валидация слагов, admin-эндпоинт моделей."""
+circuit breaker (S-70), бутстрап-валидация слагов, admin-эндпоинт моделей."""
+
+import time
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -8,7 +11,7 @@ import sqlalchemy as sa
 from core.config import settings
 from core.db import session_factory
 from core.levels import Level
-from llm.base import LLMMessage
+from llm.base import LLMMessage, LLMUnavailableError
 from llm.bootstrap import validate_model_slags
 from llm.client import OpenAICompatProvider
 from llm.gateway import LLMCallContext, llm_generate
@@ -100,13 +103,13 @@ async def test_fallback_to_echo_when_cloud_fails(redis_client):
             provider=provider,
         )
         assert result.status == "echo" and result.model_used == "echo"
-        assert result.fallback_from == settings.llm_model_l1
+        assert result.fallback_from == "failover:cloud"
         assert "[echo]" in result.text
         row = (
             await session.execute(sa.select(LLMCall).order_by(LLMCall.id.desc()).limit(1))
         ).scalar_one()
         assert row.status == "echo" and row.model_used == "echo"
-        assert row.fallback_from == settings.llm_model_l1
+        assert row.fallback_from == "failover:cloud"
 
 
 async def test_echo_when_cloud_not_configured(redis_client):
@@ -121,7 +124,7 @@ async def test_echo_when_cloud_not_configured(redis_client):
             ctx=LLMCallContext(),
         )
         assert result.status == "echo"
-        assert result.fallback_from == "cloud_not_configured"
+        assert result.fallback_from == "failover:no_config"
 
 
 async def test_db_error_does_not_repeat_paid_llm_call(redis_client, monkeypatch):
@@ -150,6 +153,71 @@ async def test_db_error_does_not_repeat_paid_llm_call(redis_client, monkeypatch)
                 provider=provider,
             )
     assert calls == 1  # FinOps-сбой не должен повторять оплаченный вызов
+
+
+async def test_circuit_breaker_opens_after_five_cloud_failures(redis_client):
+    """S-70: 5 падений cloud → OPEN; 6-й вызов идёт в echo без облака."""
+    cloud = AsyncMock(spec=OpenAICompatProvider)
+    cloud.generate.side_effect = LLMUnavailableError("routerai down")
+    async with session_factory() as session:
+        for _ in range(5):
+            result = await llm_generate(
+                session,
+                redis_client,
+                route="python_teacher.comment",
+                level=Level.NOVICE,
+                messages=[LLMMessage(role="user", content="Проверь код")],
+                ctx=LLMCallContext(),
+                provider=cloud,
+            )
+            assert result.status == "echo"
+            assert result.fallback_from == "failover:cloud"
+        assert await redis_client.get("cb:state:cloud") == "open"
+        assert await redis_client.get("cb:failures:cloud") == "5"
+        result = await llm_generate(
+            session,
+            redis_client,
+            route="python_teacher.comment",
+            level=Level.NOVICE,
+            messages=[LLMMessage(role="user", content="Проверь код")],
+            ctx=LLMCallContext(),
+            provider=cloud,
+        )
+        assert result.status == "echo"
+        assert result.fallback_from == "failover:cb_open"
+    assert cloud.generate.await_count == 5
+
+
+async def test_half_open_success_closes_and_resets_failures(redis_client):
+    """S-70: после recovery успешный probe закрывает breaker и чистит счётчик."""
+    await redis_client.set("cb:state:cloud", "open")
+    await redis_client.set("cb:opened_at:cloud", str(time.time() - 61))
+    await redis_client.set("cb:failures:cloud", "5")
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return _chat_ok("Восстановились.")
+
+    provider = _mock_provider(handler)
+    async with session_factory() as session:
+        result = await llm_generate(
+            session,
+            redis_client,
+            route="python_teacher.comment",
+            level=Level.NOVICE,
+            messages=[LLMMessage(role="user", content="Проверь код")],
+            ctx=LLMCallContext(),
+            provider=provider,
+        )
+    assert calls == 1
+    assert result.status == "ok"
+    assert result.fallback_from is None
+    assert await redis_client.get("cb:state:cloud") == "closed"
+    assert await redis_client.get("cb:failures:cloud") is None
+    assert await redis_client.get("cb:probe:cloud") is None
+    assert await redis_client.get("cb:opened_at:cloud") is None
 
 
 async def test_bootstrap_slags_validation():

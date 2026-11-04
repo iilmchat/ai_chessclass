@@ -73,6 +73,14 @@ def unique_email() -> str:
 
 @pytest.fixture(autouse=True)
 async def _cleanup():
+    # Страховка от падения прошлого прогона: не тащим открытый breaker в тесты.
+    redis = redis_lib.from_url(settings.redis_url, decode_responses=True)
+    try:
+        stale = await redis.keys("cb:*")
+        if stale:
+            await redis.delete(*stale)
+    finally:
+        await redis.aclose()
     yield
     async with session_factory() as session:
         # Сначала зависимые строки, потом e2e-юзеры (FK SET NULL не удалит).
@@ -106,6 +114,7 @@ async def _cleanup():
         keys += await redis.keys("rl:*")
         keys += await redis.keys("quota:*")
         keys += await redis.keys("voice:*")
+        keys += await redis.keys("cb:*")
         if keys:
             await redis.delete(*keys)
     finally:
