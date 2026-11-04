@@ -66,8 +66,13 @@ git checkout main
 git log --oneline -1            # S-69-коммит
 git tag -a v0.4.0 -m "ChessClass v0.4.0 -- staging, egress/CSP, hash-lock, CI gates, RAG editor, PvP complaints, a11y gate, LRS OAuth2+mapping, Telegram webhook" # noqa — одна строка
 git push origin v0.4.0
-gh release create v0.4.0 --title "v0.4.0" --notes-file docs/release-notes-v0.4.0.md
+gh release create v0.4.0 --title "ChessClass v0.4.0" --notes-file docs/release-notes-v0.4.0.md
 ```
+
+**Факт (2026-11-04):** тег `v0.4.0` (коммит `3bbf8c1`) + GitHub Release
+`https://github.com/iilmchat/ai_chessclass/releases/tag/v0.4.0`;
+CI релиз-коммита — run **41753445116, success** (перед релизом
+готовил readyz-тест: версия из `app.__version__`, не хардкод).
 
 CI после push — зелёный (счётчики/док-линт альвины); следить:
 `gh run watch <run-id> --exit-status`.
