@@ -156,6 +156,12 @@ class Settings(BaseSettings):
     lrs_secret: str = ""
     lrs_timeout_s: float = 15.0
     lms_sync_batch: int = 50
+    # --- LMS LRS OAuth2 (S-67): client_credentials поверх Basic-хвоста.
+    # Пустой client_id → Basic Auth fallback (S-49, как было).
+    lrs_oauth_token_url: str = ""
+    lrs_oauth_client_id: str = ""
+    lrs_oauth_client_secret: str = ""
+    lrs_oauth_scope: str = ""
     # --- Telegram (S-50)
     telegram_bot_token: str = ""
     telegram_api_base: str = "https://api.telegram.org"

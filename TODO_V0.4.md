@@ -226,13 +226,26 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
 
 ## E-24 · Интеграции и релиз v0.4.0 (S-67…S-69)
 
-### S-67 ☐ LRS OAuth2 и LMS-mapping
-- [ ] OAuth2 client_credentials + token cache/refresh; Basic Auth — fallback
-- [ ] mapping курсов/классов (`lms_courses`/`lms_class_map`), админ-редактор;
+### S-67 ✅ LRS OAuth2 и LMS-mapping (2026-11-04)
+- [x] OAuth2 client_credentials + token cache/refresh; Basic Auth — fallback
+- [x] mapping курсов/классов (`lms_courses`/`lms_class_map`), админ-редактор;
       повтор не дублирует statement
 - **DoD:** statement доходит до тестового LRS через OAuth2; mapping виден
-  в админке; журнал доставки без дублей.
-- **Depends:** S-58, S-63 · **Effort:** L · **Закрывает:** LRS Basic-only,
+  в админке; журнал доставки без дублей. ✅
+  (2026-11-04: миграция `0030_s67_lms_oauth` (`lms_courses`,
+  `lms_class_map` — class_id unique, course FK cascade, activity_ref);
+  OAuth2 client_credentials в `core/config`
+  (`lrs_oauth_{token_url,client_id,client_secret,scope}`, Basic fallback
+  при пустом client_id), Bearer-кэш с refresh за 60 c до expiry,
+  `_http_client()` — точка DI транспорта (egress-хук на обоих URL, S-61);
+  URL `lrs_oauth_token_url` добавлен в `configured_egress_patterns()`;
+  CRUD `/admin/lms/courses|class-map` + `/oauth-status` (teacher+admin read,
+  admin write, audit); activity id skill-объектов через
+  `skill_activity_id(ref, slug)` — мапнутые классы ссылаются на курс LMS;
+  админ-панель LMS в `/ops`; тесты `test_lms_oauth.py` (5: MockTransport
+  токен/кэш/refresh, Basic fallback, activity-mapping, API CRUD) —
+  нумерация statement id сохранена (uuid5, повторы не дублируют))
+- **Depends:** S-58 ✅, S-63 ✅ · **Effort:** L · **Закрывает:** LRS Basic-only,
   нет LMS-mapping (`docs/SPEC.md` §3.20).
 
 ### S-68 ☐ Telegram webhook, teacher-события, алерты

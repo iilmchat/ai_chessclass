@@ -71,6 +71,9 @@ def configured_egress_patterns() -> list[str]:
         settings.voice_base_url,
         settings.telegram_api_base,
         settings.lrs_endpoint,
+        # S-67: token-URL OAuth2 — обычно тот же LMS-хост, но позволяем
+        # отдельный IdP: сконфигурирован администратором.
+        settings.lrs_oauth_token_url,
     ):
         host = hostname_of(base)
         if host:

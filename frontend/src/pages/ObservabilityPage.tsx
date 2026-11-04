@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
   CostRowDto,
+  LmsClassMapDto,
+  LmsCourseDto,
+  LmsOauthStatusDto,
+  LmsStatusDto,
   ObsAlertDto,
   ObsSummaryDto,
   RetentionResultDto,
@@ -9,8 +13,16 @@ import type {
 import {
   ApiError,
   apiFetch,
+  createLmsClassMap,
+  createLmsCourse,
+  deleteLmsClassMap,
+  deleteLmsCourse,
   downloadFile,
   fetchCosts,
+  fetchLmsClassMap,
+  fetchLmsCourses,
+  fetchLmsOauthStatus,
+  fetchLmsStatus,
   fetchObsAlerts,
   fetchObsSummary,
   fetchRetentionStatus,
@@ -20,7 +32,7 @@ import {
 } from '../shared/api';
 import { LoginGate } from '../shared/LoginGate';
 
-/** S-46: наблюдаемость, стоимость на ученика и retention. */
+/** S-46: наблюдаемость, стоимость на ученика и retention. S-67: LMS LRS. */
 export function ObservabilityPage() {
   const [authed, setAuthed] = useState<boolean>(Boolean(getToken()));
   const [role, setRole] = useState('');
@@ -29,6 +41,15 @@ export function ObservabilityPage() {
   const [costs, setCosts] = useState<CostRowDto[]>([]);
   const [retention, setRetention] = useState<RetentionStatusDto | null>(null);
   const [lastRun, setLastRun] = useState<RetentionResultDto[]>([]);
+  const [lmsStatus, setLmsStatus] = useState<LmsStatusDto | null>(null);
+  const [lmsOauth, setLmsOauth] = useState<LmsOauthStatusDto | null>(null);
+  const [lmsCourses, setLmsCourses] = useState<LmsCourseDto[]>([]);
+  const [lmsMaps, setLmsMaps] = useState<LmsClassMapDto[]>([]);
+  const [courseExternalId, setCourseExternalId] = useState('');
+  const [courseTitle, setCourseTitle] = useState('');
+  const [mapClassId, setMapClassId] = useState('');
+  const [mapCourseId, setMapCourseId] = useState('');
+  const [mapActivityRef, setMapActivityRef] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -50,6 +71,12 @@ export function ObservabilityPage() {
       setRetention(retentionRows);
       if (profile.role === 'admin') {
         setCosts((await fetchCosts(30)).items);
+        const [status, oauth] = await Promise.all([
+          fetchLmsStatus(),
+          fetchLmsOauthStatus(),
+        ]);
+        setLmsStatus(status);
+        setLmsOauth(oauth);
       } else {
         setCosts([]);
       }
@@ -82,6 +109,64 @@ export function ObservabilityPage() {
       setLastRun(result);
       await load();
     }, dryRun ? 'Dry-run выполнен' : 'Retention выполнен');
+
+  // --- S-67: LMS admin ---
+  const loadLmsLists = useCallback(async () => {
+    const [courses, maps] = await Promise.all([
+      fetchLmsCourses(),
+      fetchLmsClassMap(),
+    ]);
+    setLmsCourses(courses);
+    setLmsMaps(maps);
+  }, []);
+
+  useEffect(() => {
+    if (authed && isAdmin) loadLmsLists().catch(() => undefined);
+  }, [authed, isAdmin, loadLmsLists]);
+
+  const onAddCourse = () =>
+    act(async () => {
+      if (!courseExternalId.trim() || !courseTitle.trim()) {
+        throw new Error('external_id и название обязательны');
+      }
+      await createLmsCourse({
+        externalId: courseExternalId.trim(),
+        titleRu: courseTitle.trim(),
+      });
+      setCourseExternalId('');
+      setCourseTitle('');
+      await loadLmsLists();
+    }, 'Курс LMS создан');
+
+  const onDeleteCourse = (courseId: number) =>
+    act(async () => {
+      await deleteLmsCourse(courseId);
+      await loadLmsLists();
+    }, 'Курс удалён');
+
+  const onAddClassMap = () =>
+    act(async () => {
+      const classId = Number(mapClassId);
+      const courseId = Number(mapCourseId);
+      if (!classId || !courseId || !mapActivityRef.trim()) {
+        throw new Error('ID класса, курса и activity_ref обязательны');
+      }
+      await createLmsClassMap({
+        classId,
+        courseId,
+        activityRef: mapActivityRef.trim(),
+      });
+      setMapClassId('');
+      setMapCourseId('');
+      setMapActivityRef('');
+      await loadLmsLists();
+    }, 'Маппинг создан');
+
+  const onDeleteClassMap = (mapId: number) =>
+    act(async () => {
+      await deleteLmsClassMap(mapId);
+      await loadLmsLists();
+    }, 'Маппинг удалён');
 
   if (!authed) {
     return (
@@ -267,6 +352,161 @@ export function ObservabilityPage() {
                   <tr>
                     <td colSpan={5} className="link-hint">
                       Нет данных за период.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {isAdmin && lmsStatus && (
+        <div className="panel">
+          <h2>LMS LRS (S-67)</h2>
+          <p className="health-label">
+            {lmsStatus.configured
+              ? `${lmsStatus.endpoint} · auth: ${lmsStatus.authMode}`
+              : 'LRS не настроен'}
+            {lmsOauth ? ` · token-url: ${lmsOauth.tokenUrl ?? '—'}` : ''}
+          </p>
+          <p className="health-label">
+            deliveries: sent {lmsStatus.counts.sent ?? 0} · pending{' '}
+            {lmsStatus.counts.pending ?? 0} · failed {lmsStatus.counts.failed ?? 0}
+          </p>
+          <p className="link-hint">
+            Курсы LMS и привязку классов ведите здесь: statement skill-объекта
+            строится как activity_ref/skills/&lt;slug&gt;.
+          </p>
+          <div className="rag-toolbar">
+            <input
+              className="field"
+              aria-label="external_id курса LMS"
+              placeholder="external_id курса (в LMS)"
+              value={courseExternalId}
+              onChange={(e) => setCourseExternalId(e.target.value)}
+            />
+            <input
+              className="field"
+              aria-label="Название курса"
+              placeholder="Название курса"
+              value={courseTitle}
+              onChange={(e) => setCourseTitle(e.target.value)}
+            />
+            <button
+              className="retry-button"
+              type="button"
+              disabled={busy}
+              onClick={onAddCourse}
+            >
+              Добавить курс
+            </button>
+          </div>
+          <div className="rag-toolbar">
+            <input
+              className="field"
+              aria-label="ID класса для маппинга"
+              placeholder="ID класса"
+              inputMode="numeric"
+              value={mapClassId}
+              onChange={(e) => setMapClassId(e.target.value.replace(/\D/g, ''))}
+            />
+            <input
+              className="field"
+              aria-label="ID курса LMS"
+              placeholder="ID курса LMS"
+              inputMode="numeric"
+              value={mapCourseId}
+              onChange={(e) => setMapCourseId(e.target.value.replace(/\D/g, ''))}
+            />
+            <input
+              className="field"
+              aria-label="activity_ref курса"
+              placeholder="https://lms.example/courses/42"
+              value={mapActivityRef}
+              onChange={(e) => setMapActivityRef(e.target.value)}
+            />
+            <button
+              className="retry-button"
+              type="button"
+              disabled={busy}
+              onClick={onAddClassMap}
+            >
+              Привязать класс
+            </button>
+          </div>
+          <div className="class-table-wrap">
+            <table className="class-table">
+              <thead>
+                <tr>
+                  <th>Курс</th>
+                  <th>external_id</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {lmsCourses.map((course) => (
+                  <tr key={course.id}>
+                    <td>{course.titleRu}</td>
+                    <td>{course.externalId}</td>
+                    <td>
+                      <button
+                        className="retry-button"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => onDeleteCourse(course.id)}
+                      >
+                        Удалить
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {lmsCourses.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="link-hint">
+                      Курсов нет.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="class-table-wrap">
+            <table className="class-table">
+              <thead>
+                <tr>
+                  <th>Класс</th>
+                  <th>Курс</th>
+                  <th>activity_ref</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {lmsMaps.map((map) => (
+                  <tr key={map.id}>
+                    <td>
+                      {map.className} (#{map.classId})
+                    </td>
+                    <td>
+                      {map.courseTitle} (#{map.courseId})
+                    </td>
+                    <td className="link-hint">{map.activityRef}</td>
+                    <td>
+                      <button
+                        className="retry-button"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => onDeleteClassMap(map.id)}
+                      >
+                        Удалить
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {lmsMaps.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="link-hint">
+                      Маппингов нет.
                     </td>
                   </tr>
                 )}

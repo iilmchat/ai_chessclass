@@ -1,6 +1,12 @@
-"""S-49: xAPI-коннектор LRS с идемпотентной очередью и retry."""
+"""S-49: xAPI-коннектор LRS с идемпотентной очередью и retry.
+
+S-67: OAuth2 client_credentials (Bearer) с токен-кэшем; Basic — fallback,
+когда `lrs_oauth_client_id`/`lrs_oauth_token_url` не заданы. Mapping
+классов на курсы LMS (`lms_class_map`) меняет activity id skill-объекта.
+"""
 
 import logging
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
@@ -13,14 +19,93 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from domains.auth.models import User, UserRole
 from domains.bot_lab.models import BotStats
+from domains.classes.models import ClassMember, Classroom
 from domains.cognitive import service as cognitive_svc
-from domains.lms.models import LrsDelivery
+from domains.lms.models import LmsClassMap, LmsCourse, LrsDelivery
 from domains.profile.models import UserProfile
 
 logger = logging.getLogger(__name__)
 
 STATUSES = ("pending", "sent", "failed")
 SenderFn = Callable[[dict], Awaitable[int]]
+
+#: Локальный корень activity id (маппинг не задан) — источник S-49.
+DEFAULT_ACTIVITY_ROOT = "https://chessclass.local"
+
+#: Обновлять токен за N секунд до expiry (S-67).
+OAUTH_REFRESH_MARGIN_S = 60
+
+
+class _OauthTokenState:
+    """Модульный кэш токена (in-memory, один воркер — ок для S-67)."""
+
+    def __init__(self) -> None:
+        self.value: str = ""
+        self.expires_at: float = 0.0
+
+
+_oauth_token = _OauthTokenState()
+
+
+def lms_auth_mode() -> str:
+    """Режим авторизации к LRS: oauth2 | basic | none."""
+    if settings.lrs_oauth_client_id and settings.lrs_oauth_token_url:
+        return "oauth2"
+    if settings.lrs_key:
+        return "basic"
+    return "none"
+
+
+async def fetch_oauth_token(client: httpx.AsyncClient) -> str:
+    """Выдать токен по client_credentials и обновить кэш (S-67)."""
+    data: dict[str, str] = {
+        "grant_type": "client_credentials",
+        "client_id": settings.lrs_oauth_client_id,
+        "client_secret": settings.lrs_oauth_client_secret,
+    }
+    if settings.lrs_oauth_scope:
+        data["scope"] = settings.lrs_oauth_scope
+    response = await client.post(settings.lrs_oauth_token_url, data=data)
+    response.raise_for_status()
+    payload = response.json()
+    token = str(payload.get("access_token") or "")
+    if not token:
+        raise RuntimeError("LRS OAuth: access_token отсутствует в ответе")
+    _oauth_token.value = token
+    _oauth_token.expires_at = time.monotonic() + float(
+        payload.get("expires_in") or 3600
+    )
+    return token
+
+
+def _oauth_token_expired() -> bool:
+    return (
+        not _oauth_token.value
+        or time.monotonic()
+        > _oauth_token.expires_at - OAUTH_REFRESH_MARGIN_S
+    )
+
+
+def _http_client(base_url: str) -> httpx.AsyncClient:
+    """httpx-клиент с egress-hook (S-61); точка инъекции транспорта в тестах."""
+    from core.egress import hostname_of, make_egress_hook
+
+    return httpx.AsyncClient(
+        timeout=settings.lrs_timeout_s,
+        event_hooks={
+            "request": [make_egress_hook(hostname_of(base_url) or "")]
+        },
+    )
+
+
+async def auth_headers() -> dict[str, str]:
+    """Заголовок Authorization: Bearer (OAuth2) или пусто (Basic-fallback)."""
+    if lms_auth_mode() != "oauth2":
+        return {}
+    if _oauth_token_expired():
+        async with _http_client(settings.lrs_oauth_token_url) as token_client:
+            await fetch_oauth_token(token_client)
+    return {"Authorization": f"Bearer {_oauth_token.value}"}
 
 
 def _statement_id(actor_mbox: str, object_id: str, day: str) -> str:
@@ -30,6 +115,31 @@ def _statement_id(actor_mbox: str, object_id: str, day: str) -> str:
             f"{actor_mbox}|{object_id}|{day}",
         )
     )
+
+
+def skill_activity_id(activity_ref: str | None, slug: str) -> str:
+    """Activity id skill-объекта: через маппинг курса (S-67) или дефолт."""
+    if activity_ref:
+        return f"{activity_ref.rstrip('/')}/skills/{slug}"
+    return f"{DEFAULT_ACTIVITY_ROOT}/skills/{slug}"
+
+
+async def class_activity_refs(session: AsyncSession) -> dict[int, str]:
+    """user_id → activity_ref класса с маппингом на курс LMS (S-67).
+
+    У класса — не более одного маппинга, поэтому setdefault достаточно.
+    """
+    rows = (
+        await session.execute(
+            select(ClassMember.user_id, LmsClassMap.activity_ref).join(
+                LmsClassMap, LmsClassMap.class_id == ClassMember.class_id
+            )
+        )
+    ).all()
+    refs: dict[int, str] = {}
+    for user_id, ref in rows:
+        refs.setdefault(user_id, ref)
+    return refs
 
 
 async def build_statements(session: AsyncSession) -> list[dict]:
@@ -47,6 +157,7 @@ async def build_statements(session: AsyncSession) -> list[dict]:
     }
     day = datetime.now(UTC).date().isoformat()
     now = datetime.now(UTC).isoformat()
+    refs = await class_activity_refs(session)
     statements: list[dict] = []
     for user, profile in rows:
         actor = {
@@ -57,8 +168,9 @@ async def build_statements(session: AsyncSession) -> list[dict]:
                 else user.email
             ),
         }
+        activity_ref = refs.get(user.id)
         for skill in await cognitive_svc.scores_snapshot(session, user.id):
-            object_id = f"https://chessclass.local/skills/{skill['slug']}"
+            object_id = skill_activity_id(activity_ref, skill["slug"])
             statements.append(
                 {
                     "id": _statement_id(actor["mbox"], object_id, day),
@@ -152,20 +264,22 @@ async def _send(payload: dict) -> int:
     if not settings.lrs_enabled or not settings.lrs_endpoint:
         raise RuntimeError("LRS не настроен")
     url = f"{settings.lrs_endpoint.rstrip('/')}/statements"
-    from core.egress import hostname_of, make_egress_hook
 
-    async with httpx.AsyncClient(
-        timeout=settings.lrs_timeout_s,
-        event_hooks={
-            # S-61: egress allowlist (lrs_endpoint разрешён как настроенный)
-            "request": [make_egress_hook(hostname_of(settings.lrs_endpoint) or "")]
-        },
-    ) as client:
+    use_oauth = lms_auth_mode() == "oauth2"
+    auth: tuple[str, str] | None = None
+    headers: dict[str, str] = {}
+    if use_oauth:
+        # S-67: Bearer из кэша/после refresh; Basic — только fallback.
+        headers = await auth_headers()
+    else:
+        auth = (settings.lrs_key, settings.lrs_secret)
+    async with _http_client(settings.lrs_endpoint) as client:
         response = await client.put(
             url,
             params={"statementId": payload["id"]},
             json=payload,
-            auth=(settings.lrs_key, settings.lrs_secret),
+            headers=headers,
+            auth=auth if auth is not None else httpx.USE_CLIENT_DEFAULT,
         )
     return response.status_code
 
@@ -250,6 +364,7 @@ async def status(session: AsyncSession) -> dict:
     return {
         "configured": bool(settings.lrs_enabled and settings.lrs_endpoint),
         "endpoint": settings.lrs_endpoint or None,
+        "authMode": lms_auth_mode(),
         "counts": {name: counts.get(name, 0) for name in STATUSES},
         "lastDelivery": (
             {
@@ -279,3 +394,160 @@ async def sync(session: AsyncSession, *, sender: SenderFn | None = None) -> dict
     queued = await enqueue_statements(session)
     result = await deliver_pending(session, sender=sender)
     return {"queued": queued, **result}
+
+
+# --- S-67: CRUD курсов LMS и маппинга классов ---
+
+
+async def list_courses(session: AsyncSession) -> list[LmsCourse]:
+    rows = await session.execute(select(LmsCourse).order_by(LmsCourse.id))
+    return list(rows.scalars())
+
+
+async def create_course(
+    session: AsyncSession, *, external_id: str, title_ru: str
+) -> LmsCourse:
+    """Создать курс; duplicate external_id — ошибка (HTTP 409 в router)."""
+    exists = (
+        await session.scalar(
+            select(func.count())
+            .select_from(LmsCourse)
+            .where(LmsCourse.external_id == external_id)
+        )
+        or 0
+    )
+    if exists:
+        raise RuntimeError(f"LMS-курс с external_id={external_id} уже существует")
+    course = LmsCourse(external_id=external_id, title_ru=title_ru)
+    session.add(course)
+    await session.flush()
+    return course
+
+
+async def delete_course(session: AsyncSession, course_id: int) -> bool:
+    course = (
+        await session.execute(select(LmsCourse).where(LmsCourse.id == course_id))
+    ).scalar_one_or_none()
+    if course is None:
+        return False
+    await session.delete(course)
+    await session.flush()
+    return True
+
+
+class ClassMapRow:
+    """DTO маппинга с названиями класса/курса (для админ-UI)."""
+
+    def __init__(
+        self,
+        *,
+        map_id: int,
+        class_id: int,
+        course_id: int,
+        activity_ref: str,
+        class_name: str,
+        course_title: str,
+    ) -> None:
+        self.map_id = map_id
+        self.class_id = class_id
+        self.course_id = course_id
+        self.activity_ref = activity_ref
+        self.class_name = class_name
+        self.course_title = course_title
+
+
+async def list_class_maps(session: AsyncSession) -> list[ClassMapRow]:
+    rows = (
+        await session.execute(
+            select(
+                LmsClassMap.id,
+                LmsClassMap.class_id,
+                LmsClassMap.course_id,
+                LmsClassMap.activity_ref,
+            ).order_by(LmsClassMap.id)
+        )
+    ).all()
+    course_ids = {row[2] for row in rows}
+    titles: dict[int, str] = {}
+    if course_ids:
+        titles = {
+            course.id: course.title_ru
+            for course in (
+                await session.scalars(
+                    select(LmsCourse).where(LmsCourse.id.in_(course_ids))
+                )
+            )
+        }
+    class_names = await _class_names(session, {row[1] for row in rows})
+    return [
+        ClassMapRow(
+            map_id=row[0],
+            class_id=row[1],
+            course_id=row[2],
+            activity_ref=row[3],
+            class_name=class_names.get(row[1], f"#{row[1]}"),
+            course_title=titles.get(row[2], f"#{row[2]}"),
+        )
+        for row in rows
+    ]
+
+
+async def _class_names(
+    session: AsyncSession, class_ids: set[int]
+) -> dict[int, str]:
+    if not class_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(Classroom.id, Classroom.name).where(
+                Classroom.id.in_(class_ids)
+            )
+        )
+    ).all()
+    return {row[0]: row[1] for row in rows}
+
+
+async def create_class_map(
+    session: AsyncSession,
+    *,
+    class_id: int,
+    course_id: int,
+    activity_ref: str,
+) -> LmsClassMap:
+    """Привязать класс к курсу; существующий маппинг класса — ошибка (409)."""
+    classroom = (
+        await session.execute(select(Classroom).where(Classroom.id == class_id))
+    ).scalar_one_or_none()
+    if classroom is None:
+        raise LookupError(f"class {class_id} не найден")
+    course = (
+        await session.execute(select(LmsCourse).where(LmsCourse.id == course_id))
+    ).scalar_one_or_none()
+    if course is None:
+        raise KeyError(f"course {course_id} не найден")
+    existing = (
+        await session.execute(
+            select(LmsClassMap).where(LmsClassMap.class_id == class_id)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise RuntimeError(
+            f"маппинг класса class_id={class_id} уже существует"
+        )
+    mapping = LmsClassMap(
+        class_id=class_id, course_id=course_id, activity_ref=activity_ref
+    )
+    session.add(mapping)
+    await session.flush()
+    return mapping
+
+
+async def delete_class_map(session: AsyncSession, map_id: int) -> bool:
+    mapping = (
+        await session.execute(select(LmsClassMap).where(LmsClassMap.id == map_id))
+    ).scalar_one_or_none()
+    if mapping is None:
+        return False
+    await session.delete(mapping)
+    await session.flush()
+    return True

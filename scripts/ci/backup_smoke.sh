@@ -13,7 +13,7 @@ PG_PASSWORD="${POSTGRES_PASSWORD:-chess_ci}"
 DB="${POSTGRES_DB:-chessclass}"
 RESTORE_DB="${DB}_restore"
 DUMP="${DUMP_FILE:-/tmp/chessclass-ci.dump}"
-EXPECTED_HEAD="${EXPECTED_HEAD:-0029_pvp_complaint_review}"
+EXPECTED_HEAD="${EXPECTED_HEAD:-0030_s67_lms_oauth}"
 
 export PGPASSWORD="$PG_PASSWORD"
 

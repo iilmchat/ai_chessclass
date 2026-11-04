@@ -360,6 +360,90 @@ export function removeClassMember(
   });
 }
 
+// --- LMS LRS admin (S-67) ---
+
+export interface LmsStatusDto {
+  configured: boolean;
+  endpoint: string | null;
+  authMode: string;
+  counts: Record<string, number>;
+  lastDelivery: {
+    id: string;
+    status: string;
+    attempts: number;
+    responseStatus: number | null;
+    sentAt: string | null;
+  } | null;
+}
+
+export interface LmsOauthStatusDto {
+  mode: string;
+  tokenUrl: string | null;
+  scope: string | null;
+}
+
+export interface LmsCourseDto {
+  id: number;
+  externalId: string;
+  titleRu: string;
+}
+
+export interface LmsClassMapDto {
+  id: number;
+  classId: number;
+  courseId: number;
+  activityRef: string;
+  className: string;
+  courseTitle: string;
+}
+
+export function fetchLmsStatus(): Promise<LmsStatusDto> {
+  return apiFetch('/admin/lms/status');
+}
+
+export function fetchLmsOauthStatus(): Promise<LmsOauthStatusDto> {
+  return apiFetch('/admin/lms/oauth-status');
+}
+
+export function fetchLmsCourses(): Promise<LmsCourseDto[]> {
+  return apiFetch('/admin/lms/courses');
+}
+
+export function fetchLmsClassMap(): Promise<LmsClassMapDto[]> {
+  return apiFetch('/admin/lms/class-map');
+}
+
+export function createLmsCourse(payload: {
+  externalId: string;
+  titleRu: string;
+}): Promise<LmsCourseDto> {
+  return apiFetch('/admin/lms/courses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteLmsCourse(courseId: number): Promise<void> {
+  return apiFetch(`/admin/lms/courses/${courseId}`, { method: 'DELETE' });
+}
+
+export function createLmsClassMap(payload: {
+  classId: number;
+  courseId: number;
+  activityRef: string;
+}): Promise<LmsClassMapDto> {
+  return apiFetch('/admin/lms/class-map', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteLmsClassMap(mapId: number): Promise<void> {
+  return apiFetch(`/admin/lms/class-map/${mapId}`, { method: 'DELETE' });
+}
+
 // --- profile / progress (S-42)
 
 export interface ProfileDto {
