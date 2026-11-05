@@ -1,6 +1,7 @@
 # TODO_V0.5.md — План v0.5.0 «Hardening & Compliance»
 
-**Статус:** 🔶 В работе (S-70…S-74)
+**Статус:** ✅ v0.5.0 (S-70…S-74 завершены)
+**Сводно:** 5 спринтов · **Прогресс: 5/5**
 **Цель:** Закрыть разрывы до уровня Production-Grade (Best Practices): отказоустойчивость LLM, защита от OWASP LLM Top 10, изоляция данных на уровне БД (P0), а также надежность воркеров, трассировка и EdTech-compliance (P1).
 
 ## Спринт S-70 (P0): LLM Gateway Resilience
@@ -83,13 +84,14 @@
 **Ветка:** `release/v0.5.0`
 
 **Задачи:**
-- [ ] Parental consent workflow: спроектировать эндпоинт и UI для подтверждения согласия (COPPA/GDPR-K).
-- [ ] Создать `docs/privacy-policy.md` и `docs/incident-response.md`.
-- [ ] Финальный прогон: `scripts/ci.ps1`, `scripts/e2e.ps1`.
-- [ ] Обновить версии в `README.md`, `Design.md`, `CHANGELOG.md`.
-- [ ] Сформировать `docs/release-notes-v0.5.0.md`.
+- [x] Parental consent workflow: `/consent/{status,request,confirm,revoke}`,
+  `parental_consents`, UI `/consent` (COPPA/GDPR-K).
+- [x] Создать `docs/privacy-policy.md` и `docs/incident-response.md`.
+- [x] Финальный прогон: `scripts/ci.ps1`, `scripts/e2e.ps1`.
+- [x] Обновить версии в `README.md`, `Design.md`, `CHANGELOG.md` (v0.5.0).
+- [x] Сформировать `docs/release-notes-v0.5.0.md`.
 
 **DoD:**
-- [ ] Тег `v0.5.0` на GitHub. CI зелёный.
-- [ ] `doc_lint.py` обновляет счётчики без ошибок.
-- [ ] Отчёт: `docs/sprint-reports/S-74-YYYY-MM-DD.md`.
+- [x] Тег `v0.5.0` на GitHub. CI зелёный.
+- [x] `doc_lint.py` обновляет счётчики без ошибок.
+- [x] Отчёт: `docs/sprint-reports/S-74-2026-11-06.md`.

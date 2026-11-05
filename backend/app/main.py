@@ -28,6 +28,7 @@ from domains.bot_lab.router import router as bots_router
 from domains.chess_lab.router import router as chess_router
 from domains.classes.router import router as classes_router
 from domains.cognitive.router import router as skills_router
+from domains.consent.router import router as consent_router
 from domains.export.router import router as export_router
 from domains.lms.router import router as lms_router
 from domains.observability.router import admin_router as observability_admin_router
@@ -85,7 +86,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="ChessClass API",
-    version="0.4.0",
+    version="0.5.0",
     description=(
         "Единая экосистема «Шахматно-программистский класс» (ChessClass). "
         "Архитектура — Design.md; контракты — docs/SPEC.md."
@@ -195,6 +196,7 @@ app.include_router(progress_router, prefix="/api/v1")
 app.include_router(py_router, prefix="/api/v1")
 app.include_router(chess_router, prefix="/api/v1")
 app.include_router(classes_router, prefix="/api/v1")
+app.include_router(consent_router, prefix="/api/v1")
 app.include_router(skills_router, prefix="/api/v1")
 app.include_router(bots_router, prefix="/api/v1")
 app.include_router(bot_admin_router, prefix="/api/v1")

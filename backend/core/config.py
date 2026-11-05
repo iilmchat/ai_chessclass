@@ -149,6 +149,9 @@ class Settings(BaseSettings):
     obs_queue_alert_depth: int = 50
     obs_llm_cost_alert_rub: float = 1000.0
     obs_tls_cert_path: str = ""
+    # --- compliance / parental consent (S-74, ADR-019)
+    parental_consent_ttl_days: int = 7
+    parental_consent_policy_version: str = "1.0"
     # --- tracing (S-73, ADR-017)
     otel_enabled: bool = False
     otel_service_name: str = "chessclass-api"

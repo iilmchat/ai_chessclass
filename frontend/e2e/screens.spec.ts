@@ -111,6 +111,32 @@ test('Ops: панель retention/алертов видна admin', async ({ bro
   });
 });
 
+test('Consent: родитель подтверждает ссылку', async ({ browser }) => {
+  const token = await tokenFor(STUDENT_EMAIL, STUDENT_PASSWORD);
+  const api = await request.newContext({
+    baseURL: API_ORIGIN,
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+  });
+  const profile = await api.patch(`${API}/profile/me`, {
+    data: { ageGroup: 'child' },
+  });
+  expect(profile.ok()).toBeTruthy();
+  const requested = await api.post(`${API}/consent/request`, {
+    data: { parentEmail: 'parent@example.com' },
+  });
+  expect(requested.ok()).toBeTruthy();
+  const { devToken } = (await requested.json()) as { devToken: string | null };
+  expect(devToken).toBeTruthy();
+
+  const page = await asAuthorizedPage(browser, token);
+  await page.goto(`/consent?token=${encodeURIComponent(devToken as string)}`);
+  await expect(page.locator('main')).toContainText(
+    'Согласие родителя подтверждено',
+    { timeout: 20_000 },
+  );
+  await api.dispose();
+});
+
 test('Telegram-link: код связи создаётся в профиле', async ({ browser }) => {
   const token = await tokenFor(STUDENT_EMAIL, STUDENT_PASSWORD);
   const page = await asAuthorizedPage(browser, token);

@@ -106,12 +106,13 @@ async def run_engine_analysis(fen: str, level: Level) -> list[dict]:
     try:
         from core.tracing import current_trace_id_optional
 
+        # S-73: trace_id передаём, но без долгоживущего _job_id: иначе
+        # повтор после timeout получает task_busy и UI не может retry.
         job = await pool.enqueue_job(
             "analyze_position",
             fen,
             chess_level,
             current_trace_id_optional(),
-            _job_id=f"analyze_position:{fen}:{chess_level}",
         )
         if job is None:  # дубликат задачи уже в очереди
             raise AppError("task_busy", "Задача анализа уже выполняется", 409)

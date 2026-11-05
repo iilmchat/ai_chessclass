@@ -1093,3 +1093,43 @@ export function reviewPvpComplaint(
     body: JSON.stringify({ status, note }),
   });
 }
+
+// --- parental consent (S-74)
+
+export interface ConsentStatusDto {
+  required: boolean;
+  status: 'none' | 'pending' | 'granted' | 'revoked' | 'expired' | 'not_required';
+  policyVersion: string;
+  parentEmail: string | null;
+  requestedAt: string | null;
+  confirmedAt: string | null;
+  revokedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface ConsentRequestResultDto extends ConsentStatusDto {
+  devToken: string | null;
+  confirmUrl: string | null;
+}
+
+export function fetchConsentStatus(): Promise<ConsentStatusDto> {
+  return apiFetch<ConsentStatusDto>('/consent/status');
+}
+
+export function requestParentalConsent(parentEmail: string): Promise<ConsentRequestResultDto> {
+  return apiFetch<ConsentRequestResultDto>('/consent/request', {
+    method: 'POST',
+    body: JSON.stringify({ parentEmail }),
+  });
+}
+
+export function confirmParentalConsent(token: string): Promise<ConsentStatusDto> {
+  return apiFetch<ConsentStatusDto>('/consent/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
+export function revokeParentalConsent(): Promise<ConsentStatusDto> {
+  return apiFetch<ConsentStatusDto>('/consent/revoke', { method: 'POST' });
+}

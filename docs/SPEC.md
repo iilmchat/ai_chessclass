@@ -29,6 +29,7 @@
 | infra | `/readyz` (дублируется с корня `/`) | GET | ✅ S-03 | ревизия alembic vs head, версия приложения; `status: ready/not-ready` |
 | auth | `POST /auth/register`, `/auth/verify`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `GET /auth/me`, `POST /auth/password-reset`, `/auth/password-reset/confirm` | — | ✅ S-02 | Argon2id; JWT access 15м; refresh — opaque в БД, HttpOnly-cookie `cc_refresh` (path `/api/v1/auth`), ротация; login требует верифицированный email (Design §13.1) |
 | profile | `GET /profile/me`, `PATCH /profile/me`, `GET /profile/students`, `GET /profile/{id}`, `PATCH /profile/{id}/level` | — | ✅ S-03 | RBAC: свой профиль — все; список/чужой — teacher/admin; смена уровня — admin (Design §12.2); пагинация `page`+`pageSize` |
+| consent | `GET /consent/status`, `POST /consent/request`, `/consent/confirm`, `/consent/revoke` | — | ✅ S-74 | COPPA/GDPR-K: child/teen → одноразовая ссылка (SHA-256, TTL 7 дней), confirm публичный, revoke владельцем; audit; DDL — §6 |
 | python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `POST /py/assignments/{id}/hint`, `GET /py/assignments/{id}/solution`, `GET /py/submissions/{id}` | — | ✅ S-08/S-09 | assert-тесты в песочнице; вердикты §3.3; ladder §3.4; флаги §8; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
@@ -1007,6 +1008,14 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 (nullable), `status` (`failed | retried | ignored`), `failed_at`.
 `core.jobs.track_job` делает upsert по `job_id` при исключении задачи;
 ошибка DLQ-записи не маскирует исходное исключение.
+
+**parental_consents** (S-74, миграция 0033): `id`, `user_id` (CASCADE),
+`token_hash` (unique, SHA-256), `parent_email`, `policy_version`, `status`
+(`pending | granted | revoked | expired`), `requested_at`, `confirmed_at`,
+`revoked_at`, `expires_at`. Индексы `(user_id, status)`, `expires_at`.
+Одноразовая ссылка живёт 7 дней; после подтверждения/отзыва старый токен
+недействителен. Контакт родителя и версия политики сохраняются для
+доказуемости согласия.
 
 ### 6.5. Промпты и параметры генерации (S-06)
 

@@ -41,15 +41,15 @@ REPO = _find_script().parents[1]
 def test_alembic_graph_matches_repo() -> None:
     head, count = doc_lint._alembic_graph(REPO)
 
-    assert head == "0032_s73_async_tracing"
-    assert count == 32
+    assert head == "0033_s74_parental_consent"
+    assert count == 33
 
 
 def test_collect_versions_consistent() -> None:
     versions = doc_lint._collect_versions(REPO)
 
     assert versions
-    assert all(value == "0.4.0" for value in versions.values())
+    assert all(value == "0.5.0" for value in versions.values())
 
 
 def test_stale_markers_detected(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.4.0 · **Дата:** 2026-11-04
+**Версия:** v0.5.0 · **Дата:** 2026-11-06
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 
@@ -1274,6 +1274,10 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   и `llm_calls.trace_id`.
   Миграций — **32**, head `0032_s73_async_tracing`; JSON-логи содержат
   `request_id` и `trace_id`.
+- S-74: backend — **268 собранных тестов** (265 passed + 3 skipped);
+  parental consent flow (`tests/test_consent.py`), UI `/consent`, e2e 15,
+  политика/incident docs. Миграций — **33**, head
+  `0033_s74_parental_consent`; версия **v0.5.0**.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
@@ -1381,6 +1385,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 | ADR-016 | Идемпотентность асинхронных задач и Dead Letter Queue (DLQ) | `run_match` и `analyze_game` могут дублироваться при рестарте воркера; нет видимости упавших задач | 2026-11-05 |
 | ADR-017 | Сквозная трассировка (OpenTelemetry) с прокидыванием `trace_id` через API → arq → LLM | Текущий `x-request-id` не связывает HTTP-запрос, фоновую задачу и вызов LLM в единую цепочку | 2026-11-05 |
 | ADR-018 | Защита от Prompt Injection (OWASP LLM01): структурное разделение trusted/untrusted контента | В `builder.py` RAG-документы и ввод пользователя склеиваются без изоляции, что открывает путь к indirect prompt injection | 2026-11-05 |
+| ADR-019 | Parental consent workflow (COPPA/GDPR-K): одноразовая email-ссылка, статус в `parental_consents`, UI `/consent` | Для учеников child/teen нужно подтверждение родителя; согласие должно быть доказуемым и отзываемым | 2026-11-06 |
 
 Статусы: `accepted` (по умолчанию), `proposed`, `superseded`.
 
@@ -1393,7 +1398,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 
 **ADR-016: Идемпотентность асинхронных задач и Dead Letter Queue (DLQ)**
 *   **Контекст:** Задачи матчей и анализа PGN могут дублироваться при рестарте воркера. Упавшие задачи теряются в логах.
-*   **Решение:** Детерминированный `_job_id` (`run_match:<match_id>`, `analyze_game:<game_id>`, `analyze_position:<fen>:<level>`, `tournament:<id>`) + дедупликация активного HTTP-запроса матча по `(user_id, version_id, opponent)`. В `WorkerSettings` — `max_tries`; каждая задача обёрнута `core.jobs.track_job`, который пишет последнюю ошибку в `failed_jobs` (upsert по `job_id`) и пробрасывает исключение. arq 0.28 не имеет callback `on_job_failure` с текстом ошибки, поэтому обёртка функционально заменяет его.
+*   **Решение:** Детерминированный `_job_id` (`run_match:<match_id>`, `analyze_game:<game_id>`, `tournament:<id>`) + дедупликация активного HTTP-запроса матча по `(user_id, version_id, opponent)`. `analyze_position` намеренно без `_job_id`: при timeout интерактивного анализа повтор должен создавать новый job, иначе UI получает `task_busy`. В `WorkerSettings` — `max_tries`; каждая задача обёрнута `core.jobs.track_job`, который пишет последнюю ошибку в `failed_jobs` (upsert по `job_id`) и пробрасывает исключение. arq 0.28 не имеет callback `on_job_failure` с текстом ошибки, поэтому обёртка функционально заменяет его.
 *   **Последствия:** Миграция `0032_s73_async_tracing`; повторный HTTP-запрос матча возвращает существующий `matchId`. Гонка двух одновременных запросов до commit остаётся теоретической (нужен уникальный partial-index/advisory lock).
 
 **ADR-017: Сквозная трассировка (OpenTelemetry)**
@@ -1405,6 +1410,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 *   **Контекст:** Текущий `builder.py` склеивает системный промпт, ввод ученика и RAG-контекст в единый текстовый блок, что открывает путь к indirect prompt injection.
 *   **Решение:** Вводим структурную разметку (`<trusted_instructions>`, `<untrusted_user_input>`, `<untrusted_rag_context>`) и санитизацию ввода перед сборкой промпта.
 *   **Последствия:** Рефакторинг `builder.py`. Необходимость написания adversarial-тестов.
+
+**ADR-019: Parental consent (COPPA/GDPR-K)**
+*   **Контекст:** Платформа обрабатывает данные школьников; для `child/teen` нужно доказамое согласие родителя/опекуна и механизм отзыва.
+*   **Решение:** `parental_consents` хранит `user_id`, parent email, версию политики, статус (`pending/granted/revoked/expired`), timestamps и только SHA-256-хэш одноразового токена (TTL 7 дней). API `/consent/{status,request,confirm,revoke}`; UI `/consent`; подтверждение публичное по ссылке, отзыв — владельцем. События пишутся в `audit_logs`.
+*   **Последствия:** Миграция `0033_s74_parental_consent`; email-транспорт в prod требует SMTP (dev — `[dev-email]`); политика и incident-response — `docs/privacy-policy.md`, `docs/incident-response.md`.
 
 ---
 

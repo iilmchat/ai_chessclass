@@ -43,6 +43,7 @@ const AUTHED_PAGES = [
   '/classes',
   '/rag',
   '/profile',
+  '/consent',
   '/export',
   '/ops',
 ] as const;

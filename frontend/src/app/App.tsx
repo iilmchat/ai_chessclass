@@ -3,6 +3,7 @@ import { BotsPage } from '../pages/BotsPage';
 import { ChessPage } from '../pages/ChessPage';
 import { ClassesPage } from '../pages/ClassesPage';
 import { ComplaintsPage } from '../pages/ComplaintsPage';
+import { ConsentPage } from '../pages/ConsentPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { ExportPage } from '../pages/ExportPage';
 import { ObservabilityPage } from '../pages/ObservabilityPage';
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { to: '/classes', label: 'Классы' },
   { to: '/rag', label: 'RAG-база' },
   { to: '/profile', label: 'Профиль' },
+  { to: '/consent', label: 'Согласие' },
   { to: '/export', label: 'Экспорт' },
   { to: '/ops', label: 'Наблюдаемость' },
 ];
@@ -71,6 +73,7 @@ export function App() {
           <Route path="/classes" element={<ClassesPage />} />
           <Route path="/rag" element={<RagEditorPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/consent" element={<ConsentPage />} />
           <Route path="/tournaments" element={<TournamentsPage />} />
           <Route path="/export" element={<ExportPage />} />
           <Route path="/ops" element={<ObservabilityPage />} />

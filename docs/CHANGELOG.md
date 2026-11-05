@@ -5,9 +5,17 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
-## [Unreleased]
+## [v0.5.0] — 2026-11-06
 
 ### Добавлено
+
+#### S-74 — Compliance & Release v0.5.0 (2026-11-06)
+- Parental consent workflow (COPPA/GDPR-K): `parental_consents`, одноразовая
+  ссылка (SHA-256, TTL 7 дней), `/consent/{status,request,confirm,revoke}`,
+  UI `/consent`, аудит; миграция `0033`.
+- `docs/privacy-policy.md`, `docs/incident-response.md`,
+  `docs/release-notes-v0.5.0.md`; e2e consent-flow.
+- Версия **v0.5.0** во всех источниках, IMAGE_TAG, README/Design/CHANGELOG.
 
 #### S-73 — Async Reliability & Tracing (2026-11-06)
 - Идемпотентность arq: `_job_id` для матчей/анализа/турниров; повторный
