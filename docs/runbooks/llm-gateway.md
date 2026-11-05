@@ -140,13 +140,42 @@ HALF_OPEN с одним probe. Причина — в `llm_calls.fallback_from`
   L3 11.1 с, judge 1.4 с. `LLM_TIMEOUT_S=40` — не занижать; при стабильно
   высоких значениях поднять до 60 с и/или прогревать провайдера.
 
-## 6. Локальный LM Studio
+## 5.1. Локальный LM Studio
 
 1. Загрузить модель, включить **Serve on Local Network**, порт 8034.
 2. `LLM_BASE_URL=http://host.docker.internal:8034/v1` (Docker) или
    `http://127.0.0.1:8034/v1` (backend на хосте).
 3. Все `LLM_MODEL_*` = id из `GET /v1/models`; `LLM_COST_*=0`.
 4. Проверить: `docker run --rm chessclass/backend:dev python -c "import urllib.request; print(urllib.request.urlopen('http://host.docker.internal:8034/v1/models', timeout=5).read()[:200])"`.
+
+## 6. Опционально: GPU-инференс через обратный SSH (RTX 3060)
+
+ChessClass поддерживает использование локальной GPU-станции (Windows + LM Studio) в качестве основного или fallback-провайдера для L1/L2 маршрутов. Это снижает расходы на RouterAI и ускоряет ответы (38-51 ток/с против 3 ток/с на CPU).
+
+**Архитектура:**
+[API ChessClass (Docker)] -> `http://172.x.x.x:8035/v1` (Bridge)
+         ^ (Обратный SSH-туннель)
+[Сервер ChessClass] <- SSH -> [ПК с LM Studio 127.0.0.1:8034]
+
+**Шаги подключения:**
+
+1. На ПК запустить LM Studio, включить `Require Auth` (токен) и загрузить модель (например, Qwen-2.5-7B-Instruct).
+2. На сервере с ChessClass (в `sshd_config`) включить `GatewayPorts clientspecified`.
+3. На ПК выполнить: `ssh -N -R 172.18.0.1:8035:127.0.0.1:8034 root@[IP-сервера]`. (Для Windows — оформить в Scheduled Task с переподключением).
+4. На сервере открыть порт в `ufw`: `ufw allow in on [docker-bridge] to 172.18.0.1 port 8035 proto tcp`.
+5. В `.env` ChessClass указать:
+
+```env
+LLM_LOCAL_FALLBACK=true
+LLM_LOCAL_BASE_URL=http://172.18.0.1:8035/v1
+LLM_LOCAL_API_KEY=[токен из LM Studio]
+LLM_MODEL_L1=qwen2.5-7b-instruct@q4_k_m
+LLM_MODEL_L2=qwen2.5-7b-instruct@q4_k_m
+```
+
+6. Перезапустить контейнеры `api` и `worker`.
+
+**Важно:** Если ПК выключается, Circuit Breaker (ADR-016) автоматически откроется после 5 ошибок и переключит трафик на облако (RouterAI) или Echo.
 
 ## 7. Диагностика
 

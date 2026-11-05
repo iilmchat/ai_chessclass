@@ -9,6 +9,14 @@
 
 ### Добавлено
 
+#### S-78 — Infrastructure: GPU Backend Support (2026-11-06)
+- `LLM_LOCAL_API_KEY` для LM Studio (`Require Auth`) в config/env;
+  отдельный от облачного `LLM_API_KEY`.
+- `OpenAICompatProvider` выбирает локальный ключ при совпадении base_url;
+  gateway передаёт ключ в `get_local_provider`.
+- Runbook §6: GPU-инференс через обратный SSH (RTX 3060), LM Studio,
+  `GatewayPorts`, ufw и `.env`-пример.
+
 #### S-77 — Observability v0.6 (2026-11-06)
 - Compose-профиль `observability`: OTel Collector → Tempo/Prometheus →
   Grafana; OTLP gRPC/HTTP endpoint, dev/staging порты.

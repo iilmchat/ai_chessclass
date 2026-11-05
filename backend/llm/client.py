@@ -27,7 +27,16 @@ class OpenAICompatProvider(LLMProvider):
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.base_url = (base_url or settings.llm_base_url).rstrip("/")
-        self.api_key = api_key if api_key is not None else settings.llm_api_key
+        if api_key is None:
+            # S-78: при совпадении base_url с локальным провайдером берём
+            # LLM_LOCAL_API_KEY; иначе — облачный LLM_API_KEY.
+            local_base = settings.llm_local_base_url.rstrip("/")
+            api_key = (
+                settings.llm_local_api_key
+                if self.base_url == local_base
+                else settings.llm_api_key
+            )
+        self.api_key = api_key
         self.name = "openai_compat"
         self._client = httpx.AsyncClient(
             base_url=self.base_url,

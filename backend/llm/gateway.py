@@ -77,7 +77,8 @@ def get_cloud_provider() -> OpenAICompatProvider:
 def get_local_provider() -> OpenAICompatProvider:
     if "local" not in _providers:
         _providers["local"] = OpenAICompatProvider(
-            base_url=settings.llm_local_base_url, api_key=""
+            base_url=settings.llm_local_base_url,
+            api_key=settings.llm_local_api_key,
         )
     return _providers["local"]  # type: ignore[return-value]
 

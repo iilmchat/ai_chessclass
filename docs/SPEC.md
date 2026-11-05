@@ -986,7 +986,9 @@ Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfi
 ### 6.4. Экономика (S-05, зафиксировано)
 
 **Fallback-цепочка** (Design §8.4): cloud RouterAI → local LM Studio
-(флаг `LLM_LOCAL_FALLBACK`) → echo; в каждом шаге — 1 retry с
+(флаг `LLM_LOCAL_FALLBACK`) → echo; local использует отдельный
+`LLM_LOCAL_API_KEY` (LM Studio `Require Auth`) и не переиспользует
+облачный ключ; в каждом шаге — 1 retry с
 экспоненциальным backoff и jitter. Перед шагом — circuit breaker (Redis,
 S-70): 5 ошибок за 60 с → OPEN, через 60 с → HALF_OPEN с одним probe.
 Причина переключения — `fallback_from`:

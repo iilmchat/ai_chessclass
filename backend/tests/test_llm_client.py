@@ -26,6 +26,19 @@ def _provider(handler) -> OpenAICompatProvider:
     )
 
 
+async def test_local_provider_uses_local_api_key(monkeypatch):
+    monkeypatch.setattr(settings, "llm_local_base_url", "http://local.test/v1")
+    monkeypatch.setattr(settings, "llm_local_api_key", "local-secret")
+
+    provider = OpenAICompatProvider(
+        base_url="http://local.test/v1",
+        transport=httpx.MockTransport(lambda request: _ok_response()),
+    )
+    assert provider.api_key == "local-secret"
+    assert provider._client.headers.get("authorization") == "Bearer local-secret"
+    await provider.close()
+
+
 async def test_generate_success_and_usage():
     async def handler(request: httpx.Request) -> httpx.Response:
         body = request.read()

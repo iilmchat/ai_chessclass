@@ -1300,6 +1300,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `trace_id` доступен в Tempo и JSON-логах. Добавлены спаны
   `llm.provider.<key>`; collector config валидирован `otelcol validate`.
   Backend — 277 collected (274 passed + 3 skipped).
+- S-78 (v0.6): `LLM_LOCAL_API_KEY` для LM Studio (`Require Auth`);
+  `OpenAICompatProvider` выбирает локальный ключ при совпадении base_url,
+  gateway передаёт его в `get_local_provider`; runbook §6 описывает
+  обратный SSH-туннель GPU (RTX 3060) через `GatewayPorts`. Backend —
+  278 collected (275 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

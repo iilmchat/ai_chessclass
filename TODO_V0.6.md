@@ -1,7 +1,7 @@
 # TODO_V0.6.md — План v0.6.0 «Post-release Hardening»
 
-**Статус:** 🔶 В работе (S-75…S-77 завершены, S-78…S-79)
-**Сводно:** 5 спринтов · **Прогресс: 3/5**
+**Статус:** 🔶 В работе (S-75…S-78 завершены, S-79…S-80)
+**Сводно:** 6 спринтов · **Прогресс: 4/6**
 **Цель:** закрыть эксплуатационные разрывы после v0.5.0: реальная доставка
 родительских согласий, enforcement, DLQ-операции, OTel-контур и живые
 интеграции.
@@ -39,16 +39,26 @@
 - [x] Трассировка LLM-провайдеров и arq; тесты, отчёт
   `docs/sprint-reports/S-77-2026-11-06.md`.
 
-## Спринт S-78 (P2): Integrations & A11y
-**Ветка:** `feat/s-78-integrations-a11y`
+## Спринт S-78 (P1): Infrastructure: GPU Backend Support
+**Ветка:** `feat/s-78-gpu-backend`
+
+- [x] `LLM_LOCAL_API_KEY` в config/env; отдельный ключ LM Studio.
+- [x] `OpenAICompatProvider` выбирает локальный ключ для local base_url;
+  gateway передаёт ключ в `get_local_provider`.
+- [x] Runbook: обратный SSH-туннель GPU (RTX 3060) + LM Studio.
+- [x] Тесты Authorization header; отчёт
+  `docs/sprint-reports/S-78-2026-11-06.md`.
+
+## Спринт S-79 (P2): Integrations & A11y
+**Ветка:** `feat/s-79-integrations-a11y`
 
 - [ ] Live LRS-провайдер (OAuth2/mapping) на staging.
 - [ ] Live TTS ElevenLabs с fallback/квотой.
 - [ ] a11y-обёртка react-chessboard v5 (aria-label клеток).
 
-## Спринт S-79 (P1): Release v0.6.0
+## Спринт S-80 (P1): Release v0.6.0
 **Ветка:** `release/v0.6.0`
 
 - [ ] Load/staging-приёмка с живыми ключами, runbook.
 - [ ] Версии/CHANGELOG/release notes, финальный CI/e2e.
-- [ ] Тег `v0.6.0`, отчёт S-79.
+- [ ] Тег `v0.6.0`, отчёт S-80.

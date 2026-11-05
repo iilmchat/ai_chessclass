@@ -79,6 +79,8 @@ class Settings(BaseSettings):
     llm_retry_delay_s: float = 2.0  # §8.4: 1 retry через 2 с
     llm_local_fallback: bool = False
     llm_local_base_url: str = "http://localhost:1234/v1"
+    # S-78: отдельный ключ LM Studio (Require Auth); облачный ключ не переиспользуем
+    llm_local_api_key: str = ""
     llm_cost_currency: str = "RUB"
     # цены ₽/1M (Numeric(12,4)); взяты из каталога RouterAI на 2026-11-01
     llm_cost_l1_in: Decimal = Decimal("5.2362")
