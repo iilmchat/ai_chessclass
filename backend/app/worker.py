@@ -170,7 +170,7 @@ async def lms_sync(ctx: dict) -> dict:
     logger.info("worker: lms_sync")
     async with db_context(None, "admin"):
         async with session_factory() as session:
-            result = await lms_svc.sync(session)
+            result = await lms_svc.sync(session, redis=ctx["redis"])
             await session.commit()
     return result
 

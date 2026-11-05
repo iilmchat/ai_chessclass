@@ -10,6 +10,7 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import httpx
 from sqlalchemy import func, select
@@ -34,6 +35,8 @@ DEFAULT_ACTIVITY_ROOT = "https://chessclass.local"
 
 #: Обновлять токен за N секунд до expiry (S-67).
 OAUTH_REFRESH_MARGIN_S = 60
+#: S-79: общий Redis-кэш токена между API/воркерами.
+OAUTH_CACHE_KEY = "lrs:oauth:token"
 
 
 class _OauthTokenState:
@@ -98,14 +101,34 @@ def _http_client(base_url: str) -> httpx.AsyncClient:
     )
 
 
-async def auth_headers() -> dict[str, str]:
-    """Заголовок Authorization: Bearer (OAuth2) или пусто (Basic-fallback)."""
+async def auth_headers(redis: Any | None = None) -> dict[str, str]:
+    """Bearer из Redis/памяти (OAuth2) или пусто (Basic-fallback)."""
     if lms_auth_mode() != "oauth2":
         return {}
+    if redis is not None:
+        cached = await redis.get(OAUTH_CACHE_KEY)
+        if cached:
+            token = cached.decode() if isinstance(cached, bytes) else str(cached)
+            return {"Authorization": f"Bearer {token}"}
     if _oauth_token_expired():
         async with _http_client(settings.lrs_oauth_token_url) as token_client:
             await fetch_oauth_token(token_client)
+    if redis is not None:
+        ttl = max(
+            1,
+            int(_oauth_token.expires_at - time.monotonic())
+            - OAUTH_REFRESH_MARGIN_S,
+        )
+        await redis.set(OAUTH_CACHE_KEY, _oauth_token.value, ex=ttl)
     return {"Authorization": f"Bearer {_oauth_token.value}"}
+
+
+async def invalidate_oauth_async(redis: Any | None = None) -> None:
+    """Сбросить in-memory и Redis-кэш при 401."""
+    _oauth_token.value = ""
+    _oauth_token.expires_at = 0.0
+    if redis is not None:
+        await redis.delete(OAUTH_CACHE_KEY)
 
 
 def _statement_id(actor_mbox: str, object_id: str, day: str) -> str:
@@ -260,7 +283,7 @@ async def enqueue_statements(session: AsyncSession) -> int:
     return len(new)
 
 
-async def _send(payload: dict) -> int:
+async def _send(payload: dict, redis: Any | None = None) -> int:
     if not settings.lrs_enabled or not settings.lrs_endpoint:
         raise RuntimeError("LRS не настроен")
     url = f"{settings.lrs_endpoint.rstrip('/')}/statements"
@@ -269,18 +292,28 @@ async def _send(payload: dict) -> int:
     auth: tuple[str, str] | None = None
     headers: dict[str, str] = {}
     if use_oauth:
-        # S-67: Bearer из кэша/после refresh; Basic — только fallback.
-        headers = await auth_headers()
+        # S-67/S-79: Bearer из Redis/in-memory; Basic — только fallback.
+        headers = await auth_headers(redis)
     else:
         auth = (settings.lrs_key, settings.lrs_secret)
-    async with _http_client(settings.lrs_endpoint) as client:
-        response = await client.put(
+
+    async def put(client: httpx.AsyncClient) -> httpx.Response:
+        return await client.put(
             url,
             params={"statementId": payload["id"]},
             json=payload,
             headers=headers,
             auth=auth if auth is not None else httpx.USE_CLIENT_DEFAULT,
         )
+
+    async with _http_client(settings.lrs_endpoint) as client:
+        response = await put(client)
+        if use_oauth and response.status_code == 401:
+            # Токен мог быть отозван/истёк на стороне IdP — обновляем и
+            # повторяем ровно один раз.
+            await invalidate_oauth_async(redis)
+            headers = await auth_headers(redis)
+            response = await put(client)
     return response.status_code
 
 
@@ -289,10 +322,15 @@ async def deliver_pending(
     *,
     sender: SenderFn | None = None,
     limit: int | None = None,
+    redis: Any | None = None,
 ) -> dict[str, int]:
     if sender is None and not settings.lrs_enabled:
         return {"sent": 0, "failed": 0, "pending": 0, "disabled": 1}
-    fetch = sender or _send
+    if sender is not None:
+        fetch = sender
+    else:
+        async def fetch(payload: dict) -> int:
+            return await _send(payload, redis=redis)
     now = datetime.now(UTC)
     rows = list(
         (
@@ -390,9 +428,14 @@ async def list_deliveries(
     return list((await session.execute(stmt)).scalars())
 
 
-async def sync(session: AsyncSession, *, sender: SenderFn | None = None) -> dict:
+async def sync(
+    session: AsyncSession,
+    *,
+    sender: SenderFn | None = None,
+    redis: Any | None = None,
+) -> dict:
     queued = await enqueue_statements(session)
-    result = await deliver_pending(session, sender=sender)
+    result = await deliver_pending(session, sender=sender, redis=redis)
     return {"queued": queued, **result}
 
 

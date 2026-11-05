@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from core.config import settings
 from core.db import session_factory
 from domains.auth.models import User, UserRole
+from domains.voice import service as voice_svc
 from domains.voice.models import VoiceAudio
 from domains.voice.service import synthesize
 from tests.conftest import API, login, make_direct_user
@@ -69,6 +70,9 @@ async def test_voice_cache_and_quota(
                 session, redis_client, user, "ещё текст", provider=fake_provider
             )
         assert getattr(exc_info.value, "code", "") == "voice_quota"
+        assert getattr(exc_info.value, "headers", {}) == {
+            "X-Voice-Fallback": "text"
+        }
 
     # cleanup cache row
     async with session_factory() as session:
@@ -89,6 +93,37 @@ async def test_voice_without_key_is_text_fallback(
         with pytest.raises(Exception) as exc_info:
             await synthesize(session, redis_client, user, "текст без ключа")
         assert getattr(exc_info.value, "code", "") == "voice_unavailable"
+        assert getattr(exc_info.value, "headers", {}) == {
+            "X-Voice-Fallback": "text"
+        }
+
+
+async def test_elevenlabs_429_is_text_fallback(monkeypatch):
+    class FakeResponse:
+        status_code = 429
+        content = b""
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def post(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr(settings, "voice_api_key", "test-key")
+    monkeypatch.setattr(voice_svc.httpx, "AsyncClient", FakeClient)
+    with pytest.raises(Exception) as exc_info:
+        await voice_svc._fetch_audio("текст", "voice", "model")
+    assert getattr(exc_info.value, "code", "") == "voice_quota"
+    assert getattr(exc_info.value, "headers", {}) == {
+        "X-Voice-Fallback": "text"
+    }
 
 
 async def test_voice_status_and_api_fallback(make_client, unique_email, monkeypatch):
@@ -105,3 +140,4 @@ async def test_voice_status_and_api_fallback(make_client, unique_email, monkeypa
     )
     assert response.status_code == 503
     assert response.json()["code"] == "voice_unavailable"
+    assert response.headers["X-Voice-Fallback"] == "text"

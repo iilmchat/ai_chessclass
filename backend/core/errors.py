@@ -14,11 +14,13 @@ class AppError(Exception):
         code: str = "app_error",
         detail: str = "",
         status_code: int = status.HTTP_400_BAD_REQUEST,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(detail or code)
         self.code = code
         self.detail = detail or code
         self.status_code = status_code
+        self.headers = headers or {}
 
 
 def problem_response(
@@ -27,6 +29,7 @@ def problem_response(
     code: str,
     detail: str = "",
     extra: dict[str, Any] | list[dict[str, Any]] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     payload: dict[str, Any] = {
         "type": f"about:blank#{code}",
@@ -42,13 +45,20 @@ def problem_response(
         status_code=status_code,
         content=payload,
         media_type="application/problem+json",
+        headers=headers,
     )
 
 
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error_handler(_: Any, exc: AppError) -> JSONResponse:
-        return problem_response(exc.status_code, exc.detail, exc.code, exc.code)
+        return problem_response(
+            exc.status_code,
+            exc.detail,
+            exc.code,
+            exc.code,
+            headers=exc.headers or None,
+        )
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(_: Any, exc: RequestValidationError) -> JSONResponse:

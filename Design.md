@@ -1305,6 +1305,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   gateway передаёт его в `get_local_provider`; runbook §6 описывает
   обратный SSH-туннель GPU (RTX 3060) через `GatewayPorts`. Backend —
   278 collected (275 passed + 3 skipped).
+- S-79 (v0.6): LRS OAuth2-токен кешируется в Redis (`lrs:oauth:token`), при
+  401 обновляется и PUT повторяется; TTS 429/ошибка/нет ключа возвращает
+  `X-Voice-Fallback: text`; react-chessboard v5 получает `aria-label` клеток
+  через DOM-патч, e2e 16 сценариев. Backend — 280 collected (277 passed +
+  3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

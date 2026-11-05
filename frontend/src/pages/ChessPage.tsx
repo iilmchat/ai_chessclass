@@ -21,6 +21,7 @@ import {
   logout,
   uploadGame,
 } from '../shared/api';
+import { applyBoardA11y } from '../shared/chessA11y';
 import { LoginGate } from '../shared/LoginGate';
 import { VoicePlayer } from '../shared/VoicePlayer';
 import type { EventStreamEvent } from '../shared/useEventStream';
@@ -83,10 +84,15 @@ export function ChessPage() {
   );
   const [moveInput, setMoveInput] = useState('');
   const [boardError, setBoardError] = useState('');
+  const boardRef = useRef<HTMLDivElement | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [canRedo, setCanRedo] = useState(false);
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const prefersDark = usePrefersDark();
+
+  useEffect(() => {
+    applyBoardA11y(boardRef.current, boardFen);
+  }, [boardFen, orientation]);
 
   const loadPositions = useCallback(() => {
     fetchPositions()
@@ -557,7 +563,7 @@ export function ChessPage() {
 
       <div className="panel chess-grid">
         <div>
-          <div className="board-wrap">
+          <div className="board-wrap" ref={boardRef}>
             <Chessboard
               options={{
                 position: boardFen,

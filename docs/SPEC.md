@@ -509,15 +509,17 @@ interface StudyAdminOut extends StudyOut {
 //   headers: X-Voice-Cached: 0|1, X-Voice-Chars, X-Voice-Id
 ```
 
-- `VOICE_API_KEY` пуст → 503 `voice_unavailable`; UI показывает текст без
-  плеера (graceful fallback), остальные функции не ломаются.
+- `VOICE_API_KEY` пуст → 503 `voice_unavailable` + `X-Voice-Fallback: text`;
+  UI показывает текст без плеера, остальные функции не ломаются.
 - Кэш: ключ `sha256(voice|model|text)`, файл в `VOICE_CACHE_DIR`, запись
   `voice_audio` (chars/cost/provider); повторный запрос читает файл и не
   вызывает провайдера.
 - Квота: Redis `voice:chars:{user}:{UTC-date}` ≤ `VOICE_DAILY_CHARS`
-  (429 `voice_quota`); стоимость — `VOICE_COST_PER_1K_RUB` (Numeric).
+  (429 `voice_quota` + `X-Voice-Fallback: text`); стоимость —
+  `VOICE_COST_PER_1K_RUB` (Numeric).
 - Провайдер: `POST {VOICE_BASE_URL}/v1/text-to-speech/{voice_id}`,
-  `xi-api-key`, `model_id`; таймаут `VOICE_TIMEOUT_S`; ошибка → 502.
+  `xi-api-key`, `model_id`; таймаут `VOICE_TIMEOUT_S`; 429 → `voice_quota`,
+  прочие ошибки → 502, все с `X-Voice-Fallback: text`.
 - Аудит `voice.speak` (chars/cached); ключ не логируется. Кэш в prod —
   volume `chessclass_voice`.
 
@@ -646,6 +648,9 @@ interface TournamentDetailOut extends TournamentOut {
   retry с экспоненциальным backoff (до 1 ч); `sent` не отправляется повторно.
 - `LRS_ENABLED/ENDPOINT/KEY/SECRET`; без конфигурации — только локальный
   CSV, `disabled=1`; worker `lms_sync` каждые 15 мин/на старте.
+- S-79 OAuth2: `LRS_OAUTH_CLIENT_ID/SECRET/TOKEN_URL/SCOPE`; токен кешируется
+  в Redis `lrs:oauth:token` (TTL до expiry − 60 с), при 401 — сброс кэша,
+  новый client_credentials и один повтор PUT.
 - Mapping: `https://chessclass.local/skills/{slug}` и
   `https://chessclass.local/bots/{userId}`; LMS-курсы — внешний адаптер.
 

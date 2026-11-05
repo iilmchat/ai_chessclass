@@ -137,6 +137,21 @@ test('Consent: родитель подтверждает ссылку', async ({
   await api.dispose();
 });
 
+test('Chess: клетки доски имеют понятные aria-label', async ({ browser }) => {
+  const token = await tokenFor(STUDENT_EMAIL, STUDENT_PASSWORD);
+  const page = await asAuthorizedPage(browser, token);
+  await page.goto('/chess');
+  await expect(page.locator('.board-wrap')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-square="e2"]')).toHaveAttribute(
+    'aria-label',
+    'Белая пешка на e2',
+  );
+  await expect(page.locator('[data-square="e4"]')).toHaveAttribute(
+    'aria-label',
+    'Пустая клетка e4',
+  );
+});
+
 test('Telegram-link: код связи создаётся в профиле', async ({ browser }) => {
   const token = await tokenFor(STUDENT_EMAIL, STUDENT_PASSWORD);
   const page = await asAuthorizedPage(browser, token);

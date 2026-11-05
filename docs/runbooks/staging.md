@@ -41,6 +41,14 @@ Staging — «почти prod» (те же сервисы, edge-nginx, все wo
   # заполнить POSTGRES_PASSWORD, JWT_SECRET, SEED_*; LLM/voice/tg — можно оставить пустыми
   ```
 
+- **Live LRS OAuth2 (S-79):** для внешнего провайдера задайте
+  `LRS_ENABLED=true`, `LRS_ENDPOINT=https://<lrs>/xapi`,
+  `LRS_OAUTH_TOKEN_URL=https://<idp>/oauth/token`,
+  `LRS_OAUTH_CLIENT_ID`, `LRS_OAUTH_CLIENT_SECRET` (и scope при необходимости).
+  Токен кешируется в Redis (`lrs:oauth:token`), при 401 обновляется и xAPI
+  PUT повторяется один раз. Basic (`LRS_KEY`/`LRS_SECRET`) — fallback, если
+  OAuth-переменные не заданы.
+
 ## 3. Подъём
 
 ```powershell

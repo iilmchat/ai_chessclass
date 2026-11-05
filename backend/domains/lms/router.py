@@ -78,7 +78,7 @@ async def lms_status(_guard: AdminOnly, session: DbSession) -> LmsStatusOut:
 async def lms_sync(
     request: Request, user: AdminOnly, session: DbSession
 ) -> SyncOut:
-    result = await svc.sync(session)
+    result = await svc.sync(session, redis=request.app.state.redis)
     await audit_svc.record(
         session,
         user,

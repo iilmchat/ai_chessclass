@@ -9,6 +9,14 @@
 
 ### Добавлено
 
+#### S-79 — Integrations (LRS, TTS) & a11y Chessboard (2026-11-06)
+- LRS OAuth2: Redis-кэш `lrs:oauth:token`, обновление при 401 и повтор xAPI
+  PUT; MockTransport-тест; staging-env для OAuth2.
+- ElevenLabs TTS: 429/ошибка/пустой ключ → HTTP 503/429/502 с заголовком
+  `X-Voice-Fallback: text`; тесты квоты/fallback.
+- react-chessboard v5: `aria-label` для каждой клетки («Белая пешка на e2»,
+  «Пустая клетка e4»); e2e-проверка + axe 16 сценариев.
+
 #### S-78 — Infrastructure: GPU Backend Support (2026-11-06)
 - `LLM_LOCAL_API_KEY` для LM Studio (`Require Auth`) в config/env;
   отдельный от облачного `LLM_API_KEY`.

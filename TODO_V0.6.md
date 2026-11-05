@@ -1,7 +1,7 @@
 # TODO_V0.6.md — План v0.6.0 «Post-release Hardening»
 
-**Статус:** 🔶 В работе (S-75…S-78 завершены, S-79…S-80)
-**Сводно:** 6 спринтов · **Прогресс: 4/6**
+**Статус:** 🔶 В работе (S-75…S-79 завершены, S-80 — release)
+**Сводно:** 6 спринтов · **Прогресс: 5/6**
 **Цель:** закрыть эксплуатационные разрывы после v0.5.0: реальная доставка
 родительских согласий, enforcement, DLQ-операции, OTel-контур и живые
 интеграции.
@@ -52,9 +52,10 @@
 ## Спринт S-79 (P2): Integrations & A11y
 **Ветка:** `feat/s-79-integrations-a11y`
 
-- [ ] Live LRS-провайдер (OAuth2/mapping) на staging.
-- [ ] Live TTS ElevenLabs с fallback/квотой.
-- [ ] a11y-обёртка react-chessboard v5 (aria-label клеток).
+- [x] Live LRS-провайдер (OAuth2 + Redis-кэш + 401 refresh) на staging.
+- [x] Live TTS ElevenLabs с fallback/квотой (`X-Voice-Fallback: text`).
+- [x] a11y-обёртка react-chessboard v5 (aria-label клеток) + e2e.
+- [x] Отчёт `docs/sprint-reports/S-79-2026-11-06.md`.
 
 ## Спринт S-80 (P1): Release v0.6.0
 **Ветка:** `release/v0.6.0`

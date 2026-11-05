@@ -8,6 +8,8 @@ process.env.API_PROXY = apiProxy;
 
 export default defineConfig({
   testDir: './e2e',
+  // S-79: axe-core gate для /chess живёт в e2e/a11y-axe.spec.ts
+  // (PUBLIC_PAGES/AUTHED_PAGES); screens.spec.ts проверяет aria-label клеток.
   fullyParallel: false,
   workers: 1,
   retries: 1,

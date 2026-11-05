@@ -21,6 +21,7 @@ from domains.voice.usage import VoiceUsage
 logger = logging.getLogger(__name__)
 
 MAX_TEXT_CHARS = 2000
+FALLBACK_HEADERS = {"X-Voice-Fallback": "text"}
 ProviderFn = Callable[[str, str, str], Awaitable[bytes]]
 
 
@@ -37,6 +38,7 @@ async def _fetch_audio(text: str, voice_id: str, model_id: str) -> bytes:
             "voice_unavailable",
             "Озвучка не настроена: VOICE_API_KEY пуст",
             503,
+            headers=FALLBACK_HEADERS,
         )
     url = f"{settings.voice_base_url.rstrip('/')}/v1/text-to-speech/{voice_id}"
     headers = {"xi-api-key": settings.voice_api_key}
@@ -54,12 +56,21 @@ async def _fetch_audio(text: str, voice_id: str, model_id: str) -> bytes:
             headers=headers,
             json={"text": text, "model_id": model_id},
         )
+    if response.status_code == 429:
+        logger.warning("voice: ElevenLabs quota 429")
+        raise AppError(
+            "voice_quota",
+            "Провайдер озвучки исчерпал квоту; используйте текст",
+            429,
+            headers=FALLBACK_HEADERS,
+        )
     if response.status_code >= 400:
         logger.warning("voice: ElevenLabs HTTP %s", response.status_code)
         raise AppError(
             "voice_provider_error",
-            "Провайдер озвучки вернул ошибку",
+            "Провайдер озвучки вернул ошибку; используйте текст",
             502,
+            headers=FALLBACK_HEADERS,
         )
     return response.content
 
@@ -77,6 +88,7 @@ async def _quota(
             "voice_quota",
             f"Дневной лимит озвучки: {settings.voice_daily_chars} символов",
             429,
+            headers=FALLBACK_HEADERS,
         )
     await redis.incrby(key, chars)
     await redis.expire(key, 2 * 24 * 3600)
@@ -142,7 +154,12 @@ async def synthesize(
             await redis.decrby(key, len(clean))
         raise
     if not audio:
-        raise AppError("voice_provider_error", "Пустой ответ озвучки", 502)
+        raise AppError(
+            "voice_provider_error",
+            "Пустой ответ озвучки; используйте текст",
+            502,
+            headers=FALLBACK_HEADERS,
+        )
 
     cache_dir = Path(settings.voice_cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
