@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
   CostRowDto,
+  FailedJobDto,
   LmsClassMapDto,
   LmsCourseDto,
   LmsOauthStatusDto,
@@ -19,6 +20,7 @@ import {
   deleteLmsCourse,
   downloadFile,
   fetchCosts,
+  fetchFailedJobs,
   fetchLmsClassMap,
   fetchLmsCourses,
   fetchLmsOauthStatus,
@@ -28,6 +30,7 @@ import {
   fetchRetentionStatus,
   getToken,
   logout,
+  retryFailedJob,
   runRetention,
 } from '../shared/api';
 import { LoginGate } from '../shared/LoginGate';
@@ -39,6 +42,7 @@ export function ObservabilityPage() {
   const [summary, setSummary] = useState<ObsSummaryDto | null>(null);
   const [alerts, setAlerts] = useState<ObsAlertDto[]>([]);
   const [costs, setCosts] = useState<CostRowDto[]>([]);
+  const [failedJobs, setFailedJobs] = useState<FailedJobDto[]>([]);
   const [retention, setRetention] = useState<RetentionStatusDto | null>(null);
   const [lastRun, setLastRun] = useState<RetentionResultDto[]>([]);
   const [lmsStatus, setLmsStatus] = useState<LmsStatusDto | null>(null);
@@ -71,6 +75,7 @@ export function ObservabilityPage() {
       setRetention(retentionRows);
       if (profile.role === 'admin') {
         setCosts((await fetchCosts(30)).items);
+        setFailedJobs(await fetchFailedJobs());
         const [status, oauth] = await Promise.all([
           fetchLmsStatus(),
           fetchLmsOauthStatus(),
@@ -79,6 +84,7 @@ export function ObservabilityPage() {
         setLmsOauth(oauth);
       } else {
         setCosts([]);
+        setFailedJobs([]);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Ошибка наблюдаемости');
@@ -109,6 +115,12 @@ export function ObservabilityPage() {
       setLastRun(result);
       await load();
     }, dryRun ? 'Dry-run выполнен' : 'Retention выполнен');
+
+  const onRetryFailedJob = (rowId: string) =>
+    act(async () => {
+      await retryFailedJob(rowId);
+      await load();
+    }, 'Задача поставлена в очередь');
 
   // --- S-67: LMS admin ---
   const loadLmsLists = useCallback(async () => {
@@ -319,6 +331,61 @@ export function ObservabilityPage() {
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="panel">
+          <h2>DLQ: упавшие задачи</h2>
+          <p className="health-label">
+            failed: {summary?.failedJobs ?? failedJobs.length}
+          </p>
+          <p className="link-hint">
+            Повторная постановка в arq; строка остаётся в журнале со статусом
+            retried. Retention удаляет старые записи.
+          </p>
+          <div className="class-table-wrap">
+            <table className="class-table">
+              <thead>
+                <tr>
+                  <th>Задача</th>
+                  <th>Ошибка</th>
+                  <th>Попытки</th>
+                  <th>trace_id</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {failedJobs.map((job) => (
+                  <tr key={job.id}>
+                    <td>{job.task}</td>
+                    <td>
+                      {job.errorType}: {job.error.slice(0, 160)}
+                    </td>
+                    <td>{job.attempts}</td>
+                    <td>{job.traceId ?? '—'}</td>
+                    <td>
+                      <button
+                        className="retry-button"
+                        type="button"
+                        disabled={busy || job.status !== 'failed'}
+                        onClick={() => onRetryFailedJob(job.id)}
+                      >
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {failedJobs.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="link-hint">
+                      DLQ пуст.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

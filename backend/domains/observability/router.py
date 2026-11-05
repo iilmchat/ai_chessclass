@@ -3,7 +3,7 @@
 import csv
 import io
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import Response
@@ -29,6 +29,7 @@ class SummaryOut(CamelModel):
     redis: bool
     queues: dict[str, int]
     active_matches: dict[str, int]
+    failed_jobs: int
     llm_cost_today_rub: float
     llm_tokens_today: int
     voice_chars_today: int
@@ -78,6 +79,19 @@ class RetentionStatusOut(CamelModel):
     last_run: dict | None
 
 
+class FailedJobOut(CamelModel):
+    id: str
+    job_id: str
+    task: str
+    args: dict
+    error_type: str
+    error: str
+    attempts: int
+    trace_id: str | None
+    status: str
+    failed_at: datetime
+
+
 @admin_router.get("/summary", response_model=SummaryOut)
 async def summary(
     _guard: AdminOrAuditor, session: DbSession, request: Request
@@ -93,6 +107,97 @@ async def alerts(
         AlertOut(**item)
         for item in await svc.alerts(session, request.app.state.redis)
     ]
+
+
+def _failed_job_out(row) -> FailedJobOut:
+    return FailedJobOut(
+        id=str(row.id),
+        job_id=row.job_id,
+        task=row.task,
+        args=row.args,
+        error_type=row.error_type,
+        error=row.error,
+        attempts=row.attempts,
+        trace_id=row.trace_id,
+        status=row.status,
+        failed_at=row.failed_at,
+    )
+
+
+@admin_router.get("/failed-jobs", response_model=list[FailedJobOut])
+async def failed_jobs(
+    _guard: AdminOnly,
+    session: DbSession,
+    status: str | None = Query(default="failed"),
+    limit: int = Query(default=50, ge=1, le=200),
+) -> list[FailedJobOut]:
+    rows = await svc.failed_jobs(session, status=status, limit=limit)
+    return [_failed_job_out(row) for row in rows]
+
+
+@admin_router.post("/failed-jobs/{row_id}/retry", response_model=FailedJobOut)
+async def retry_failed_job(
+    row_id: int,
+    user: AdminOnly,
+    session: DbSession,
+    request: Request,
+) -> FailedJobOut:
+    """Повторно поставить задачу в arq; строка остаётся для аудита."""
+    from arq.connections import RedisSettings, create_pool
+
+    from app.worker import WorkerSettings
+    from domains.bot_lab.queues import queue_for_opponent
+
+    row = await svc.failed_job(session, row_id)
+    if row is None:
+        raise AppError("failed_job_not_found", "Задача не найдена", 404)
+    if row.status not in ("failed", "retried"):
+        raise AppError("failed_job_not_retryable", "Статус задачи не допускает retry", 409)
+
+    allowed = {fn.__name__ for fn in WorkerSettings.functions}
+    if row.task not in allowed:
+        raise AppError("failed_job_task_unknown", "Неизвестная arq-задача", 422)
+
+    payload = row.args if isinstance(row.args, dict) else {}
+    args_value = payload.get("args")
+    raw_args: list[Any] = args_value if isinstance(args_value, list) else []
+    kwargs_value = payload.get("kwargs")
+    raw_kwargs: dict[str, Any] = (
+        kwargs_value if isinstance(kwargs_value, dict) else {}
+    )
+    queue_name: str | None = None
+    if row.task == "run_match" and len(raw_args) >= 2:
+        try:
+            queue_name = queue_for_opponent(str(raw_args[1]))
+        except ValueError:
+            queue_name = None
+
+    pool: Any = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+    try:
+        if queue_name:
+            job = await pool.enqueue_job(
+                row.task, *raw_args, _queue_name=queue_name, **raw_kwargs
+            )
+        else:
+            job = await pool.enqueue_job(row.task, *raw_args, **raw_kwargs)
+    finally:
+        await pool.aclose()
+    if job is None:
+        raise AppError("failed_job_duplicate", "Задача уже в очереди", 409)
+
+    row.status = "retried"
+    result = _failed_job_out(row)
+    await audit_svc.record(
+        session,
+        user,
+        "observability.failed_job.retry",
+        target_type="failed_job",
+        target_id=row.id,
+        request=request,
+        meta={"task": row.task, "jobId": row.job_id},
+    )
+    await session.commit()
+    return result
 
 
 @admin_router.get("/costs", response_model=CostsOut)

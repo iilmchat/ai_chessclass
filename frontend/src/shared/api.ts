@@ -769,6 +769,7 @@ export interface ObsSummaryDto {
   redis: boolean;
   queues: Record<string, number>;
   activeMatches: Record<string, number>;
+  failedJobs: number;
   llmCostTodayRub: number;
   llmTokensToday: number;
   voiceCharsToday: number;
@@ -814,6 +815,19 @@ export interface RetentionStatusDto {
   lastRun: Record<string, unknown> | null;
 }
 
+export interface FailedJobDto {
+  id: string;
+  jobId: string;
+  task: string;
+  args: Record<string, unknown>;
+  errorType: string;
+  error: string;
+  attempts: number;
+  traceId: string | null;
+  status: string;
+  failedAt: string;
+}
+
 export function fetchObsSummary(): Promise<ObsSummaryDto> {
   return apiFetch('/admin/observability/summary');
 }
@@ -831,8 +845,19 @@ export function fetchRetentionStatus(): Promise<RetentionStatusDto> {
 }
 
 export function runRetention(dryRun: boolean): Promise<RetentionResultDto[]> {
-  return apiFetch('/admin/observability/retention/run', {    method: 'POST',
+  return apiFetch('/admin/observability/retention/run', {
+    method: 'POST',
     body: JSON.stringify({ dryRun }),
+  });
+}
+
+export function fetchFailedJobs(status = 'failed'): Promise<FailedJobDto[]> {
+  return apiFetch(`/admin/observability/failed-jobs?status=${encodeURIComponent(status)}`);
+}
+
+export function retryFailedJob(rowId: string): Promise<FailedJobDto> {
+  return apiFetch(`/admin/observability/failed-jobs/${rowId}/retry`, {
+    method: 'POST',
   });
 }
 

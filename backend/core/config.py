@@ -142,12 +142,14 @@ class Settings(BaseSettings):
     llm_calls_retention_days: int = 180
     voice_retention_days: int = 30
     studies_retention_days: int = 90
+    failed_jobs_retention_days: int = 90
     retention_archive_dir: str = "/srv/archive"
     retention_batch_size: int = 10_000
     metrics_token: str = ""
     obs_disk_min_free_gb: float = 5.0
     obs_queue_alert_depth: int = 50
     obs_llm_cost_alert_rub: float = 1000.0
+    obs_failed_jobs_alert_threshold: int = 10
     obs_tls_cert_path: str = ""
     # --- compliance / parental consent (S-74, ADR-019)
     parental_consent_ttl_days: int = 7

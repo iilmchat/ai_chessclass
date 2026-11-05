@@ -9,6 +9,7 @@ from core.config import settings
 from core.db import session_factory
 from domains.audit.models import AuditLog
 from domains.auth.models import User, UserRole
+from domains.observability.models import FailedJob
 from domains.retention.service import last_run, retention_counts, run_retention
 from domains.studies.models import ChessStudy, StudyStatus
 from domains.voice.models import VoiceAudio
@@ -84,6 +85,16 @@ async def test_retention_archives_and_keeps_published(
                     created_by=user.id,
                     created_at=old,
                 ),
+                FailedJob(
+                    job_id=f"test-retention-{unique_email}",
+                    task="heartbeat",
+                    args={"args": [], "kwargs": {}},
+                    error_type="RuntimeError",
+                    error="old failure",
+                    attempts=1,
+                    status="failed",
+                    failed_at=old,
+                ),
                 ChessStudy(
                     title="old published",
                     fen="8/8/8/4k3/8/4K3/4P3/8 w - - 0 1",
@@ -109,6 +120,7 @@ async def test_retention_archives_and_keeps_published(
     monkeypatch.setattr(settings, "llm_calls_retention_days", 30)
     monkeypatch.setattr(settings, "voice_retention_days", 30)
     monkeypatch.setattr(settings, "studies_retention_days", 30)
+    monkeypatch.setattr(settings, "failed_jobs_retention_days", 30)
 
     async with session_factory() as session:
         counts = await retention_counts(session, now=now)
@@ -118,6 +130,7 @@ async def test_retention_archives_and_keeps_published(
         deleted = {item.policy: item.deleted for item in results}
         assert deleted["audit_logs"] >= 1
         assert deleted["llm_calls"] >= 1
+        assert deleted["failed_jobs"] >= 1
         assert deleted["voice_audio"] >= 1
         assert deleted["voice_usage"] >= 1
         assert deleted["chess_studies"] == 1

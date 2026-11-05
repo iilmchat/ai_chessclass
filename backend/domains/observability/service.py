@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from domains.auth.models import User
 from domains.bot_lab.queues import MATCH_QUEUES, active_key
+from domains.observability.models import FailedJob
 from domains.retention import service as retention
 from domains.telegram.models import TelegramOutbox
 from domains.voice.usage import VoiceUsage
@@ -86,12 +87,21 @@ async def summary(session: AsyncSession, redis) -> dict:
         free_gb = shutil.disk_usage(archive_dir if archive_dir.exists() else "/").free / 1e9
     except OSError:
         free_gb = 0.0
+    failed_jobs = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(FailedJob)
+            .where(FailedJob.status == "failed")
+        )
+        or 0
+    )
     retention_last = await retention.last_run(session)
     return {
         "db": db_ok,
         "redis": redis_ok,
         "queues": depths,
         "activeMatches": active,
+        "failedJobs": failed_jobs,
         "llmCostTodayRub": float(llm_cost),
         "llmTokensToday": int(tokens_in) + int(tokens_out),
         "voiceCharsToday": int(voice_chars),
@@ -133,6 +143,17 @@ async def alerts(session: AsyncSession, redis) -> list[dict]:
                 "code": "llm_cost",
                 "severity": "warning",
                 "message": f"LLM сегодня {data['llmCostTodayRub']:.2f} ₽",
+            }
+        )
+    if data["failedJobs"] > settings.obs_failed_jobs_alert_threshold:
+        out.append(
+            {
+                "code": "failed_jobs_growth",
+                "severity": "warning",
+                "message": (
+                    f"DLQ: {data['failedJobs']} failed jobs "
+                    f"(> {settings.obs_failed_jobs_alert_threshold})"
+                ),
             }
         )
     if settings.obs_tls_cert_path:
@@ -212,6 +233,23 @@ async def alerts(session: AsyncSession, redis) -> list[dict]:
             }
         )
     return out
+
+
+async def failed_jobs(
+    session: AsyncSession, *, status: str | None = "failed", limit: int = 50
+) -> list[FailedJob]:
+    stmt = (
+        select(FailedJob)
+        .order_by(FailedJob.failed_at.desc(), FailedJob.id.desc())
+        .limit(limit)
+    )
+    if status:
+        stmt = stmt.where(FailedJob.status == status)
+    return list((await session.execute(stmt)).scalars())
+
+
+async def failed_job(session: AsyncSession, row_id: int) -> FailedJob | None:
+    return await session.get(FailedJob, row_id)
 
 
 async def costs(session: AsyncSession, days: int = 30) -> list[dict]:
@@ -310,6 +348,9 @@ async def metrics_text(session: AsyncSession, redis) -> str:
         "# HELP chessclass_disk_free_gb Free disk space",
         "# TYPE chessclass_disk_free_gb gauge",
         f"chessclass_disk_free_gb {data['diskFreeGb']}",
+        "# HELP chessclass_failed_jobs Failed arq jobs",
+        "# TYPE chessclass_failed_jobs gauge",
+        f"chessclass_failed_jobs {data['failedJobs']}",
     ]
     for queue, depth in data["queues"].items():
         lines.append(f'chessclass_queue_depth{{queue="{queue}"}} {depth}')

@@ -1,7 +1,7 @@
 # TODO_V0.6.md — План v0.6.0 «Post-release Hardening»
 
-**Статус:** 🔶 В работе (S-75 завершён, S-76…S-79)
-**Сводно:** 5 спринтов · **Прогресс: 1/5**
+**Статус:** 🔶 В работе (S-75…S-76 завершены, S-77…S-79)
+**Сводно:** 5 спринтов · **Прогресс: 2/5**
 **Цель:** закрыть эксплуатационные разрывы после v0.5.0: реальная доставка
 родительских согласий, enforcement, DLQ-операции, OTel-контур и живые
 интеграции.
@@ -26,9 +26,10 @@
 ## Спринт S-76 (P1): DLQ Operations & Retention
 **Ветка:** `feat/s-76-dlq-operations`
 
-- [ ] retention `failed_jobs` (config/env, cron).
-- [ ] Admin API/UI списка failed jobs и ручного retry.
-- [ ] Алерт при росте DLQ; тесты, отчёт.
+- [x] retention `failed_jobs` (config/env, cron).
+- [x] Admin API/UI списка failed jobs и ручного retry.
+- [x] Алерт при росте DLQ; тесты, отчёт
+  `docs/sprint-reports/S-76-2026-11-06.md`.
 
 ## Спринт S-77 (P1): Observability v0.6
 **Ветка:** `feat/s-77-otel-collector`

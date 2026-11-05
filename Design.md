@@ -1211,6 +1211,7 @@ LLM_BASE_URL=<RouterAI endpoint>  LLM_API_KEY=...
 LLM_MODEL_L1=...  LLM_MODEL_L2=...  LLM_MODEL_L3=...  LLM_MODEL_JUDGE=...
 LLM_LOCAL_FALLBACK=false  LLM_LOCAL_BASE_URL=http://localhost:1234/v1
 LLM_COST_CURRENCY=RUB
+FAILED_JOBS_RETENTION_DAYS=90  OBS_FAILED_JOBS_ALERT_THRESHOLD=10
 BUDGET_FREE_TOKENS_DAY=50000   BUDGET_PRO_TOKENS_DAY=500000
 
 # engine / sandbox
@@ -1288,6 +1289,10 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   PDF-отчёты для `child/teen` без `granted` (403
   `parental_consent_required`). Admin/auditor export остаётся по правовому
   основанию. Backend — 273 collected (270 passed + 3 skipped).
+- S-76 (v0.6): DLQ-операции — retention `failed_jobs` (90 дней),
+  `GET/POST /admin/observability/failed-jobs[/{id}/retry]` с аудитом,
+  алерт `failed_jobs_growth`, метрика `chessclass_failed_jobs`, панель в
+  `/ops`. Backend — 274 collected (271 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

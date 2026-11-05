@@ -563,11 +563,18 @@ interface TournamentDetailOut extends TournamentOut {
 // GET /admin/observability/costs.csv?days=30 → CSV (admin)
 // GET /admin/observability/retention/status → { policies, lastRun }
 // POST /admin/observability/retention/run { dryRun? } → RetentionResultOut[]
+// GET /admin/observability/failed-jobs?status=failed&limit=50 → FailedJobOut[]
+// POST /admin/observability/failed-jobs/{id}/retry → FailedJobOut (admin)
 ```
 
 - Retention: `audit_logs` 365 дн., `llm_calls` 180, `voice_audio`/`voice_usage`
-  30, draft/rejected `chess_studies` 90; gzip-JSONL в `RETENTION_ARCHIVE_DIR`
-  перед удалением; published studies не удаляются; dry-run без записи.
+  30, draft/rejected `chess_studies` 90, `failed_jobs` 90; gzip-JSONL в
+  `RETENTION_ARCHIVE_DIR` перед удалением; published studies не удаляются;
+  dry-run без записи.
+- S-76: retry ставит задачу в arq (для `run_match` — в очередь оппонента),
+  строка остаётся со статусом `retried`; алерт `failed_jobs_growth` при
+  `failed > OBS_FAILED_JOBS_ALERT_THRESHOLD`; метрика
+  `chessclass_failed_jobs`.
 - `/metrics`: DB/Redis, глубины очередей, active-матчи, LLM/voice cost/tokens,
   свободный диск. `METRICS_TOKEN` защищает endpoint; в prod — только
   внутренний scrape.

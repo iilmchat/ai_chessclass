@@ -1,5 +1,6 @@
 """S-46: observability summary, metrics, costs, alerts, retention API."""
 
+import uuid
 from decimal import Decimal
 
 import sqlalchemy as sa
@@ -7,6 +8,7 @@ import sqlalchemy as sa
 from core.config import settings
 from core.db import session_factory
 from domains.auth.models import User, UserRole
+from domains.observability.models import FailedJob
 from domains.voice.usage import VoiceUsage
 from llm.models import LLMCall
 from tests.conftest import API, make_direct_user
@@ -97,4 +99,69 @@ async def test_observability_and_retention_api(admin_client, unique_email, monke
 
     async with session_factory() as session:
         await session.execute(sa.delete(LLMCall).where(LLMCall.id == call_id))
+        await session.commit()
+
+
+async def test_failed_jobs_list_retry_and_alert(admin_client, monkeypatch):
+    job_id = f"test-dlq-{uuid.uuid4().hex[:10]}"
+    async with session_factory() as session:
+        row = FailedJob(
+            job_id=job_id,
+            task="heartbeat",
+            args={"args": [], "kwargs": {}},
+            error_type="RuntimeError",
+            error="boom",
+            attempts=2,
+            trace_id="a" * 32,
+            status="failed",
+        )
+        session.add(row)
+        await session.commit()
+        row_id = row.id
+
+    monkeypatch.setattr(settings, "obs_failed_jobs_alert_threshold", 0)
+    alerts = await admin_client.get(f"{API}/admin/observability/alerts")
+    assert alerts.status_code == 200
+    assert any(
+        item["code"] == "failed_jobs_growth" for item in alerts.json()
+    )
+
+    response = await admin_client.get(
+        f"{API}/admin/observability/failed-jobs?status=failed"
+    )
+    assert response.status_code == 200, response.text
+    assert any(item["id"] == str(row_id) for item in response.json())
+
+    class FakePool:
+        def __init__(self):
+            self.calls: list[tuple[tuple, dict]] = []
+
+        async def enqueue_job(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+            return object()
+
+        async def aclose(self):
+            return None
+
+    pool = FakePool()
+
+    async def fake_create_pool(*args, **kwargs):
+        return pool
+
+    monkeypatch.setattr("arq.connections.create_pool", fake_create_pool)
+    response = await admin_client.post(
+        f"{API}/admin/observability/failed-jobs/{row_id}/retry"
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "retried"
+    assert pool.calls and pool.calls[0][0][0] == "heartbeat"
+
+    response = await admin_client.get(
+        f"{API}/admin/observability/failed-jobs?status=retried"
+    )
+    assert response.status_code == 200
+    assert any(item["id"] == str(row_id) for item in response.json())
+
+    async with session_factory() as session:
+        await session.execute(sa.delete(FailedJob).where(FailedJob.id == row_id))
         await session.commit()

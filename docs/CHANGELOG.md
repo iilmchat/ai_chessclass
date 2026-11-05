@@ -9,6 +9,13 @@
 
 ### Добавлено
 
+#### S-76 — DLQ Operations & Retention (2026-11-06)
+- Retention `failed_jobs` (`FAILED_JOBS_RETENTION_DAYS=90`) в общем cron.
+- Admin API/UI `/admin/observability/failed-jobs` и ручной retry с аудитом;
+  повторная постановка в правильную arq-очередь для `run_match`.
+- Алерт `failed_jobs_growth`, метрика `chessclass_failed_jobs`, панель DLQ
+  в `/ops`; тест list/retry/alert/retention.
+
 #### S-75 — Consent Enforcement & Email Delivery (2026-11-06)
 - SMTP-транспорт `core/email.py` (STARTTLS/SSL, auth, timeout;
   dev-console fallback) для verify/reset/parental-consent; `SMTP_*` env.

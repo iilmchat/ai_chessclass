@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from domains.audit import service as audit_svc
 from domains.audit.models import AuditLog
+from domains.observability.models import FailedJob
 from domains.studies.models import ChessStudy, StudyStatus
 from domains.voice.models import VoiceAudio
 from domains.voice.usage import VoiceUsage
@@ -172,6 +173,28 @@ async def run_retention(
         RetentionResult(**{**asdict(result), "cutoff": studies_cutoff.isoformat()})
     )
 
+    failed_cutoff = now - timedelta(days=settings.failed_jobs_retention_days)
+    failed_jobs = list(
+        (
+            await session.execute(
+                select(FailedJob)
+                .where(FailedJob.failed_at < failed_cutoff)
+                .order_by(FailedJob.failed_at)
+                .limit(batch)
+            )
+        ).scalars()
+    )
+    result = await _process(
+        session,
+        policy="failed_jobs",
+        rows=failed_jobs,
+        dry_run=dry_run,
+        now=now,
+    )
+    results.append(
+        RetentionResult(**{**asdict(result), "cutoff": failed_cutoff.isoformat()})
+    )
+
     if not dry_run:
         await audit_svc.record(
             session,
@@ -201,17 +224,38 @@ async def retention_counts(
     session: AsyncSession, *, now: datetime | None = None
 ) -> list[dict]:
     now = now or datetime.now(UTC)
-    checks: list[tuple[str, Any, int]] = [
-        ("audit_logs", AuditLog, settings.audit_retention_days),
-        ("llm_calls", LLMCall, settings.llm_calls_retention_days),
-        ("voice_audio", VoiceAudio, settings.voice_retention_days),
-        ("voice_usage", VoiceUsage, settings.voice_retention_days),
-        ("chess_studies", ChessStudy, settings.studies_retention_days),
+    checks: list[tuple[str, Any, int, Any]] = [
+        ("audit_logs", AuditLog, settings.audit_retention_days, AuditLog.created_at),
+        ("llm_calls", LLMCall, settings.llm_calls_retention_days, LLMCall.created_at),
+        (
+            "voice_audio",
+            VoiceAudio,
+            settings.voice_retention_days,
+            VoiceAudio.created_at,
+        ),
+        (
+            "voice_usage",
+            VoiceUsage,
+            settings.voice_retention_days,
+            VoiceUsage.created_at,
+        ),
+        (
+            "chess_studies",
+            ChessStudy,
+            settings.studies_retention_days,
+            ChessStudy.created_at,
+        ),
+        (
+            "failed_jobs",
+            FailedJob,
+            settings.failed_jobs_retention_days,
+            FailedJob.failed_at,
+        ),
     ]
     out: list[dict] = []
-    for policy, model, days in checks:
+    for policy, model, days, time_col in checks:
         cutoff = now - timedelta(days=days)
-        stmt = select(func.count()).select_from(model).where(model.created_at < cutoff)
+        stmt = select(func.count()).select_from(model).where(time_col < cutoff)
         if policy == "chess_studies":
             stmt = stmt.where(
                 ChessStudy.status.in_([StudyStatus.DRAFT, StudyStatus.REJECTED])
