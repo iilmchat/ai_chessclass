@@ -9,6 +9,15 @@
 
 ### Добавлено
 
+#### S-77 — Observability v0.6 (2026-11-06)
+- Compose-профиль `observability`: OTel Collector → Tempo/Prometheus →
+  Grafana; OTLP gRPC/HTTP endpoint, dev/staging порты.
+- Grafana dashboard `chessclass-http-traces`: p95 latency, 5xx/all rate,
+  DLQ и Tempo traces с `trace_id`.
+- HTTP RED-метрики в `/metrics` (`chessclass_http_requests_total`,
+  `chessclass_http_request_duration_seconds_*`); спаны
+  `llm.provider.<key>`; config-тесты и валидация collector.
+
 #### S-76 — DLQ Operations & Retention (2026-11-06)
 - Retention `failed_jobs` (`FAILED_JOBS_RETENTION_DAYS=90`) в общем cron.
 - Admin API/UI `/admin/observability/failed-jobs` и ручной retry с аудитом;

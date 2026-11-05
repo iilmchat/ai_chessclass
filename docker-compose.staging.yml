@@ -24,6 +24,8 @@ x-backend-env: &backend-env
   LLM_EMBED_MODEL: ${LLM_EMBED_MODEL:-}
   WEB_BASE_URL: ${WEB_BASE_URL:-https://localhost:8443}
   REPORTS_DIR: /srv/reports
+  OTEL_ENABLED: ${OTEL_ENABLED:-false}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
 
 x-env-file: &env-file
   - path: ${ENV_FILE:-.env.staging}
@@ -296,6 +298,66 @@ services:
         condition: service_completed_successfully
     networks: [ccnet]
     restart: "no"
+
+  # --- S-77 observability (profile: docker compose --env-file .env.staging -f ... --profile observability up -d)
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: chessclass-staging-tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./deploy/observability/tempo.yml:/etc/tempo.yml:ro
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    container_name: chessclass-staging-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/observability/otel-collector.yml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:${OTEL_GRPC_PORT:-4321}:4317"
+      - "127.0.0.1:${OTEL_HTTP_PORT:-4322}:4318"
+    depends_on:
+      - tempo
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: chessclass-staging-prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9092}:9090"
+    depends_on:
+      - api
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: chessclass-staging-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3002}:3000"
+    depends_on:
+      - prometheus
+      - tempo
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
 
 volumes:
   chessclass_pgdata:

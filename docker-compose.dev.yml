@@ -55,6 +55,8 @@ services:
       APP_ENV: dev
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-chess}:${POSTGRES_PASSWORD:-chess_dev_2026}@db:5432/${POSTGRES_DB:-chessclass}
       REDIS_URL: redis://redis:6379/0
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "${API_PORT:-8020}:8020"
     depends_on:
@@ -80,6 +82,8 @@ services:
       APP_ROLE: worker
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-chess}:${POSTGRES_PASSWORD:-chess_dev_2026}@db:5432/${POSTGRES_DB:-chessclass}
       REDIS_URL: redis://redis:6379/0
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     depends_on:
       db:
         condition: service_healthy
@@ -224,6 +228,62 @@ services:
       - "${WEB_PORT:-3200}:3200"
     depends_on:
       - api
+    networks: [ccnet]
+
+  # --- S-77 observability (profile: docker compose --profile observability up -d)
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: chessclass-tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./deploy/observability/tempo.yml:/etc/tempo.yml:ro
+    profiles: ["observability"]
+    networks: [ccnet]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    container_name: chessclass-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/observability/otel-collector.yml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:${OTEL_GRPC_PORT:-4319}:4317"
+      - "127.0.0.1:${OTEL_HTTP_PORT:-4320}:4318"
+    depends_on:
+      - tempo
+    profiles: ["observability"]
+    networks: [ccnet]
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: chessclass-prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9091}:9090"
+    depends_on:
+      - api
+    profiles: ["observability"]
+    networks: [ccnet]
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: chessclass-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - prometheus
+      - tempo
+    profiles: ["observability"]
     networks: [ccnet]
 
 volumes:

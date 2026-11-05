@@ -576,8 +576,13 @@ interface TournamentDetailOut extends TournamentOut {
   `failed > OBS_FAILED_JOBS_ALERT_THRESHOLD`; метрика
   `chessclass_failed_jobs`.
 - `/metrics`: DB/Redis, глубины очередей, active-матчи, LLM/voice cost/tokens,
-  свободный диск. `METRICS_TOKEN` защищает endpoint; в prod — только
-  внутренний scrape.
+  свободный диск, DLQ `chessclass_failed_jobs`; S-77 — HTTP RED
+  `chessclass_http_requests_total{method,route,status}` и
+  `chessclass_http_request_duration_seconds_{bucket,sum,count}` для p95.
+  `METRICS_TOKEN` защищает endpoint; в prod — только внутренний scrape.
+- Observability-профиль S-77: OTel Collector `:4317`/`:4318` → Tempo
+  (traces) и Prometheus `:8889`; Grafana dashboard uid
+  `chessclass-http-traces` (`deploy/observability/`).
 - Alerts: DB/Redis down, диск < `OBS_DISK_MIN_FREE_GB`, очередь >
   `OBS_QUEUE_ALERT_DEPTH`, LLM cost > `OBS_LLM_COST_ALERT_RUB`, TLS < 30 дн.
   (если `OBS_TLS_CERT_PATH`), retention не запускался > 2 дней.

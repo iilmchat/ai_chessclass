@@ -81,8 +81,8 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
   идемпотентность arq/DLQ/OpenTelemetry (S-73), parental consent +
   privacy/incident docs и релиз v0.5.0 (S-74).
 - **v0.6 (S-75…)** — SMTP-доставка писем и enforcement родительского
-  согласия для LLM/PDF (S-75); далее DLQ-операции, OTel Collector,
-  живые интеграции и release v0.6.0.
+  согласия для LLM/PDF (S-75), DLQ-операции/retry (S-76), OTel Collector +
+  Grafana p95/error/trace_id (S-77); далее живые интеграции и release v0.6.0.
 
 ---
 
@@ -139,7 +139,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 |------------|----------|
 | Версия | **v0.5.0** (2026-11-06, релиз) |
 | Спринты | **45/45** (S-30…S-74), этапы E-11…E-24 ✅ |
-| Тесты backend | **274 passed** (число собранных тестов; факт — 271 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76) |
+| Тесты backend | **277 passed** (число собранных тестов; факт — 274 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **15 passed** (Playwright: journey 7 + axe 2 + PvP 1 + RAG/review/ops/telegram/consent 5) |
 | Миграции | Alembic head **0033_s74_parental_consent** (33) |

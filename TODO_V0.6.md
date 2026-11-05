@@ -1,7 +1,7 @@
 # TODO_V0.6.md — План v0.6.0 «Post-release Hardening»
 
-**Статус:** 🔶 В работе (S-75…S-76 завершены, S-77…S-79)
-**Сводно:** 5 спринтов · **Прогресс: 2/5**
+**Статус:** 🔶 В работе (S-75…S-77 завершены, S-78…S-79)
+**Сводно:** 5 спринтов · **Прогресс: 3/5**
 **Цель:** закрыть эксплуатационные разрывы после v0.5.0: реальная доставка
 родительских согласий, enforcement, DLQ-операции, OTel-контур и живые
 интеграции.
@@ -34,9 +34,10 @@
 ## Спринт S-77 (P1): Observability v0.6
 **Ветка:** `feat/s-77-otel-collector`
 
-- [ ] OTel Collector в compose (dev/staging), OTLP endpoint.
-- [ ] Дашборды p95/ошибок/trace_id, алерты.
-- [ ] Трассировка LLM-провайдеров и arq; тесты, отчёт.
+- [x] OTel Collector в compose (dev/staging), OTLP endpoint.
+- [x] Дашборды p95/ошибок/trace_id, алерты.
+- [x] Трассировка LLM-провайдеров и arq; тесты, отчёт
+  `docs/sprint-reports/S-77-2026-11-06.md`.
 
 ## Спринт S-78 (P2): Integrations & A11y
 **Ветка:** `feat/s-78-integrations-a11y`

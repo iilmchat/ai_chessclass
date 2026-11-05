@@ -1,0 +1,37 @@
+groups:
+  - name: chessclass
+    rules:
+      - alert: ChessClassHighErrorRate
+        expr: |
+          sum(rate(chessclass_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(chessclass_http_requests_total[5m])), 0.001)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ChessClass: >5% HTTP 5xx за 5 минут"
+          description: "Проверьте /ops, trace_id в Tempo и failed_jobs."
+
+      - alert: ChessClassP95LatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(chessclass_http_request_duration_seconds_bucket[5m]))
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ChessClass: p95 latency > 2s"
+          description: "Смотрите route в Grafana и trace в Tempo."
+
+      - alert: ChessClassDLQGrowth
+        expr: chessclass_failed_jobs > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ChessClass: растёт DLQ failed_jobs"
+          description: "Откройте /ops → DLQ и проверьте failed_jobs."

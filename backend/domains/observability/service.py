@@ -9,6 +9,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
+from core.http_metrics import render_http_metrics
 from domains.auth.models import User
 from domains.bot_lab.queues import MATCH_QUEUES, active_key
 from domains.observability.models import FailedJob
@@ -356,4 +357,4 @@ async def metrics_text(session: AsyncSession, redis) -> str:
         lines.append(f'chessclass_queue_depth{{queue="{queue}"}} {depth}')
     for kind, active in data["activeMatches"].items():
         lines.append(f'chessclass_match_active{{kind="{kind}"}} {active}')
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines) + "\n" + render_http_metrics()

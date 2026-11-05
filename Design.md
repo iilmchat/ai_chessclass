@@ -1293,6 +1293,13 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `GET/POST /admin/observability/failed-jobs[/{id}/retry]` с аудитом,
   алерт `failed_jobs_growth`, метрика `chessclass_failed_jobs`, панель в
   `/ops`. Backend — 274 collected (271 passed + 3 skipped).
+- S-77 (v0.6): observability-профиль compose — OTel Collector (OTLP
+  gRPC/HTTP) → Tempo (traces) + Prometheus (metrics) → Grafana (uid
+  `chessclass-http-traces`). HTTP RED-метрики (`chessclass_http_requests_total`,
+  `chessclass_http_request_duration_seconds_*`) дают p95/error-rate;
+  `trace_id` доступен в Tempo и JSON-логах. Добавлены спаны
+  `llm.provider.<key>`; collector config валидирован `otelcol validate`.
+  Backend — 277 collected (274 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

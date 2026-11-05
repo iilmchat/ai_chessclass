@@ -1,4 +1,5 @@
 import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -11,6 +12,7 @@ from app.routers import healthz, readyz
 from core.config import settings
 from core.db import ALLOWED_DB_ROLES, db_context, engine
 from core.errors import register_exception_handlers
+from core.http_metrics import observe_http_request
 from core.logging import new_request_id, request_id_var, setup_logging
 from core.security import decode_token, jwks
 from core.tracing import (
@@ -156,6 +158,22 @@ async def tracing_middleware(request: Request, call_next) -> Response:
             span.set_attribute("http.status_code", response.status_code)
         response.headers["x-trace-id"] = tid
         return response
+
+
+@app.middleware("http")
+async def http_metrics_middleware(request: Request, call_next) -> Response:
+    """S-77: latency/status для p95/error-rate в Prometheus/Grafana."""
+    started = time.perf_counter()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    finally:
+        route = getattr(request.scope.get("route"), "path", request.url.path)
+        observe_http_request(
+            request.method, route, status, time.perf_counter() - started
+        )
 
 
 @app.middleware("http")

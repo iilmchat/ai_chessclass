@@ -7,6 +7,7 @@ import sqlalchemy as sa
 
 from core.config import settings
 from core.db import session_factory
+from core.http_metrics import reset_http_metrics
 from domains.auth.models import User, UserRole
 from domains.observability.models import FailedJob
 from domains.voice.usage import VoiceUsage
@@ -100,6 +101,16 @@ async def test_observability_and_retention_api(admin_client, unique_email, monke
     async with session_factory() as session:
         await session.execute(sa.delete(LLMCall).where(LLMCall.id == call_id))
         await session.commit()
+
+
+async def test_http_metrics_histogram_for_p95(admin_client):
+    reset_http_metrics()
+    _ = await admin_client.get(f"{API}/healthz")
+    response = await admin_client.get("/metrics")
+    assert response.status_code == 200
+    assert "chessclass_http_requests_total" in response.text
+    assert "chessclass_http_request_duration_seconds_bucket" in response.text
+    assert "chessclass_http_request_duration_seconds_count" in response.text
 
 
 async def test_failed_jobs_list_retry_and_alert(admin_client, monkeypatch):

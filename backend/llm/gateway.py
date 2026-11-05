@@ -184,10 +184,15 @@ async def _llm_generate(
             )
             continue
         try:
-            text, usage = await step.provider.generate(
-                effective.slug, messages,
-                temperature=temperature, max_tokens=max_tokens,
-            )
+            with trace.get_tracer("chessclass.llm").start_as_current_span(
+                f"llm.provider.{step.key}"
+            ) as provider_span:
+                provider_span.set_attribute("llm.model", effective.slug)
+                provider_span.set_attribute("llm.provider", step.key)
+                text, usage = await step.provider.generate(
+                    effective.slug, messages,
+                    temperature=temperature, max_tokens=max_tokens,
+                )
         except Exception as exc:  # noqa: BLE001 — идём дальше по цепочке
             last_error = exc
             await cb.record_failure(step.key)
