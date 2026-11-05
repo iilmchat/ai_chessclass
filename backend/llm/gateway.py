@@ -136,6 +136,12 @@ async def _llm_generate(
     provider: LLMProvider | None = None,       # для тестов
     local_provider: LLMProvider | None = None,  # для тестов
 ) -> LLMResult:
+    # S-75: LLM-обработка данных ребёнка/подростка только после consent.
+    if ctx.user_id is not None:
+        from domains.consent.service import ensure_processing_allowed
+
+        await ensure_processing_allowed(session, ctx.user_id)
+
     get_route(route)  # валидация маршрута (unknown → AppError)
     spec = MODELS[resolve_tier(route, level)]
 

@@ -2,11 +2,26 @@
 
 import hashlib
 
+import pytest
 import sqlalchemy as sa
 
 from core.db import session_factory
+from core.errors import AppError
+from core.levels import Level
+from domains.auth.models import UserRole
+from domains.consent import service as consent_svc
 from domains.consent.models import ParentalConsent
-from tests.conftest import API, login, register_verified
+from domains.profile.models import AgeGroup, UserProfile
+from llm.base import LLMMessage
+from llm.echo import EchoProvider
+from llm.gateway import LLMCallContext, llm_generate
+from llm.models import LLMCall
+from tests.conftest import (
+    API,
+    login,
+    make_direct_user,
+    register_verified,
+)
 
 PARENT = "parent@example.com"
 
@@ -115,6 +130,68 @@ async def test_consent_token_single_use_and_invalid(make_client, unique_email):
         f"{API}/consent/confirm", json={"token": "x" * 32}
     )
     assert invalid.status_code == 410
+
+
+async def test_llm_blocked_until_parental_consent(redis_client, unique_email):
+    """S-75: child без granted не получает LLM; после confirm — получает."""
+    user_id = await make_direct_user(unique_email, UserRole.STUDENT)
+    async with session_factory() as session:
+        profile = await session.get(UserProfile, user_id)
+        assert profile is not None
+        profile.age_group = AgeGroup.CHILD
+        await session.commit()
+
+        async def call_llm():
+            return await llm_generate(
+                session,
+                redis_client,
+                route="chess_lab.insight",
+                level=Level.NOVICE,
+                messages=[LLMMessage(role="user", content="FEN: start")],
+                ctx=LLMCallContext(user_id=user_id),
+                provider=EchoProvider(),
+            )
+
+        with pytest.raises(AppError) as blocked:
+            await call_llm()
+        assert blocked.value.code == "parental_consent_required"
+        assert blocked.value.status_code == 403
+
+        _row, raw = await consent_svc.request_consent(session, user_id, PARENT)
+        await consent_svc.confirm_consent(session, raw)
+        await session.commit()
+        result = await call_llm()
+        assert result.text.startswith("[echo]")
+
+        await consent_svc.revoke_consent(session, user_id)
+        await session.commit()
+        with pytest.raises(AppError):
+            await call_llm()
+
+        await session.execute(sa.delete(LLMCall).where(LLMCall.user_id == user_id))
+        await session.commit()
+
+
+async def test_pdf_report_blocked_until_consent(admin_client, unique_email):
+    user_id = await make_direct_user(unique_email, UserRole.STUDENT)
+    async with session_factory() as session:
+        profile = await session.get(UserProfile, user_id)
+        assert profile is not None
+        profile.age_group = AgeGroup.CHILD
+        await session.commit()
+
+    response = await admin_client.post(f"{API}/reports/pdf/{user_id}")
+    assert response.status_code == 403
+    assert response.json()["code"] == "parental_consent_required"
+
+    async with session_factory() as session:
+        _row, raw = await consent_svc.request_consent(session, user_id, PARENT)
+        await consent_svc.confirm_consent(session, raw)
+        await session.commit()
+
+    response = await admin_client.post(f"{API}/reports/pdf/{user_id}")
+    assert response.status_code == 201, response.text
+    assert response.json()["reportId"]
 
 
 async def test_consent_status_isolated_per_user(make_client, unique_email):

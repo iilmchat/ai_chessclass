@@ -1,6 +1,5 @@
 """Роутер /api/v1/consent (S-74, ADR-019): parental consent workflow."""
 
-import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Request
@@ -8,13 +7,12 @@ from pydantic import EmailStr, Field
 
 from core.base import CamelModel
 from core.config import settings
+from core.email import EmailDeliveryError, parental_consent_email, send_email
 from core.errors import AppError
 from core.ratelimit import enforce_rate_limit
 from domains.audit import service as audit_svc
 from domains.auth.deps import CurrentUser, DbSession
 from domains.consent import service as svc
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/consent", tags=["consent"])
 
@@ -37,6 +35,7 @@ class ConsentRequestIn(CamelModel):
 class ConsentRequestOut(ConsentStatusOut):
     dev_token: str | None = None
     confirm_url: str | None = None
+    email_delivered: bool = False
 
 
 class ConsentConfirmIn(CamelModel):
@@ -67,11 +66,19 @@ def _redis(request: Request):
     return client
 
 
-def _send_parent_email(parent_email: str, link: str) -> None:
-    """Dev-транспорт; в prod подключается SMTP (как verify-email)."""
-    logger.info(
-        "[dev-email] to=%s kind=parental-consent link=%s", parent_email, link
-    )
+async def _send_parent_email(
+    parent_email: str, link: str, policy_version: str
+) -> bool:
+    """S-75: SMTP при SMTP_HOST, иначе dev-консоль."""
+    subject, text = parental_consent_email(link, policy_version)
+    try:
+        return await send_email(parent_email, subject, text)
+    except EmailDeliveryError as exc:
+        raise AppError(
+            "email_delivery_failed",
+            "Не удалось отправить письмо родителю; попробуйте позже",
+            502,
+        ) from exc
 
 
 @router.get("/status", response_model=ConsentStatusOut)
@@ -91,7 +98,7 @@ async def request_consent(
     )
     row, raw = await svc.request_consent(session, user.id, str(body.parent_email))
     link = svc.confirm_url(raw)
-    _send_parent_email(row.parent_email, link)
+    delivered = await _send_parent_email(row.parent_email, link, row.policy_version)
     await audit_svc.record(
         session,
         user,
@@ -108,6 +115,7 @@ async def request_consent(
         **_out(state).model_dump(),
         dev_token=raw if dev else None,
         confirm_url=link if dev else None,
+        email_delivered=delivered,
     )
 
 

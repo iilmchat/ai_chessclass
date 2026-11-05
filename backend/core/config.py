@@ -152,6 +152,15 @@ class Settings(BaseSettings):
     # --- compliance / parental consent (S-74, ADR-019)
     parental_consent_ttl_days: int = 7
     parental_consent_policy_version: str = "1.0"
+    # --- SMTP (S-75): пусто → dev-консольный транспорт
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "noreply@chessclass.dev"
+    smtp_starttls: bool = True
+    smtp_ssl: bool = False
+    smtp_timeout_s: float = 15.0
     # --- tracing (S-73, ADR-017)
     otel_enabled: bool = False
     otel_service_name: str = "chessclass-api"

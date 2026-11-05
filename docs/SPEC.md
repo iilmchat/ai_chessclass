@@ -1015,7 +1015,10 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 `revoked_at`, `expires_at`. Индексы `(user_id, status)`, `expires_at`.
 Одноразовая ссылка живёт 7 дней; после подтверждения/отзыва старый токен
 недействителен. Контакт родителя и версия политики сохраняются для
-доказуемости согласия.
+доказуемости согласия. S-75: при `SMTP_HOST` письмо уходит через SMTP
+(STARTTLS/SSL/auth), иначе — dev-консоль; child/teen без `granted` получает
+403 `parental_consent_required` на LLM и PDF-отчёты (admin/auditor export —
+по правовому основанию).
 
 ### 6.5. Промпты и параметры генерации (S-06)
 

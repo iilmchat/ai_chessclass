@@ -77,10 +77,12 @@ async def generate_for_student(
 ) -> dict:
     """Генерация + сохранение PDF на volume; запись в reports_pdfs."""
     from domains.auth.models import User
+    from domains.consent.service import ensure_processing_allowed
 
     student = await session.get(User, student_id)
     if student is None:
         raise AppError("user_not_found", "Ученик не найден", 404)
+    await ensure_processing_allowed(session, student_id)
 
     scores = await cognitive_svc.scores_snapshot(session, student_id)
     stats = await session.get(BotStats, student_id)

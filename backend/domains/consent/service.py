@@ -45,6 +45,23 @@ def consent_required(age_group: AgeGroup | None) -> bool:
     return age_group in REQUIRED_AGE_GROUPS
 
 
+async def processing_allowed(session: AsyncSession, user_id: int) -> bool:
+    """True для adult/unknown или для child/teen с действующим `granted`."""
+    state = await get_state(session, user_id)
+    return not state.required or state.status == ConsentStatus.GRANTED.value
+
+
+async def ensure_processing_allowed(session: AsyncSession, user_id: int) -> None:
+    """S-75: 403, если ребёнок/подросток без подтверждённого согласия."""
+    if not await processing_allowed(session, user_id):
+        raise AppError(
+            "parental_consent_required",
+            "Для обработки данных ребёнка нужно согласие родителя "
+            "(раздел «Согласие»)",
+            403,
+        )
+
+
 async def _latest(
     session: AsyncSession, user_id: int
 ) -> ParentalConsent | None:

@@ -5,6 +5,19 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
+## [Unreleased]
+
+### Добавлено
+
+#### S-75 — Consent Enforcement & Email Delivery (2026-11-06)
+- SMTP-транспорт `core/email.py` (STARTTLS/SSL, auth, timeout;
+  dev-console fallback) для verify/reset/parental-consent; `SMTP_*` env.
+- Enforcement: child/teen без `granted` → 403 `parental_consent_required`
+  для LLM (`_llm_generate`) и PDF-отчётов; admin/auditor export — по
+  правовому основанию.
+- Тесты `test_email.py` (dev/success/failure), consent-gate LLM;
+  backend — 272 collected.
+
 ## [v0.5.0] — 2026-11-06
 
 ### Добавлено

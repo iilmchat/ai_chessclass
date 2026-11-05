@@ -112,6 +112,8 @@ Retention-политики выполняет cron `retention_run`; архивы
 - Аудит действий, rate-limit/lockout, security headers/CSP, egress allowlist.
 - Секреты — в env/секретах оркестратора, не в репозитории; hash-lock и
   `pip-audit` для supply chain.
+- Email — SMTP с STARTTLS/SSL и auth (`SMTP_*`); без SMTP в dev письмо
+  пишется в консоль. Для prod нужны SPF/DKIM/DMARC и мониторинг bounce.
 - Инциденты — по [incident-response.md](incident-response.md).
 
 ## 8. Права пользователя и родителя

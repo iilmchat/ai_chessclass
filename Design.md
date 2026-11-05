@@ -1221,6 +1221,10 @@ MAX_PLIES=60  BOT_MATCH_BUDGET_S=120  BOT_PERMOVE_TIMEOUT_S=1.0
 # приложения
 JWT_SECRET=change-me  JWT_ALGORITHM=HS256  JWT_KID=v1  JWT_TTL=15m  REFRESH_TTL=30d  EMBEDDING_DIM=768
 
+# email (S-75); пусто → dev-console
+SMTP_HOST=  SMTP_PORT=587  SMTP_USER=  SMTP_PASSWORD=  SMTP_FROM=noreply@chessclass.dev
+SMTP_STARTTLS=true  SMTP_SSL=false  SMTP_TIMEOUT_S=15
+
 # интеграции (backlog)
 ELEVENLABS_API_KEY=   # v0.2, озвучка
 ```
@@ -1278,6 +1282,12 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   parental consent flow (`tests/test_consent.py`), UI `/consent`, e2e 15,
   политика/incident docs. Миграций — **33**, head
   `0033_s74_parental_consent`; версия **v0.5.0**.
+- S-75 (v0.6, post-release): SMTP-транспорт `core/email.py`
+  (STARTTLS/SSL/auth, dev-console fallback) для verify/reset/consent;
+  enforcement `ensure_processing_allowed` блокирует LLM (`_llm_generate`) и
+  PDF-отчёты для `child/teen` без `granted` (403
+  `parental_consent_required`). Admin/auditor export остаётся по правовому
+  основанию. Backend — 273 collected (270 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
@@ -1414,7 +1424,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 **ADR-019: Parental consent (COPPA/GDPR-K)**
 *   **Контекст:** Платформа обрабатывает данные школьников; для `child/teen` нужно доказамое согласие родителя/опекуна и механизм отзыва.
 *   **Решение:** `parental_consents` хранит `user_id`, parent email, версию политики, статус (`pending/granted/revoked/expired`), timestamps и только SHA-256-хэш одноразового токена (TTL 7 дней). API `/consent/{status,request,confirm,revoke}`; UI `/consent`; подтверждение публичное по ссылке, отзыв — владельцем. События пишутся в `audit_logs`.
-*   **Последствия:** Миграция `0033_s74_parental_consent`; email-транспорт в prod требует SMTP (dev — `[dev-email]`); политика и incident-response — `docs/privacy-policy.md`, `docs/incident-response.md`.
+*   **Последствия:** Миграция `0033_s74_parental_consent`; S-75 добавляет SMTP-транспорт (`SMTP_HOST`, STARTTLS/SSL) и enforcement: child/teen без `granted` получает 403 на LLM и PDF-отчёты, dev без SMTP пишет письмо в лог; политика и incident-response — `docs/privacy-policy.md`, `docs/incident-response.md`.
 
 ---
 

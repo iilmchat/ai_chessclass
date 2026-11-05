@@ -11,6 +11,11 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from core.base import CamelModel
 from core.config import settings
+from core.email import (
+    password_reset_email,
+    send_email,
+    verification_email,
+)
 from core.errors import AppError
 from core.ratelimit import (
     enforce_rate_limit,
@@ -82,11 +87,19 @@ def _set_refresh_cookie(response: Response, raw_token: str) -> None:
     )
 
 
-def _send_email(email: str, *, kind: str, token: str) -> None:
-    """Dev: консольный SMTP-бэкенд (Design §13.1). Прод-SMTP — при появлении env."""
+async def _send_email(email: str, *, kind: str, token: str) -> None:
+    """S-75: SMTP при SMTP_HOST, иначе dev-консоль (Design §13.1)."""
     path = "verify-email" if kind == "verify" else "reset-password"
     link = f"{settings.web_base_url}/{path}?token={token}"
-    logger.info("[dev-email] to=%s kind=%s link=%s", email, kind, link)
+    subject, text = (
+        verification_email(link)
+        if kind == "verify"
+        else password_reset_email(link)
+    )
+    try:
+        await send_email(email, subject, text)
+    except Exception:  # noqa: BLE001 — регистрация не должна падать из-за SMTP
+        logger.exception("auth: не удалось отправить %s-письмо to=%s", kind, email)
 
 
 def _access_token(user_id: int, role: str, level: str | None = None) -> str:
@@ -103,7 +116,7 @@ async def register(
     user = await svc.register_user(session, body.email.strip().lower(), body.password)
     await profile_svc.ensure_profile(session, user.id)  # novice/free по умолчанию
     token = await svc.issue_email_token(session, user, EmailTokenKind.VERIFY)
-    _send_email(user.email, kind="verify", token=token)
+    await _send_email(user.email, kind="verify", token=token)
     await audit_svc.record(
         session,
         user,
@@ -305,7 +318,7 @@ async def request_password_reset(
     result = await svc.request_password_reset(session, body.email.strip().lower())
     if result is not None:
         _user, token = result
-        _send_email(body.email, kind="reset", token=token)
+        await _send_email(body.email, kind="reset", token=token)
     # ответ одинаковый независимо от существования email
     return MessageOut(ok=True)
 
