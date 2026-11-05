@@ -34,6 +34,12 @@ def pytest_configure(config: pytest.Config) -> None:
     settings.llm_base_url = ""
     settings.llm_api_key = ""
     settings.llm_local_fallback = False
+    # S-72: приложение по умолчанию работает fail-closed (anonymous). Тестам,
+    # которые готовят данные через session_factory напрямую, нужен системный
+    # контекст; RLS-тесты переопределяют его явно через db_context().
+    from core.db import set_db_context
+
+    set_db_context(None, "admin")
 
 
 @pytest.fixture
@@ -100,7 +106,10 @@ async def _cleanup():
             sa.text("DELETE FROM users WHERE email LIKE '%@e2e.chessclass'")
         )
         await session.execute(
-            sa.text("DELETE FROM py_assignments WHERE slug LIKE 'test-%'")
+            sa.text(
+                "DELETE FROM py_assignments "
+                "WHERE slug LIKE 'test-%' OR slug LIKE 'e2e-%'"
+            )
         )
         await session.execute(
             sa.text("DELETE FROM audit_logs WHERE actor_email LIKE '%@e2e.chessclass'")

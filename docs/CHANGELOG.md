@@ -9,6 +9,18 @@
 
 ### Добавлено
 
+#### S-72 — Multi-tenant DB Isolation / RLS (2026-11-05)
+- PostgreSQL RLS на `bot_stats`, `cognitive_skill_events`, `anticheat_flags`:
+  admin — все строки; ученик — свои; учитель — строки учеников своих классов
+  (через `class_members` → `classes.teacher_id`).
+- Транзакционно-локальный контекст `app.current_user_id` /
+  `app.current_user_role` в `core/db.py`; HTTP-middleware из JWT, arq-задачи
+  получают `user_id`/`role` аргументами. Приложение работает под
+  непривилегированной ролью `chess_app` (`NOLOGIN NOBYPASSRLS`).
+- Миграция `0031_s72_rls_isolation` (ENABLE + FORCE RLS, обратимый
+  downgrade, без backfill); 6 RLS-тестов, backend — 259 collected.
+- README/Design/TODO: счётчики 259 тестов, 31 миграция, ADR-015 уточнён.
+
 #### S-71 — OWASP LLM Hardening & CI Eval (2026-11-04)
 - Instruction isolation в `prompts/builder.py`: trusted/untrusted-блоки,
   санитизация служебных токенов и role-меток (LLM01).

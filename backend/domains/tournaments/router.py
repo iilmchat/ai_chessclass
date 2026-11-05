@@ -216,6 +216,8 @@ async def create_tournament(
         await pool.enqueue_job(
             "run_tournament_job",
             tournament.id,
+            teacher.id,
+            teacher.role.value,
             _job_id=f"tournament:{tournament.id}",
         )
     finally:

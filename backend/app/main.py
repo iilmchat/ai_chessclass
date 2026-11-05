@@ -9,10 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import healthz, readyz
 from core.config import settings
-from core.db import engine
+from core.db import ALLOWED_DB_ROLES, db_context, engine
 from core.errors import register_exception_handlers
 from core.logging import new_request_id, request_id_var, setup_logging
-from core.security import jwks
+from core.security import decode_token, jwks
 from domains.anticheat.router import router as anticheat_router
 from domains.audit.router import router as audit_router
 from domains.auth.router import admin_router as auth_admin_router
@@ -106,6 +106,34 @@ async def request_id_middleware(request: Request, call_next) -> Response:
         request_id_var.reset(token)
     response.headers["x-request-id"] = request_id
     return response
+
+
+def _db_principal(request: Request) -> tuple[int | None, str]:
+    """Достать принципала из access-JWT; иначе fail-closed anonymous."""
+    scheme, _, raw = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "bearer" or not raw.strip():
+        return None, "anonymous"
+    payload = decode_token(raw.strip())
+    if payload is None:
+        return None, "anonymous"
+    sub, role = payload.get("sub"), payload.get("role")
+    if (
+        not isinstance(sub, str)
+        or not sub.isdigit()
+        or not isinstance(role, str)
+        or role not in ALLOWED_DB_ROLES
+        or role == "anonymous"
+    ):
+        return None, "anonymous"
+    return int(sub), role
+
+
+@app.middleware("http")
+async def db_context_middleware(request: Request, call_next) -> Response:
+    """S-72: RLS-контекст запроса на всё время обработки (сброс в finally)."""
+    user_id, role = _db_principal(request)
+    async with db_context(user_id, role):
+        return await call_next(request)
 
 
 @app.middleware("http")
