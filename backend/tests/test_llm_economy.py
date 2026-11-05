@@ -221,7 +221,7 @@ async def test_fallback_to_local_lmstudio(redis_client, unique_email, monkeypatc
         )
         assert result.status == "ok"
         assert result.model_used == "lmstudio"
-        assert result.fallback_from == settings.llm_model_l1
+        assert result.fallback_from == "failover:cloud"
         assert cloud_calls and local_calls  # сначала облако (упало), потом local
         row = (
             await session.execute(
@@ -229,7 +229,7 @@ async def test_fallback_to_local_lmstudio(redis_client, unique_email, monkeypatc
             )
         ).scalar_one()
         assert row.model_used == "lmstudio"
-        assert row.fallback_from == settings.llm_model_l1
+        assert row.fallback_from == "failover:cloud"
 
 
 async def test_finops_usage_endpoint(admin_client, make_client, unique_email, redis_client):

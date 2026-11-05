@@ -124,9 +124,12 @@ docker compose -f docker-compose.dev.yml exec -T db psql -U chess -d chessclass 
 ## 5. Fallback, квоты, стоимость
 
 Цепочка: **cloud RouterAI → local LM Studio (если `LLM_LOCAL_FALLBACK=true`)
-→ echo**. В каждом шаге 1 retry через `LLM_RETRY_DELAY_S`. Причина — в
-`llm_calls.fallback_from` (`cloud_not_configured`, слаг, `lmstudio`,
-`quota_exhausted`, `quota_downgrade:{tier}`).
+→ echo**. В каждом шаге 1 retry с экспоненциальным backoff и jitter (S-70).
+Перед шагом — circuit breaker в Redis: 5 ошибок за 60 с → OPEN, через 60 с →
+HALF_OPEN с одним probe. Причина — в `llm_calls.fallback_from`
+(`failover:cloud`/`failover:local` — ошибка, `failover:cb_open` — breaker
+открыт, `failover:no_config` — нет ключа; `quota_exhausted`,
+`quota_downgrade:{tier}` — квота).
 
 - Квоты: free 50k / pro 500k токенов/день (UTC), Redis
   `quota:{user}:{YYYY-MM-DD}`; judge-route квоту не расходует.
@@ -153,6 +156,7 @@ docker compose -f docker-compose.dev.yml exec -T db psql -U chess -d chessclass 
 | `status=degraded`, `missingModels` | неверный slug / нет модели | сверить с `GET /v1/models`, обновить `LLM_MODEL_*` |
 | 401/403 от RouterAI | ключ неверен/отозван | ротация ключа (§4) |
 | `content=null`, fallback | reasoning съел `max_tokens` | увеличить бюджет/не занижать; проверить `fallback_from` |
+| `fallback_from=failover:cb_open` | breaker открыт после 5 ошибок за 60 с | проверить провайдера/ключ; сбросить `cb:*` в Redis только при ложном срабатывании |
 | `password authentication failed` (dev DB) | пароль роли не совпал с volume | `ALTER USER chess WITH PASSWORD '<из .env>';` или пересоздать dev-volume |
 | `Foreign key ... users` в standalone-скрипте | не импортированы auth-модели | импортировать `domains.auth.models` до запроса |
 | embeddings всегда `hash` | пуст `LLM_EMBED_MODEL` | это ожидаемо; задать 768-мерную модель, если нужен провайдер |

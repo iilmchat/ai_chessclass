@@ -3,6 +3,7 @@
 import httpx
 import pytest
 
+from core.config import settings
 from llm.base import LLMMessage, LLMUnavailableError, is_placeholder_secret
 from llm.client import OpenAICompatProvider
 
@@ -56,6 +57,31 @@ async def test_generate_retry_then_success():
     text, _ = await provider.generate("m1", [LLMMessage(role="user", content="x")])
     assert calls == 2
     assert "разбор" in text
+    await provider.close()
+
+
+async def test_generate_retry_uses_backoff_with_jitter(monkeypatch):
+    """S-70: пауза = base_delay * 2^(attempt-1) + random.uniform(0, 0.5)."""
+    delays: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    monkeypatch.setattr("llm.client.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("llm.client.random.uniform", lambda _low, _high: 0.25)
+    monkeypatch.setattr(settings, "llm_retry_delay_s", 2.0)
+    calls = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(500, request=request)
+        return _ok_response()
+
+    provider = _provider(handler)
+    await provider.generate("m1", [LLMMessage(role="user", content="x")])
+    assert delays == [pytest.approx(2.25)]
     await provider.close()
 
 

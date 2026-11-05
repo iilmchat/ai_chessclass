@@ -647,10 +647,17 @@ cloud RouterAI (по маршруту) → local LM Studio :1234 (если вк�
 ```
 
 - v0.1 default: cloud → echo (local — фича-флаг `LLM_LOCAL_FALLBACK`).
+- Circuit breaker per провайдер (`cloud`/`local`/`echo`) в Redis (S-70):
+  5 ошибок за 60 с → OPEN; через 60 с → HALF_OPEN с одним probe
+  (`cb:probe:*`, `SET NX`), успех → CLOSED и сброс счётчика, ошибка → OPEN.
 - При fallback логируется фактическая модель (в llm_calls поле `model_used`),
-  причина — поле `fallback_from`.
-- Повтор/timeout: 1 retry (2 с), затем дальше по цепочке; максимум — 40 с
-  на клиентский запрос (LLM-медленные маршруты: 60 с с флагом async).
+  причина — поле `fallback_from` (`failover:cloud`/`failover:local` — ошибка,
+  `failover:cb_open` — breaker открыт, `failover:no_config` — нет ключа;
+  `quota_exhausted`/`quota_downgrade:{tier}` — квота).
+- Повтор/timeout: 1 retry с экспоненциальным backoff и jitter
+  (`base_delay * 2^(attempt-1) + uniform(0, 0.5)`), затем дальше по цепочке;
+  максимум — 40 с на клиентский запрос (LLM-медленные маршруты: 60 с с флагом
+  async).
 
 ### 8.5. Экономика и FinOps
 
