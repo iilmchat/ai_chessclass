@@ -986,7 +986,7 @@ S-70): 5 ошибок за 60 с → OPEN, через 60 с → HALF_OPEN с о�
 `route`, `level`, `model_requested`, `model_used` (слаг / `lmstudio` / `echo`),
 `fallback_from`, `tokens_in/out`, `cost_in/out` Numeric(12,4) (null, если цена
 не задана), `latency_ms`, `status` (`ok | echo | error`), `task_kind`
-(`sync | async`), `created_at`. Пустой `message.content` (reasoning-модель
+(`sync | async`), `trace_id` (S-73, nullable), `created_at`. Пустой `message.content` (reasoning-модель
 израсходовала бюджет) — retry, затем fallback, а не строка `"None"`.
 Запись `llm_calls` идёт после успешной генерации; сбой FinOps-записи не
 повторяет уже оплаченный LLM-вызов (S-31).
@@ -1001,6 +1001,12 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 
 **usage_daily** (агрегат): PK `(user_id, day)`; `tokens_in/out`,
 `cost_total`, `updated_at`; upsert-инкремент на каждый ok-вызов.
+
+**failed_jobs** (DLQ, S-73, миграция 0032): `id`, `job_id` (unique),
+`task`, `args` JSONB, `error_type`, `error`, `attempts`, `trace_id`
+(nullable), `status` (`failed | retried | ignored`), `failed_at`.
+`core.jobs.track_job` делает upsert по `job_id` при исключении задачи;
+ошибка DLQ-записи не маскирует исходное исключение.
 
 ### 6.5. Промпты и параметры генерации (S-06)
 

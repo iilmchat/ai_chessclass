@@ -41,8 +41,8 @@ REPO = _find_script().parents[1]
 def test_alembic_graph_matches_repo() -> None:
     head, count = doc_lint._alembic_graph(REPO)
 
-    assert head == "0031_s72_rls_isolation"
-    assert count == 31
+    assert head == "0032_s73_async_tracing"
+    assert count == 32
 
 
 def test_collect_versions_consistent() -> None:

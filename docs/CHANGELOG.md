@@ -9,6 +9,16 @@
 
 ### Добавлено
 
+#### S-73 — Async Reliability & Tracing (2026-11-06)
+- Идемпотентность arq: `_job_id` для матчей/анализа/турниров; повторный
+  HTTP-запрос матча возвращает существующий `matchId`.
+- DLQ `failed_jobs` + `track_job`: ошибки задач с `job_id`, `attempts`,
+  `trace_id`; `WORKER_MAX_TRIES` (`max_tries`).
+- OTel tracing: `http.request` → `arq.*` → `llm.generate`, `trace_id` в
+  JSON-логах, аргументах arq и `llm_calls.trace_id`; OTLP HTTP exporter.
+- Миграция `0032_s73_async_tracing`; 5 новых тестов, backend — 264 collected;
+  hash-lock обновлён (`opentelemetry-sdk`, OTLP exporter).
+
 #### S-72 — Multi-tenant DB Isolation / RLS (2026-11-05)
 - PostgreSQL RLS на `bot_stats`, `cognitive_skill_events`, `anticheat_flags`:
   admin — все строки; ученик — свои; учитель — строки учеников своих классов

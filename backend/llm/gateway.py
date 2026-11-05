@@ -11,11 +11,17 @@ import logging
 import time
 from dataclasses import dataclass
 
+from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import llm.economy as economy
 from core.config import settings
 from core.levels import Level
+from core.tracing import (
+    current_trace_id,
+    current_trace_id_optional,
+    trace_context,
+)
 from llm.base import LLMMessage, LLMProvider, LLMUsage
 from llm.circuit_breaker import CircuitBreaker
 from llm.client import OpenAICompatProvider
@@ -34,6 +40,7 @@ class LLMCallContext:
     user_id: int | None = None
     billing_tier: str = "free"
     task_kind: str = "sync"  # sync | async
+    trace_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +89,41 @@ async def close_llm_providers() -> None:
 
 
 async def llm_generate(
+    session: AsyncSession,
+    redis,
+    *,
+    route: str,
+    level: Level,
+    messages: list[LLMMessage],
+    ctx: LLMCallContext,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+    provider: LLMProvider | None = None,       # для тестов
+    local_provider: LLMProvider | None = None,  # для тестов
+) -> LLMResult:
+    """S-73: спан `llm.generate` + trace_id для FinOps-строки."""
+    with trace_context(ctx.trace_id or current_trace_id(), span_name="llm.generate"):
+        span = trace.get_current_span()
+        span.set_attribute("llm.route", route)
+        span.set_attribute("llm.level", level.value)
+        result = await _llm_generate(
+            session,
+            redis,
+            route=route,
+            level=level,
+            messages=messages,
+            ctx=ctx,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            provider=provider,
+            local_provider=local_provider,
+        )
+        span.set_attribute("llm.model_used", result.model_used)
+        span.set_attribute("llm.status", result.status)
+        return result
+
+
+async def _llm_generate(
     session: AsyncSession,
     redis,
     *,
@@ -175,6 +217,7 @@ async def llm_generate(
             model_requested=spec.slug, model_used=step.model_used,
             fallback_from=fallback_from, usage=usage, latency_ms=latency_ms,
             status=status, spec=effective, task_kind=ctx.task_kind,
+            trace_id=current_trace_id_optional(),
         )
         return LLMResult(
             route=route, level=level, tier=effective.tier,
@@ -202,6 +245,7 @@ async def _echo(
         model_requested=model_requested, model_used="echo",
         fallback_from=fallback_from, usage=usage, latency_ms=0,
         status=economy.STATUS_ECHO, spec=MODELS["L1"], task_kind=ctx.task_kind,
+        trace_id=current_trace_id_optional(),
     )
     return LLMResult(
         route=route, level=level, tier="echo", model_requested=model_requested,

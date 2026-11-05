@@ -104,7 +104,15 @@ async def run_engine_analysis(fen: str, level: Level) -> list[dict]:
 
     pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     try:
-        job = await pool.enqueue_job("analyze_position", fen, chess_level)
+        from core.tracing import current_trace_id_optional
+
+        job = await pool.enqueue_job(
+            "analyze_position",
+            fen,
+            chess_level,
+            current_trace_id_optional(),
+            _job_id=f"analyze_position:{fen}:{chess_level}",
+        )
         if job is None:  # дубликат задачи уже в очереди
             raise AppError("task_busy", "Задача анализа уже выполняется", 409)
         result = await job.result(timeout=INSIGHT_TIMEOUT_S)
@@ -238,8 +246,15 @@ async def upload_game(session: AsyncSession, user, pgn: str) -> dict:
 
     pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     try:
+        from core.tracing import current_trace_id_optional
+
         await pool.enqueue_job(
-            "analyze_game", game.id, user.id, user.role.value
+            "analyze_game",
+            game.id,
+            user.id,
+            user.role.value,
+            current_trace_id_optional(),
+            _job_id=f"analyze_game:{game.id}",
         )
     finally:
         await pool.aclose()

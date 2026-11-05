@@ -149,6 +149,10 @@ class Settings(BaseSettings):
     obs_queue_alert_depth: int = 50
     obs_llm_cost_alert_rub: float = 1000.0
     obs_tls_cert_path: str = ""
+    # --- tracing (S-73, ADR-017)
+    otel_enabled: bool = False
+    otel_service_name: str = "chessclass-api"
+    otel_exporter_otlp_endpoint: str = ""
     # --- LMS LRS (S-49)
     lrs_enabled: bool = False
     lrs_endpoint: str = ""

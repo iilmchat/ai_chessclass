@@ -210,6 +210,7 @@ async def create_tournament(
     from arq.connections import RedisSettings, create_pool
 
     from core.config import settings
+    from core.tracing import current_trace_id_optional
 
     pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     try:
@@ -218,6 +219,7 @@ async def create_tournament(
             tournament.id,
             teacher.id,
             teacher.role.value,
+            current_trace_id_optional(),
             _job_id=f"tournament:{tournament.id}",
         )
     finally:

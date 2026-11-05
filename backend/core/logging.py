@@ -5,6 +5,8 @@ import sys
 import time
 import uuid
 
+from core.tracing import current_trace_id
+
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
     "request_id", default="-"
 )
@@ -23,6 +25,7 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
             "request_id": request_id_var.get(),
+            "trace_id": current_trace_id(),
         }
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)

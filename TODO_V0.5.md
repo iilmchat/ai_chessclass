@@ -61,16 +61,21 @@
 **Ветка:** `feat/s-73-async-otel`
 
 **Задачи:**
-- [ ] arq idempotency: добавить `_job_id` для `run_match` и `analyze_game`.
-- [ ] arq DLQ: добавить `max_tries`, `on_job_failure` в `WorkerSettings` и таблицу `failed_jobs`.
-- [ ] OTel tracing: внедрить OpenTelemetry SDK, связать `trace_id` из API → arq → LLM (сохранить в `llm_calls`).
-- [ ] Обновить `requirements.lock` (`pip-audit`).
+- [x] arq idempotency: `_job_id` для `run_match`, `analyze_game`,
+  `analyze_position`, турниров + дедупликация активного HTTP-запроса матча.
+- [x] arq DLQ: `max_tries` в `WorkerSettings`, таблица `failed_jobs`;
+  `on_job_failure` заменён обёрткой `core.jobs.track_job` (в arq 0.28 нет
+  callback с текстом исключения).
+- [x] OTel tracing: SDK + `http.request`/`arq.*`/`llm.generate` спаны;
+  `trace_id` из API → arq → LLM, сохраняется в `llm_calls.trace_id`.
+- [x] Обновить `requirements.lock` (`opentelemetry-sdk`,
+  `opentelemetry-exporter-otlp-proto-http`) и `pip-audit`.
 
 **DoD:**
-- [ ] Повторный HTTP-запрос матча не создаёт дубль.
-- [ ] Упавшая задача фиксируется в `failed_jobs`.
-- [ ] Сквозной `trace_id` виден в логах для HTTP и arq-задач.
-- [ ] CI зелёный. Отчёт: `docs/sprint-reports/S-73-YYYY-MM-DD.md`.
+- [x] Повторный HTTP-запрос матча не создаёт дубль.
+- [x] Упавшая задача фиксируется в `failed_jobs`.
+- [x] Сквозной `trace_id` виден в логах для HTTP и arq-задач.
+- [x] CI зелёный. Отчёт: `docs/sprint-reports/S-73-2026-11-06.md`.
 
 ---
 

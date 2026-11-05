@@ -1267,7 +1267,13 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 - S-72: backend — **259 собранных тестов** (256 passed + 3 skipped);
   RLS-изоляция проверяется сырым SQL без `WHERE` в `tests/test_rls_isolation.py`
   (учитель A/B, admin, переключение A→B→A, `relrowsecurity`/`relforcerowsecurity`).
-  Миграций — **31**, head `0031_s72_rls_isolation`.
+  Миграций — **31**, head `0031_s72_rls_isolation` (факт на момент S-72).
+- S-73: backend — **264 собранных теста** (261 passed + 3 skipped);
+  `tests/test_async_reliability.py` проверяет дедупликацию матча, `_job_id`
+  для `run_match`/`analyze_game`, запись `failed_jobs`, `trace_id` в JSON-логах
+  и `llm_calls.trace_id`.
+  Миграций — **32**, head `0032_s73_async_tracing`; JSON-логи содержат
+  `request_id` и `trace_id`.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
@@ -1276,7 +1282,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 
 - ruff (строгий набор правил), mypy (strict по доменам постепенно), coverage
   ≥ 80 % по доменам, с exclude для миграций.
-- Логи: JSON, request_id, user_id, route, latency; PII не включается.
+- Логи: JSON, request_id, trace_id, user_id, route, latency; PII не включается.
 - ADR: любое крупное решение → новая строка в §19 этого документа.
 
 ### 16.3. Документация
@@ -1387,13 +1393,13 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 
 **ADR-016: Идемпотентность асинхронных задач и Dead Letter Queue (DLQ)**
 *   **Контекст:** Задачи матчей и анализа PGN могут дублироваться при рестарте воркера. Упавшие задачи теряются в логах.
-*   **Решение:** Вводим детерминированный `_job_id` для arq (на основе хэша сущности). Добавляем в `WorkerSettings` параметр `max_tries` и обработчик `on_job_failure`. Создаем таблицу `failed_jobs` для аудита и повторного запуска.
-*   **Последствия:** Требуется миграция. Увеличивается надежность фоновых процессов.
+*   **Решение:** Детерминированный `_job_id` (`run_match:<match_id>`, `analyze_game:<game_id>`, `analyze_position:<fen>:<level>`, `tournament:<id>`) + дедупликация активного HTTP-запроса матча по `(user_id, version_id, opponent)`. В `WorkerSettings` — `max_tries`; каждая задача обёрнута `core.jobs.track_job`, который пишет последнюю ошибку в `failed_jobs` (upsert по `job_id`) и пробрасывает исключение. arq 0.28 не имеет callback `on_job_failure` с текстом ошибки, поэтому обёртка функционально заменяет его.
+*   **Последствия:** Миграция `0032_s73_async_tracing`; повторный HTTP-запрос матча возвращает существующий `matchId`. Гонка двух одновременных запросов до commit остаётся теоретической (нужен уникальный partial-index/advisory lock).
 
 **ADR-017: Сквозная трассировка (OpenTelemetry)**
 *   **Контекст:** Текущий `x-request-id` не связывает HTTP-запрос, фоновую задачу и вызов LLM в единую цепочку. Сложно дебажить инциденты.
-*   **Решение:** Интегрируем OpenTelemetry SDK. Прокидываем `trace_id` из FastAPI в аргументы arq-задач и сохраняем его в `llm_calls`.
-*   **Последствия:** Добавление зависимостей, настройка OTel Collector в observability-контуре.
+*   **Решение:** OTel SDK + HTTP-спан `http.request`, arq-спаны `arq.<task>`, спан `llm.generate`. `trace_id` принимается из `traceparent`/`x-trace-id` или генерируется, кладётся в ContextVar, JSON-логи, аргументы arq-задач и `llm_calls.trace_id`; ответ API содержит `x-trace-id`. OTLP HTTP exporter включается через `OTEL_ENABLED` + `OTEL_EXPORTER_OTLP_ENDPOINT`.
+*   **Последствия:** Зависимости `opentelemetry-sdk` и `opentelemetry-exporter-otlp-proto-http` в hash-lock; без коллектора спаны создаются, но не экспортируются. Для коллектора достаточно стандартного OTLP endpoint в observability-контуре.
 
 **ADR-018: Защита от Prompt Injection (OWASP LLM01)**
 *   **Контекст:** Текущий `builder.py` склеивает системный промпт, ввод ученика и RAG-контекст в единый текстовый блок, что открывает путь к indirect prompt injection.

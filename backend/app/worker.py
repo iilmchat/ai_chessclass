@@ -8,17 +8,28 @@ from arq.connections import RedisSettings
 
 from core.config import settings
 from core.db import db_context
+from core.jobs import track_job
+from core.tracing import setup_tracing
 
 logger = logging.getLogger(__name__)
 
 
+async def startup(ctx: dict) -> None:  # noqa: ARG001 — сигнатура arq
+    """Инициализация OTel SDK в процессе воркера (S-73)."""
+    setup_tracing()
+
+
+@track_job("heartbeat")
 async def heartbeat(ctx: dict) -> str:  # noqa: ARG001 — сигнатура arq
     """Дым-задача: подтверждает живость воркера (S-01)."""
     logger.info("worker heartbeat...")
     return "pong"
 
 
-async def analyze_position(ctx: dict, fen: str, level: str) -> dict:
+@track_job("analyze_position")
+async def analyze_position(
+    ctx: dict, fen: str, level: str, trace_id: str | None = None
+) -> dict:
     """Анализ позиции через Stockfish (S-11; SF живёт только в воркере)."""
     from engine.service import EngineService
 
@@ -28,8 +39,13 @@ async def analyze_position(ctx: dict, fen: str, level: str) -> dict:
     return {"facts": [line.model_dump() for line in lines]}
 
 
+@track_job("analyze_game")
 async def analyze_game(
-    ctx: dict, game_id: int, user_id: int | None = None, role: str = "admin"
+    ctx: dict,
+    game_id: int,
+    user_id: int | None = None,
+    role: str = "admin",
+    trace_id: str | None = None,
 ) -> dict:
     """Разбор партии: пошаговые eval'ы + blunder-детект (S-12).
 
@@ -42,6 +58,7 @@ async def analyze_game(
         return await chess_svc.analyze_game_job(game_id, ctx["redis"])
 
 
+@track_job("scores_recalc")
 async def scores_recalc(ctx: dict) -> dict:
     """Nightly: пересчёт недельных EMA по всем пользователям (S-16)."""
     from sqlalchemy import select
@@ -64,6 +81,7 @@ async def scores_recalc(ctx: dict) -> dict:
     return {"users": len(user_ids), "updatedRows": updated}
 
 
+@track_job("retention_run")
 async def retention_run(ctx: dict) -> dict:
     """Nightly: архивировать/удалить устаревшие журналы и кэш (S-46)."""
     from core.db import session_factory
@@ -82,6 +100,7 @@ async def retention_run(ctx: dict) -> dict:
     }
 
 
+@track_job("run_match")
 async def run_match(
     ctx: dict,
     bot_version_id: int,
@@ -89,6 +108,7 @@ async def run_match(
     match_id: int | None = None,
     user_id: int | None = None,
     role: str = "admin",
+    trace_id: str | None = None,
 ) -> dict:
     """Матч бота против оппонента лестницы (S-18; без LLM).
 
@@ -114,11 +134,13 @@ async def run_match(
                 await redis.srem(active, match_id)
 
 
+@track_job("run_tournament_job")
 async def run_tournament_job(
     ctx: dict,
     tournament_id: int,
     user_id: int | None = None,
     role: str = "admin",
+    trace_id: str | None = None,
 ) -> dict:
     """Async-турнир: bracket/round-robin, replay, восстановление (S-48)."""
     from domains.tournaments.service import run_tournament_job as run
@@ -129,6 +151,7 @@ async def run_tournament_job(
     return {"tournamentId": tournament.id, "status": tournament.status}
 
 
+@track_job("resume_tournaments")
 async def resume_tournaments(ctx: dict) -> dict:
     """Cron/startup: подхватить queued/running турниры после рестарта."""
     from domains.tournaments.service import resume_tournaments as resume
@@ -138,6 +161,7 @@ async def resume_tournaments(ctx: dict) -> dict:
     return {"enqueued": count}
 
 
+@track_job("lms_sync")
 async def lms_sync(ctx: dict) -> dict:
     """Cron: xAPI statements → LRS (идемпотентно, retry)."""
     from core.db import session_factory
@@ -151,6 +175,7 @@ async def lms_sync(ctx: dict) -> dict:
     return result
 
 
+@track_job("telegram_deliver")
 async def telegram_deliver(ctx: dict) -> dict:
     """Cron: доставка Telegram outbox с retry."""
     from core.db import session_factory
@@ -164,6 +189,7 @@ async def telegram_deliver(ctx: dict) -> dict:
     return result
 
 
+@track_job("telegram_poll")
 async def telegram_poll(ctx: dict) -> dict:
     """Cron (S-68): long-poll fallback getUpdates (webhook выключен)."""
     from core.db import session_factory
@@ -206,5 +232,8 @@ class WorkerSettings:
     #: default queue — analyze/pdf; match workers получают WORKER_QUEUE из compose
     queue_name = os.getenv("WORKER_QUEUE", "arq:queue")
     max_jobs = int(os.getenv("WORKER_MAX_JOBS", "4"))
+    #: S-73: ограниченные попытки; каждая ошибка пишется в failed_jobs
+    max_tries = int(os.getenv("WORKER_MAX_TRIES", "3"))
     job_timeout = 300  # BOT_MATCH_BUDGET_S=120 + запас
     health_check_interval = 30
+    on_startup = startup

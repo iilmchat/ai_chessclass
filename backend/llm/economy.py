@@ -104,6 +104,7 @@ async def register_call(
     status: str,
     spec: ModelSpec,
     task_kind: str = "sync",
+    trace_id: str | None = None,
 ) -> None:
     """Одна строка llm_calls + (для ok) upsert usage_daily + квота Redis."""
     cost_in = compute_cost(usage.prompt_tokens, spec.price_in)
@@ -123,6 +124,7 @@ async def register_call(
             latency_ms=latency_ms,
             status=status,
             task_kind=task_kind,
+            trace_id=trace_id,
         )
     )
     if user_id is not None and status == STATUS_OK:

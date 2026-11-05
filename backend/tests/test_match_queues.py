@@ -33,11 +33,6 @@ async def test_per_user_match_limit(make_client, unique_email, monkeypatch):
     _c, access, _uid = await login(client, unique_email)
     headers = {"Authorization": f"Bearer {access}"}
 
-    response = await client.post(
-        f"{API}/bots", json={"code": RANDOM_BOT}, headers=headers
-    )
-    bot_id = int(response.json()["id"])
-
     class FakePool:
         async def enqueue_job(self, *args, **kwargs):
             self.args = args
@@ -50,7 +45,18 @@ async def test_per_user_match_limit(make_client, unique_email, monkeypatch):
         return FakePool()
 
     monkeypatch.setattr("arq.connections.create_pool", fake_create_pool)
+
+    async def new_bot() -> int:
+        response = await client.post(
+            f"{API}/bots", json={"code": RANDOM_BOT}, headers=headers
+        )
+        assert response.status_code == 201, response.text
+        return int(response.json()["id"])
+
+    # S-73: одинаковый bot+opponent дедуплицируется, поэтому лимит
+    # проверяем на пяти разных ботах (активные матчи одного пользователя).
     for _ in range(5):
+        bot_id = await new_bot()
         response = await client.post(
             f"{API}/bots/{bot_id}/match/run",
             json={"opponent": "random"},
@@ -58,6 +64,7 @@ async def test_per_user_match_limit(make_client, unique_email, monkeypatch):
         )
         assert response.status_code == 202, response.text
 
+    bot_id = await new_bot()
     response = await client.post(
         f"{API}/bots/{bot_id}/match/run",
         json={"opponent": "random"},

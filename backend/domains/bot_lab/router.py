@@ -199,44 +199,64 @@ async def run_match(
 
     from arq.connections import RedisSettings, create_pool
 
+    from core.tracing import current_trace_id_optional
     from domains.bot_lab.models import BotMatch, MatchResult
 
-    # S-37: не более 5 активных (pending/running) матчей на пользователя.
+    # S-73 (ADR-016): повторный HTTP-запрос того же матча возвращает уже
+    # созданную активную строку и идемпотентный arq job, а не дубль.
     since = datetime.now(UTC) - timedelta(seconds=ACTIVE_MATCH_TTL_S)
-    active_count = await session.scalar(
-        select(func.count())
-        .select_from(BotMatch)
-        .where(
-            BotMatch.user_id == user.id,
-            BotMatch.finished_at.is_(None),
-            BotMatch.started_at >= since,
-        )
+    active_filter = (
+        BotMatch.user_id == user.id,
+        BotMatch.version_id == bot.id,
+        BotMatch.opponent == body.opponent,
+        BotMatch.finished_at.is_(None),
+        BotMatch.started_at >= since,
     )
-    if (active_count or 0) >= MAX_ACTIVE_MATCHES:
-        kind = queue_kind(body.opponent)
-        refused = refused_key(kind)
-        redis = request.app.state.redis
-        await redis.incr(refused)
-        await redis.expire(refused, 7 * 24 * 3600)
-        raise AppError(
-            "match_limit",
-            f"Не более {MAX_ACTIVE_MATCHES} одновременных матчей",
-            429,
+    match = (
+        await session.execute(
+            select(BotMatch)
+            .where(*active_filter)
+            .order_by(BotMatch.id.desc())
+            .limit(1)
         )
+    ).scalar_one_or_none()
 
-    # S-33: матч создаётся до enqueue, чтобы UI сразу получил matchId и SSE.
-    match = BotMatch(
-        version_id=bot.id,
-        user_id=user.id,
-        opponent=body.opponent,
-        result=MatchResult.DRAW,
-        moves_count=0,
-        duration_ms=0,
-        elo_delta=Decimal("0"),
-    )
-    session.add(match)
-    await session.flush()
-    await session.commit()
+    if match is None:
+        # S-37: не более 5 активных (pending/running) матчей на пользователя.
+        active_count = await session.scalar(
+            select(func.count())
+            .select_from(BotMatch)
+            .where(
+                BotMatch.user_id == user.id,
+                BotMatch.finished_at.is_(None),
+                BotMatch.started_at >= since,
+            )
+        )
+        if (active_count or 0) >= MAX_ACTIVE_MATCHES:
+            kind = queue_kind(body.opponent)
+            refused = refused_key(kind)
+            redis = request.app.state.redis
+            await redis.incr(refused)
+            await redis.expire(refused, 7 * 24 * 3600)
+            raise AppError(
+                "match_limit",
+                f"Не более {MAX_ACTIVE_MATCHES} одновременных матчей",
+                429,
+            )
+
+        # S-33: матч создаётся до enqueue, чтобы UI сразу получил matchId и SSE.
+        match = BotMatch(
+            version_id=bot.id,
+            user_id=user.id,
+            opponent=body.opponent,
+            result=MatchResult.DRAW,
+            moves_count=0,
+            duration_ms=0,
+            elo_delta=Decimal("0"),
+        )
+        session.add(match)
+        await session.flush()
+        await session.commit()
 
     queue = queue_for_opponent(body.opponent)
     pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
@@ -248,6 +268,8 @@ async def run_match(
             match.id,
             user.id,
             user.role.value,
+            current_trace_id_optional(),
+            _job_id=f"run_match:{match.id}",
             _queue_name=queue,
         )
     finally:

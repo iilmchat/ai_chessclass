@@ -18,3 +18,5 @@ def test_worker_settings_import_and_cron() -> None:
         for job in WorkerSettings.cron_jobs
     }
     assert "scores_recalc" in cron_names
+    assert WorkerSettings.max_tries >= 1  # S-73: DLQ/reliability
+    assert callable(WorkerSettings.on_startup)  # OTel setup

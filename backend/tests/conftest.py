@@ -114,6 +114,9 @@ async def _cleanup():
         await session.execute(
             sa.text("DELETE FROM audit_logs WHERE actor_email LIKE '%@e2e.chessclass'")
         )
+        await session.execute(
+            sa.text("DELETE FROM failed_jobs WHERE job_id LIKE 'test-%'")
+        )
         await session.commit()
     redis = redis_lib.from_url(settings.redis_url, decode_responses=True)
     try:

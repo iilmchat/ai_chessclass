@@ -13,6 +13,12 @@ from core.db import ALLOWED_DB_ROLES, db_context, engine
 from core.errors import register_exception_handlers
 from core.logging import new_request_id, request_id_var, setup_logging
 from core.security import decode_token, jwks
+from core.tracing import (
+    get_tracer,
+    setup_tracing,
+    trace_context,
+    trace_id_from_headers,
+)
 from domains.anticheat.router import router as anticheat_router
 from domains.audit.router import router as audit_router
 from domains.auth.router import admin_router as auth_admin_router
@@ -48,6 +54,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(settings.log_level)
+    setup_tracing()
     # S-58: в staging/prod localhost-источники почти наверняка означают
     # незаданный CORS_ORIGINS — предупреждаем, но не роняем старт.
     if settings.app_env in ("staging", "prod") and any(
@@ -134,6 +141,20 @@ async def db_context_middleware(request: Request, call_next) -> Response:
     user_id, role = _db_principal(request)
     async with db_context(user_id, role):
         return await call_next(request)
+
+
+@app.middleware("http")
+async def tracing_middleware(request: Request, call_next) -> Response:
+    """S-73: trace_id из W3C/x-trace-id или новый; спан на HTTP-запрос."""
+    trace_id = trace_id_from_headers(request.headers)
+    with trace_context(trace_id) as tid:
+        with get_tracer("chessclass.http").start_as_current_span("http.request") as span:
+            span.set_attribute("http.method", request.method)
+            span.set_attribute("http.route", request.url.path)
+            response = await call_next(request)
+            span.set_attribute("http.status_code", response.status_code)
+        response.headers["x-trace-id"] = tid
+        return response
 
 
 @app.middleware("http")
