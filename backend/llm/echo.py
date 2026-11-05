@@ -21,7 +21,9 @@ class EchoProvider(LLMProvider):
             (m.content for m in reversed(messages) if m.role == "user"),
             "",
         )
-        text = f"[echo] заглушка LLM (S-05): запрос «{last_user[:160]}»"
+        # S-71: в user-сообщении несколько структурных блоков; 160 символов
+        # обрезали RAG-блок. 600 хватает для проверки prompt-пайплайна в CI.
+        text = f"[echo] заглушка LLM (S-05): запрос «{last_user[:600]}»"
         return text, LLMUsage(prompt_tokens=0, completion_tokens=0)
 
     async def list_models(self) -> list[str]:

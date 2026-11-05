@@ -1005,25 +1005,29 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 ### 6.5. Промпты и параметры генерации (S-06)
 
 `llm/prompts/` (порт prompt_builder/levels из teacher): системный промпт
-маршрута = роль (ROLE_BY_ROUTE) + правила уровня (§5.5) + формат
-(markdown, краткие факты отдельно, RU). Сообщения: system → история
-(последние 20, обрезка 4000 симв.) → user (запрос + блок фактов
-«проверенные данные, менять нельзя»). Изменение текста шаблона → коммит
-с поднятием `PROMPT_VERSIONS[route]` и тестом.
+маршрута = роль (ROLE_BY_ROUTE) + `SECURITY_RULES` (S-71) + правила уровня
+(§5.5) + формат (markdown, краткие факты отдельно, RU). Сообщения: system →
+история (последние 20, обрезка 4000 симв.) → user. User-сообщение структурно
+разделено (ADR-018): `<trusted_instructions>` (инструкция backend-а) →
+`<trusted_facts>` (факты движка/тестов) → `<untrusted_user_input>` (код/вопрос
+ученика) → `<untrusted_rag_context>` (RAG). Недоверенные блоки санитизируются
+(`<|im_start|>`, `[INST]`, `<<SYS>>`, role-метки), секретоподобные строки
+редактируются (`llm/security.py`). Изменение текста шаблона → коммит с
+поднятием `PROMPT_VERSIONS[route]` и тестом.
 
 | Маршрут | temperature | max_tokens | version |
 |---|---|---|---|
-| `python_teacher.comment` | 0.3 | 400 | 1 |
-| `python_teacher.hint` | 0.3 | 300 | 1 |
-| `python_teacher.explain_code` | 0.2 | 700 | 1 |
-| `chess_lab.insight` | 0.4 | 600 | 1 |
-| `chess_lab.next_moves` | 0.3 | 400 | 1 |
-| `chess_lab.blunder` | 0.3 | 400 | 1 |
-| `chess_lab.commentary` | 0.5 | 500 | 1 |
-| `chess_lab.study` | 0.5 | 300 | 1 |
-| `bot_lab.coach` | 0.4 | 600 | 1 |
-| `anticheat.judge_explain` | 0.1 | 300 | 1 |
-| `reports.parent_summary` | 0.3 | 500 | 1 |
+| `python_teacher.comment` | 0.3 | 400 | 2 |
+| `python_teacher.hint` | 0.3 | 300 | 2 |
+| `python_teacher.explain_code` | 0.2 | 700 | 2 |
+| `chess_lab.insight` | 0.4 | 600 | 2 |
+| `chess_lab.next_moves` | 0.3 | 400 | 2 |
+| `chess_lab.blunder` | 0.3 | 400 | 2 |
+| `chess_lab.commentary` | 0.5 | 500 | 2 |
+| `chess_lab.study` | 0.5 | 300 | 2 |
+| `bot_lab.coach` | 0.4 | 600 | 2 |
+| `anticheat.judge_explain` | 0.1 | 300 | 2 |
+| `reports.parent_summary` | 0.3 | 500 | 2 |
 
 Правила уровней: novice — без готового решения (наводящие вопросы, шаги,
 синтаксис на отвлечённом примере); intermediate — причины + фрагменты,

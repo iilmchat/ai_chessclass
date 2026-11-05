@@ -346,10 +346,8 @@ async def _make_comment(
     messages = build_messages(
         "python_teacher.comment",
         level,
-        request=(
-            f"Прокомментируй решение ученика задания «{assignment.title}».\n"
-            f"Код ученика:\n{code[:2000]}"
-        ),
+        request=f"Прокомментируй решение ученика задания «{assignment.title}».",
+        user_input=f"Код ученика:\n{code[:2000]}",
         facts=[
             f"Вердикт: {grade.verdict}",
             f"Тесты: {grade.passed_tests}/{grade.total_tests}",

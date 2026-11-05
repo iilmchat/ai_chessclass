@@ -37,18 +37,16 @@ async def start_judge_session(
     level = profile.level if profile is not None else Level.NOVICE
     tier = profile.billing_tier.value if profile is not None else "free"
 
-    facts: list[str] = []
+    # S-71: вопрос и код ученика — untrusted-данные, а не trusted facts.
+    user_input = f"Ученик объясняет свой код/ход: «{question[:1000]}»"
     if student_code:
-        facts.append(f"Код ученика (не показывать ученику дословно):\n{student_code[:1500]}")
+        user_input += f"\nКод ученика (не показывать ученику дословно):\n{student_code[:1500]}"
 
     messages = build_messages(
         "anticheat.judge_explain",
         level,
-        request=(
-            f"Ученик объясняет свой код/ход: «{question[:1000]}»\n"
-            "Задай 1–2 уточняющих вопроса, чтобы проверить понимание."
-        ),
-        facts=facts,
+        request="Задай 1–2 уточняющих вопроса, чтобы проверить понимание.",
+        user_input=user_input,
     )
     result = await llm_generate(
         session,

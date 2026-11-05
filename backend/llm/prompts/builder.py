@@ -1,8 +1,12 @@
 """Сборщик сообщений для шлюза (порт build_messages из teacher).
 
-build_messages(route, level, request, facts, history) → [system, …history, user].
-Контекст: последние MAX_CONTEXT_MESSAGES, каждое — до MAX_MESSAGE_CHARS.
-Параметры вызова по маршруту — ROUTE_PARAMS (таблица — SPEC §6.5).
+build_messages(route, level, request, user_input, facts, knowledge, history)
+→ [system, …history, user]. Контекст: последние MAX_CONTEXT_MESSAGES, каждое
+— до MAX_MESSAGE_CHARS. Параметры вызова по маршруту — ROUTE_PARAMS (SPEC §6.5).
+
+S-71 (ADR-018): user content структурно разделён на trusted-инструкции/факты
+и untrusted-блоки (ввод ученика, RAG). Недоверенный текст санитизируется
+`llm/security.py`; системный промпт содержит правила изоляции.
 """
 
 from dataclasses import dataclass
@@ -11,6 +15,11 @@ from core.levels import Level
 from llm.base import LLMMessage
 from llm.prompts.levels import get_level_rules
 from llm.prompts.templates import build_system_prompt
+from llm.security import (
+    redact_secrets,
+    sanitize_trusted_text,
+    sanitize_untrusted_text,
+)
 
 #: Сколько последних сообщений диалога попадает в контекст (порт teacher)
 MAX_CONTEXT_MESSAGES = 20
@@ -20,6 +29,12 @@ MAX_MESSAGE_CHARS = 4000
 
 FACTS_HEADER = "Факты (проверенные данные, менять нельзя):"
 KNOWLEDGE_HEADER = "Полезный материал (база знаний):"
+
+#: Имена блоков структурной изоляции (S-71, ADR-018).
+TRUSTED_INSTRUCTIONS_TAG = "trusted_instructions"
+TRUSTED_FACTS_TAG = "trusted_facts"
+UNTRUSTED_USER_INPUT_TAG = "untrusted_user_input"
+UNTRUSTED_RAG_CONTEXT_TAG = "untrusted_rag_context"
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,20 +66,46 @@ def get_route_params(route: str) -> RouteParams:
     return params
 
 
+def _block(tag: str, body: str) -> str:
+    return f"<{tag}>\n{body}\n</{tag}>"
+
+
+def _clean_trusted(text: str) -> str:
+    return redact_secrets(sanitize_trusted_text(text))
+
+
+def _clean_untrusted(text: str) -> str:
+    return redact_secrets(sanitize_untrusted_text(text))
+
+
 def build_user_content(
     request: str,
     facts: list[str] | None = None,
     knowledge: list[str] | None = None,
+    user_input: str | None = None,
 ) -> str:
-    """Запрос + блок базы знаний (RAG, §8.6) + блок фактов (движок/тесты)."""
-    parts: list[str] = [request]
-    if knowledge:
-        parts.append(KNOWLEDGE_HEADER)
-        parts.extend(f"- {item}" for item in knowledge)
+    """Собрать user-сообщение в структурной разметке trusted/untrusted.
+
+    ``request`` — инструкция, сгенерированная backend-ом (trusted).
+    ``user_input`` — текст/код ученика (untrusted), ``knowledge`` — RAG
+    (untrusted), ``facts`` — факты движка/тестов (trusted).
+    """
+    parts: list[str] = [_block(TRUSTED_INSTRUCTIONS_TAG, _clean_trusted(request))]
     if facts:
-        parts.append(FACTS_HEADER)
-        parts.extend(f"- {fact}" for fact in facts)
-    return "\n".join(parts)
+        facts_body = "\n".join(
+            [FACTS_HEADER, *(f"- {_clean_trusted(fact)}" for fact in facts)]
+        )
+        parts.append(_block(TRUSTED_FACTS_TAG, facts_body))
+
+    parts.append(
+        _block(UNTRUSTED_USER_INPUT_TAG, _clean_untrusted(user_input or ""))
+    )
+
+    knowledge_body = [KNOWLEDGE_HEADER]
+    if knowledge:
+        knowledge_body.extend(f"- {_clean_untrusted(item)}" for item in knowledge)
+    parts.append(_block(UNTRUSTED_RAG_CONTEXT_TAG, "\n".join(knowledge_body)))
+    return "\n\n".join(parts)
 
 
 def build_messages(
@@ -72,14 +113,15 @@ def build_messages(
     level: Level,
     request: str,
     *,
+    user_input: str | None = None,
     facts: list[str] | None = None,
     knowledge: list[str] | None = None,
     history: list[LLMMessage] | None = None,
 ) -> list[LLMMessage]:
     """Собрать список сообщений: system(маршрут×уровень) + история + user.
 
-    knowledge — RAG-контекст (Design §8.6): вставляется перед фактами,
-    чтобы модель опиралась на материал базы знаний, не трогая факты.
+    ``knowledge`` — RAG-контекст (Design §8.6), ``user_input`` — код/вопрос
+    ученика (S-71). Оба блока помечены как untrusted и санитизированы.
     """
     rules = get_level_rules(level)
     messages = [
@@ -92,7 +134,7 @@ def build_messages(
     messages.append(
         LLMMessage(
             role="user",
-            content=build_user_content(request, facts, knowledge)[
+            content=build_user_content(request, facts, knowledge, user_input)[
                 : MAX_MESSAGE_CHARS * 2
             ],
         )
