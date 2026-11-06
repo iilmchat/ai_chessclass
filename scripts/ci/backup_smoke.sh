@@ -13,7 +13,20 @@ PG_PASSWORD="${POSTGRES_PASSWORD:-chess_ci}"
 DB="${POSTGRES_DB:-chessclass}"
 RESTORE_DB="${DB}_restore"
 DUMP="${DUMP_FILE:-/tmp/chessclass-ci.dump}"
-EXPECTED_HEAD="${EXPECTED_HEAD:-0030_s67_lms_oauth}"
+# S-83: ожидаемый head выводим из графа миграций (alembic heads), а не
+# хардкодом — иначе каждый новый спринт ломал GitHub CI на устаревшей
+# константе (было 0030_s67_lms_oauth при фактических 0033/0035). Источник
+# ожидания — репозиторий, поэтому проверка восстановленной БД не тавтологична.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -z "${EXPECTED_HEAD:-}" ]; then
+  EXPECTED_HEAD="$(
+    cd "$SCRIPT_DIR/../../backend" && alembic heads 2>/dev/null | awk 'NR==1 {print $1}'
+  )" || true
+fi
+if [ -z "${EXPECTED_HEAD:-}" ]; then
+  echo "restore smoke FAILED: не удалось определить EXPECTED_HEAD (alembic heads)" >&2
+  exit 1
+fi
 
 export PGPASSWORD="$PG_PASSWORD"
 

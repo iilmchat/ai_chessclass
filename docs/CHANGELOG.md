@@ -34,6 +34,11 @@
   README/Design/SPEC/CHANGELOG обновлены (35 миграций, head
   `0035_s83_email_outbox`).
 
+### Исправлено
+- `scripts/ci/backup_smoke.sh`: ожидаемый alembic-head выводится из
+  `alembic heads` вместо хардкода `0030_s67_lms_oauth` — GitHub Actions
+  job `e2e` снова проходит шаг backup→restore smoke (падал с S-72).
+
 ## [0.6.0] - 2026-11-06
 
 ### Добавлено
