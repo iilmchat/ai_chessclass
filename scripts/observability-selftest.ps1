@@ -73,7 +73,7 @@ Check "promtool check rules (alerts.yml)" {
 # --- 3. Рендер и валидация Alertmanager (фиктивные секреты) ------------------
 Check "amtool check-config (рендер alertmanager.yml.tmpl)" {
     $rendered = Join-Path $tmp "alertmanager.rendered.yml"
-    $token = "123456789:AAF-DUMMY-selftest-not-a-real-token"
+    $token = "selftest-dummy-token-not-a-real-secret"
     (Get-Content -Raw (Join-Path $prod "alertmanager.yml.tmpl")).
         Replace("__TELEGRAM_BOT_TOKEN__", $token).
         Replace("__TELEGRAM_ALERT_CHAT_ID__", "-1001234567890") |
@@ -107,7 +107,7 @@ if (-not $Stack) {
 }
 
 # --- 5. Runtime smoke профиля ------------------------------------------------
-$env:TELEGRAM_BOT_TOKEN = "123456789:AAF-DUMMY-selftest-not-a-real-token"
+$env:TELEGRAM_BOT_TOKEN = "selftest-dummy-token-not-a-real-secret"
 $env:TELEGRAM_ALERT_CHAT_ID = if ($env:TELEGRAM_ALERT_CHAT_ID) { $env:TELEGRAM_ALERT_CHAT_ID } else { "-1001234567890" }
 $prom = "http://127.0.0.1:$(if ($env:PROMETHEUS_PORT) { $env:PROMETHEUS_PORT } else { '9092' })"
 $am = "http://127.0.0.1:$(if ($env:ALERTMANAGER_PORT) { $env:ALERTMANAGER_PORT } else { '9093' })"
