@@ -56,12 +56,37 @@ async function asPage(browser: Browser, token: string): Promise<Page> {
   return page;
 }
 
+/**
+ * S-82: изоляция теста. При падении попытки комната остаётся активной
+ * (waiting/ready/running), и retry падает на 409 `pvp_room_active`.
+ * Гасим актуальную комнату пользователя перед созданием новой.
+ */
+async function cancelActiveRoom(token: string): Promise<void> {
+  const authed = await request.newContext({
+    baseURL: API_ORIGIN,
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+  });
+  try {
+    const mine = await authed.get(`${API}/pvp/rooms/mine`);
+    if (!mine.ok()) return; // нет активной комнаты — штатно
+    const { id } = (await mine.json()) as { id: string };
+    await authed.post(`${API}/pvp/rooms/${id}/cancel`);
+  } finally {
+    await authed.dispose();
+  }
+}
+
 test('PvP: два браузера играют матч, жалоба закрывается в UI', async ({ browser }) => {
   test.setTimeout(180_000);
 
   const boot = await request.newContext({ baseURL: API_ORIGIN });
   const hostToken = await loginToken(boot, STUDENT1);
   const guestToken = await loginToken(boot, STUDENT2);
+
+  // S-82: перед созданием комнаты гасим комнаты, оставшиеся от прошлой попытки
+  // (иначе retry получает 409 pvp_room_active).
+  await cancelActiveRoom(hostToken);
+  await cancelActiveRoom(guestToken);
 
   const [hostBotId] = await Promise.all([
     makeBot(hostToken),
@@ -93,10 +118,13 @@ test('PvP: два браузера играют матч, жалоба закр�
   await pageGuest.getByRole('button', { name: 'Войти по коду' }).click();
 
   // обе страницы видят статус ready → running → done (реальный SF-воркер)
+  // S-82: на CI поллинг статуса после join иногда медленнее 30 с — запас.
   await expect(pageHost.locator('.health-label').first()).toContainText('ready', {
-    timeout: 30_000,
+    timeout: 60_000,
   });
-  await expect(pageGuest.locator('.health-label').first()).toContainText('ready');
+  await expect(pageGuest.locator('.health-label').first()).toContainText('ready', {
+    timeout: 60_000,
+  });
 
   await pageHost.getByRole('button', { name: /Запустить матч/ }).click();
   await expect(pageHost.locator('.health-label').first()).toContainText('done', {

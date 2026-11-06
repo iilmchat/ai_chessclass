@@ -64,6 +64,10 @@
 - `scripts/ci/backup_smoke.sh`: ожидаемый alembic-head выводится из
   `alembic heads` вместо хардкода `0030_s67_lms_oauth` — GitHub Actions
   job `e2e` снова проходит шаг backup→restore smoke (падал с S-72).
+- `frontend/e2e/pvp.spec.ts` (S-82): изоляция теста — перед созданием
+  комнаты гасятся активные комнаты участников (`/pvp/rooms/mine` + cancel),
+  ожидание `ready` до 60 с; retry больше не падает на 409 `pvp_room_active`
+  (нестабильный job `e2e` в GitHub Actions).
 
 ## [0.6.0] - 2026-11-06
 
