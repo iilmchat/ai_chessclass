@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.5.0 · **Дата:** 2026-11-06
+**Версия:** v0.6.0 · **Дата:** 2026-11-06
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 
@@ -1310,6 +1310,9 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `X-Voice-Fallback: text`; react-chessboard v5 получает `aria-label` клеток
   через DOM-патч, e2e 16 сценариев. Backend — 280 collected (277 passed +
   3 skipped).
+- S-80 (v0.6.0): релиз — версия 0.6.0 во всех источниках, release-notes,
+  тег `v0.6.0`; финальные CI/e2e, staging config, pip-audit. 33 миграции,
+  head `0033_s74_parental_consent`; backend — 280 collected, e2e — 16.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

@@ -5,9 +5,14 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
-## [Unreleased]
+## [0.6.0] - 2026-11-06
 
 ### Добавлено
+
+#### S-80 — Release v0.6.0 (2026-11-06)
+- Версия 0.6.0 во всех источниках, IMAGE_TAG, release notes, тег `v0.6.0`.
+- Финальные CI/e2e, staging `config -q`, pip-audit; счётчики 280 collected /
+  33 миграции / 16 e2e.
 
 #### S-79 — Integrations (LRS, TTS) & a11y Chessboard (2026-11-06)
 - LRS OAuth2: Redis-кэш `lrs:oauth:token`, обновление при 401 и повтор xAPI
