@@ -1,7 +1,7 @@
 # ChessClass — staging-контур (S-58; ADR-014). Справочник: Design.md §15.1.
 # Запуск: cp .env.staging.example .env.staging && docker compose --env-file .env.staging -f docker-compose.staging.yml up -d --build
 # Миграции выполняются сервисом migrate до старта API/worker; seed — вручную (run --rm seed).
-# Образы версионированы через IMAGE_TAG (default 0.5.0); при релизе обновлять
+# Образы версионированы через IMAGE_TAG (default 0.6.0); при релизе обновлять
 # вместе с pyproject.toml/package.json.
 # Отличия от prod: APP_ENV=staging; порты 5440/6387/8032/3202/8080/8443; db/redis
 # опубликованы на loopback хоста; отдельные volumes/сеть — prod-данные не трогаем.
@@ -76,7 +76,7 @@ services:
   migrate:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.5.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.6.0}
     container_name: chessclass-staging-migrate
     command: alembic upgrade head
     env_file: *env-file
@@ -90,7 +90,7 @@ services:
   api:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.5.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.6.0}
     container_name: chessclass-staging-api
     command:
       ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020",
@@ -127,7 +127,7 @@ services:
   worker:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.5.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.6.0}
     container_name: chessclass-staging-worker
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -151,7 +151,7 @@ services:
   worker-match-random:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.5.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.6.0}
     container_name: chessclass-staging-worker-match-random
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -174,7 +174,7 @@ services:
   worker-match-greedy:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.5.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.6.0}
     container_name: chessclass-staging-worker-match-greedy
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -197,7 +197,7 @@ services:
   worker-match-minimax:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.5.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.6.0}
     container_name: chessclass-staging-worker-match-minimax
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -220,7 +220,7 @@ services:
   worker-match-sf:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.5.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.6.0}
     container_name: chessclass-staging-worker-match-sf
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -248,7 +248,7 @@ services:
         # S-58: бренд стадии — staging (prod-сборка оставляет prod).
         APP_STAGE: staging
     # Отдельный тег: staging-бинарь отличается от prod только брендом стадии.
-    image: chessclass/frontend:${IMAGE_TAG:-0.5.0}-staging
+    image: chessclass/frontend:${IMAGE_TAG:-0.6.0}-staging
     container_name: chessclass-staging-web
     # S-61: CSP report-only до закрытия аудита (после — enforce, как в prod).
     environment:
@@ -291,7 +291,7 @@ services:
   seed:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.5.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.6.0}
     profiles: ["tools"]
     container_name: chessclass-staging-seed
     command: python -m db.seeds
