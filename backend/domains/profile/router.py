@@ -6,8 +6,9 @@ RBAC: свой профиль — все; профиль ученика и сп�
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
+from domains.audit import service as audit_svc
 from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
 from domains.auth.schemas import user_out
@@ -41,11 +42,28 @@ async def get_me(user: CurrentUser, session: DbSession) -> ProfileOut:
 
 @router.patch("/me", response_model=ProfileOut)
 async def patch_me(
-    body: ProfileUpdateIn, user: CurrentUser, session: DbSession
+    body: ProfileUpdateIn,
+    user: CurrentUser,
+    session: DbSession,
+    request: Request,
 ) -> ProfileOut:
+    before = await svc.ensure_profile(session, user.id)
+    old_age_group = before.age_group
     profile = await svc.update_my_profile(
         session, user.id, body.display_name, body.prefs, body.age_group
     )
+    # S-83: self-declared смена возраста сбрасывает подтверждение учителя —
+    # событие пишем в аудит (доказуемость consent enforcement).
+    if body.age_group is not None and body.age_group != old_age_group:
+        await audit_svc.record(
+            session,
+            user,
+            "profile.age_group",
+            target_type="user",
+            target_id=user.id,
+            meta={"from": old_age_group.value, "to": body.age_group.value},
+            request=request,
+        )
     return _profile_out(user, profile)
 
 

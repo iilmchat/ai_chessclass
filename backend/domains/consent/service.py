@@ -26,6 +26,10 @@ class ConsentState:
     required: bool
     status: str
     policy_version: str
+    # S-83: возрастная группа и её подтверждение учителем (consent enforcement).
+    age_group: str
+    teacher_confirmed: bool
+    age_group_confirmed_at: datetime | None
     parent_email: str | None
     requested_at: datetime | None
     confirmed_at: datetime | None
@@ -78,6 +82,10 @@ async def _latest(
 async def get_state(session: AsyncSession, user_id: int) -> ConsentState:
     profile = await session.get(UserProfile, user_id)
     required = consent_required(profile.age_group if profile else None)
+    age_group = (
+        profile.age_group.value if profile is not None else AgeGroup.UNKNOWN.value
+    )
+    confirmed_at = profile.age_group_confirmed_at if profile is not None else None
     row = await _latest(session, user_id)
     version = settings.parental_consent_policy_version
 
@@ -86,6 +94,9 @@ async def get_state(session: AsyncSession, user_id: int) -> ConsentState:
             required=False,
             status="not_required",
             policy_version=version,
+            age_group=age_group,
+            teacher_confirmed=confirmed_at is not None,
+            age_group_confirmed_at=confirmed_at,
             parent_email=None,
             requested_at=None,
             confirmed_at=None,
@@ -104,6 +115,9 @@ async def get_state(session: AsyncSession, user_id: int) -> ConsentState:
         required=True,
         status=status,
         policy_version=row.policy_version if row else version,
+        age_group=age_group,
+        teacher_confirmed=confirmed_at is not None,
+        age_group_confirmed_at=confirmed_at,
         parent_email=row.parent_email if row else None,
         requested_at=row.requested_at if row else None,
         confirmed_at=row.confirmed_at if row else None,

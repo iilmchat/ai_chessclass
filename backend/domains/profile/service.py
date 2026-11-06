@@ -47,6 +47,11 @@ async def update_my_profile(
     if prefs is not None:
         profile.prefs = prefs
     if age_group is not None:
+        # S-83: self-declared изменение возраста делает подтверждение учителя
+        # устаревшим — сбрасываем trusted-метку до следующего подтверждения.
+        if profile.age_group != age_group:
+            profile.age_group_confirmed_at = None
+            profile.age_group_confirmed_by = None
         profile.age_group = age_group
     await session.flush()
     return profile

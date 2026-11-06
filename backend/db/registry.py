@@ -13,6 +13,7 @@ from domains.classes import models as _classes_models  # noqa: F401
 from domains.cognitive import models as _cognitive_models  # noqa: F401
 from domains.consent import models as _consent_models  # noqa: F401
 from domains.lms import models as _lms_models  # noqa: F401
+from domains.notifications import models as _notifications_models  # noqa: F401
 from domains.observability import models as _observability_models  # noqa: F401
 from domains.profile import models as _profile_models  # noqa: F401
 from domains.progress import models as _progress_models  # noqa: F401

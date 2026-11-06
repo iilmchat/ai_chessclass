@@ -10,10 +10,10 @@
   C) счётчики тестов в README: backend vs `pytest --collect-only` (--tests-count
      auto|N), frontend vs `it(` в frontend/src/**/*.test.ts(x), e2e vs `test(`
      в frontend/e2e/*.spec.ts;
-  D) ровно один активный план в docs/README.md (TODO_V0.6.md), архивные планы;
+  D) ровно один активный план в docs/README.md (TODO_V0.7.md), архивные планы;
   E) стрейл-маркеры только в активных доках, версия в шапке Design.md,
      release-notes текущей версии;
-  F) активный этап и прогресс в TODO_V0.6.md.
+  F) активный этап и прогресс в TODO_V0.7.md.
 
 CLI:
     python scripts/doc_lint.py [--root PATH] [--tests-count auto|N]
@@ -38,7 +38,7 @@ from pathlib import Path
 ACTIVE_DOCS: tuple[str, ...] = (
     "README.md",
     "Design.md",
-    "TODO_V0.6.md",
+    "TODO_V0.7.md",
     "docs/README.md",
     "docs/release-notes-v0.3.0.md",
     "docs/runbooks/llm-gateway.md",
@@ -347,19 +347,21 @@ def _check_active_plan(root: Path) -> list[str]:
             f"D: в docs/README.md строк со статусом 'активный' —"
             f" {len(active_rows)} (нужна ровно одна)"
         )
-    elif "TODO_V0.6.md" not in active_rows[0]:
+    elif "TODO_V0.7.md" not in active_rows[0]:
         errors.append(
-            "D: активный план — не TODO_V0.6.md: " + active_rows[0].strip()
+            "D: активный план — не TODO_V0.7.md: " + active_rows[0].strip()
         )
-    for name in ("TODO_V0.6.md", "TODO_V0.1.md", "TODO_V0.2.md"):
+    for name in ("TODO_V0.7.md", "TODO_V0.6.md", "TODO_V0.1.md", "TODO_V0.2.md"):
         if not (root / name).is_file():
             errors.append(f"D: отсутствует {name}")
-    try:
-        todo_v3 = read_text(root / "TODO_V0.3.md")
-    except OSError:
-        todo_v3 = ""
-    if "завершён" not in "\n".join(todo_v3.splitlines()[:10]):
-        errors.append("D: TODO_V0.3.md: в шапке нет 'завершён'")
+    for name in ("TODO_V0.3.md", "TODO_V0.4.md", "TODO_V0.5.md", "TODO_V0.6.md"):
+        try:
+            header = "\n".join(read_text(root / name).splitlines()[:10])
+        except OSError:
+            errors.append(f"D: {name} не читается")
+            continue
+        if "✅" not in header and "завершён" not in header:
+            errors.append(f"D: {name}: в шапке нет отметки о завершении")
     return errors
 
 
@@ -420,29 +422,29 @@ def _check_stale(root: Path) -> list[str]:
 
 def _check_todo_progress(root: Path) -> list[str]:
     try:
-        text = read_text(root / "TODO_V0.6.md")
+        text = read_text(root / "TODO_V0.7.md")
     except OSError as exc:
-        return [f"F: TODO_V0.6.md не читается: {exc}"]
+        return [f"F: TODO_V0.7.md не читается: {exc}"]
     errors: list[str] = []
-    if "v0.6.0" not in text:
-        errors.append("F: TODO_V0.6.md не упоминает активный этап v0.6.0")
+    if "v0.7.0" not in text:
+        errors.append("F: TODO_V0.7.md не упоминает активный этап v0.7.0")
     if "Прогресс:" not in text:
-        errors.append("F: TODO_V0.6.md: нет строки 'Прогресс:'")
+        errors.append("F: TODO_V0.7.md: нет строки 'Прогресс:'")
     summary = re.search(r"\*\*Сводно:\*\*\s*(\d+)\s+спринт", text)
     progress = re.search(r"\*\*Прогресс:\s*(\d+)/(\d+)", text)
     if summary is None:
-        errors.append("F: TODO_V0.6.md: нет '**Сводно:** N спринт'")
+        errors.append("F: TODO_V0.7.md: нет '**Сводно:** N спринт'")
     if progress is None:
-        errors.append("F: TODO_V0.6.md: нет '**Прогресс: X/Y'")
+        errors.append("F: TODO_V0.7.md: нет '**Прогресс: X/Y'")
     elif summary is not None:
         done, total = int(progress.group(1)), int(progress.group(2))
         if total != int(summary.group(1)):
             errors.append(
-                f"F: TODO_V0.6.md: Сводно={summary.group(1)} спринтов,"
+                f"F: TODO_V0.7.md: Сводно={summary.group(1)} спринтов,"
                 f" Прогресс={done}/{total}"
             )
         if done > total:
-            errors.append(f"F: TODO_V0.6.md: прогресс {done}/{total} > плана")
+            errors.append(f"F: TODO_V0.7.md: прогресс {done}/{total} > плана")
     return errors
 
 
@@ -469,7 +471,7 @@ def _checkers(
         ),
         ("D", "один активный план", lambda: _check_active_plan(root)),
         ("E", "нет стрейл-маркеров", lambda: _check_stale(root)),
-        ("F", "прогресс TODO_V0.6", lambda: _check_todo_progress(root)),
+        ("F", "прогресс TODO_V0.7", lambda: _check_todo_progress(root)),
     ]
 
 

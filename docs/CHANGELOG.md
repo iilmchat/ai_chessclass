@@ -5,6 +5,35 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
+## [Unreleased] — v0.7.0
+
+### Добавлено
+
+#### S-83 — Legal & Privacy Review (2026-11-06)
+- Внутренний юр-ревью privacy-policy/incident-response по юрисдикциям
+  РФ/ЕС/США: `docs/legal-review-v0.7.md` (матрица юрисдикций, 12 пробелов,
+  16 открытых вопросов юристу, 10 остаточных рисков); документы — ред. 1.1
+  (152-ФЗ/GDPR/COPPA, сроки уведомления, контакты, retention `failed_jobs`
+  90 дней, `email_outbox`).
+- Consent enforcement v0.6.1: учитель класса подтверждает `age_group`
+  ученика (`POST /classes/{id}/students/{id}/age-group`,
+  `user_profiles.age_group_confirmed_at/by`, миграция
+  `0034_s83_teacher_age_confirm`); self-PATCH возраста сбрасывает
+  подтверждение; `/consent/status` отдаёт `ageGroup`/`teacherConfirmed`/
+  `ageGroupConfirmedAt`; UI `/classes` и `/consent`.
+- SMTP retry/очередь писем parental consent: таблица `email_outbox`
+  (миграция `0035_s83_email_outbox`), сервис `domains/notifications` с
+  backoff `min(3600, 2^n)` и парковкой после `EMAIL_OUTBOX_MAX_ATTEMPTS`,
+  cron `email_outbox_deliver` каждую минуту; `POST /consent/request` больше
+  не отдаёт 502 — возвращает `emailDelivered`/`emailQueued`.
+- Тесты: `test_teacher_age_confirmation.py` (+4), `test_email_outbox.py`
+  (+6); backend — 290 collected (287 passed + 3 skipped).
+
+### Изменено
+- `scripts/doc_lint.py` — активный план `TODO_V0.7.md`, прогресс v0.7;
+  README/Design/SPEC/CHANGELOG обновлены (35 миграций, head
+  `0035_s83_email_outbox`).
+
 ## [0.6.0] - 2026-11-06
 
 ### Добавлено

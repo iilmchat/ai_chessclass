@@ -266,12 +266,24 @@ export interface ClassDto {
   createdAt: string;
 }
 
+export type AgeGroup = 'child' | 'teen' | 'adult' | 'unknown';
+
 export interface ClassMemberDto {
   userId: string;
   email: string;
   displayName: string | null;
   level: string;
   joinedAt: string;
+  // S-83: возрастная группа и её подтверждение учителем
+  ageGroup: AgeGroup;
+  ageGroupConfirmedAt: string | null;
+}
+
+export interface StudentAgeGroupDto {
+  userId: string;
+  ageGroup: AgeGroup;
+  confirmedAt: string;
+  confirmedBy: string;
 }
 
 export interface ClassDetailDto extends ClassDto {
@@ -357,6 +369,17 @@ export function removeClassMember(
 ): Promise<void> {
   return apiFetch(`/classes/${classId}/members/${userId}`, {
     method: 'DELETE',
+  });
+}
+
+export function confirmStudentAgeGroup(
+  classId: string,
+  studentId: string,
+  ageGroup: AgeGroup,
+): Promise<StudentAgeGroupDto> {
+  return apiFetch(`/classes/${classId}/students/${studentId}/age-group`, {
+    method: 'POST',
+    body: JSON.stringify({ ageGroup }),
   });
 }
 
@@ -1130,11 +1153,18 @@ export interface ConsentStatusDto {
   confirmedAt: string | null;
   revokedAt: string | null;
   expiresAt: string | null;
+  // S-83: возраст и его подтверждение учителем класса
+  ageGroup: AgeGroup;
+  teacherConfirmed: boolean;
+  ageGroupConfirmedAt: string | null;
 }
 
 export interface ConsentRequestResultDto extends ConsentStatusDto {
   devToken: string | null;
   confirmUrl: string | null;
+  emailDelivered: boolean;
+  // S-83: письмо поставлено в email_outbox и будет доставлено с retry
+  emailQueued: boolean;
 }
 
 export function fetchConsentStatus(): Promise<ConsentStatusDto> {

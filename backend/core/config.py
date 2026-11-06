@@ -165,6 +165,9 @@ class Settings(BaseSettings):
     smtp_starttls: bool = True
     smtp_ssl: bool = False
     smtp_timeout_s: float = 15.0
+    # --- email outbox (S-83): очередь писем с retry/backoff
+    email_outbox_batch: int = 50
+    email_outbox_max_attempts: int = 8
     # --- tracing (S-73, ADR-017)
     otel_enabled: bool = False
     otel_service_name: str = "chessclass-api"

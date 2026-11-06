@@ -54,6 +54,14 @@ class UserProfile(Base):
     age_group: Mapped[AgeGroup] = mapped_column(
         _str_enum(AgeGroup, 12), nullable=False, default=AgeGroup.UNKNOWN
     )
+    # S-83: возрастная группа, подтверждённая учителем класса (trusted-источник
+    # для consent enforcement); self-change age_group сбрасывает подтверждение.
+    age_group_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    age_group_confirmed_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL")
+    )
     prefs: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -63,4 +71,11 @@ class UserProfile(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    __table_args__ = (
+        # S-83: кто из учителей подтвердил возрастную группу (миграция 0034).
+        sa.Index(
+            "ix_user_profiles_age_group_confirmed_by", "age_group_confirmed_by"
+        ),
     )

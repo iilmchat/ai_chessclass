@@ -25,7 +25,7 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
 
 - **Инфраструктура** — docker-compose dev-стек: PostgreSQL 17 (+pgvector) :5438,
   Redis :6384, FastAPI :8020, arq-воркер, Vite-фронтенд :3200; `/healthz` и
-  `/readyz` (готовность + сверка ревизии миграций); 33 миграции Alembic.
+  `/readyz` (готовность + сверка ревизии миграций); 35 миграций Alembic.
 - **Аутентификация** — регистрация/логин, Argon2id, access-JWT (15 мин) +
   refresh в HttpOnly-cookie (30 дней) с ротацией и защитой от reuse, email-
   верификация, rate-limit/lockout, сброс пароля.
@@ -84,6 +84,11 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
   согласия для LLM/PDF (S-75), DLQ-операции/retry (S-76), OTel Collector +
   Grafana p95/error/trace_id (S-77), GPU-ключ/SSH-runbook (S-78), live LRS
   OAuth2, TTS fallback и a11y-доска (S-79); далее release v0.6.0.
+- **v0.7 (S-81…S-85, в работе)** — внутренняя юридическая проверка
+  privacy-policy/incident-response (РФ/ЕС/США) и consent enforcement v0.6.1:
+  подтверждение возрастной группы ученика учителем, очередь `email_outbox`
+  с retry/backoff для писем родителям (S-83); далее live staging (S-81),
+  prod observability (S-82), GPU-туннель (S-84), релиз v0.7.0 (S-85).
 
 ---
 
@@ -139,14 +144,14 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Показатель | Значение |
 |------------|----------|
 | Версия | **v0.6.0** (2026-11-06, релиз) |
-| Спринты | **51/51** (S-30…S-80), этапы E-11…E-24 ✅ |
-| Тесты backend | **280 passed** (число собранных тестов; факт — 277 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79) |
+| Спринты | **52 закрыто** (S-30…S-83), этапы E-11…E-24 ✅; v0.7: S-83 ✅, S-81/S-82/S-84/S-85 впереди |
+| Тесты backend | **290 passed** (число собранных тестов; факт — 287 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **16 passed** (Playwright: journey 7 + axe 2 + PvP 1 + RAG/review/ops/telegram/consent/chess-a11y 6) |
-| Миграции | Alembic head **0033_s74_parental_consent** (33) |
+| Миграции | Alembic head **0035_s83_email_outbox** (35) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
-| Следующий этап | backlog v0.7 (live LRS/TTS на staging, OTel Collector в prod, юридическая проверка privacy-policy, load-приёмка) |
+| Следующий этап | v0.7: live staging-приёмка (S-81), prod OTel/Alertmanager (S-82), GPU-туннель (S-84), релиз v0.7.0 (S-85) |
 
 ---
 
@@ -164,8 +169,10 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [TODO_V0.6.md](TODO_V0.6.md) — завершённый план v0.6.0 (S-75…S-80)
 - [docs/release-notes-v0.6.0.md](docs/release-notes-v0.6.0.md) — release notes v0.6.0
 - [docs/release-notes-v0.5.0.md](docs/release-notes-v0.5.0.md) — release notes v0.5.0
+- [TODO_V0.7.md](TODO_V0.7.md) — активный план v0.7.0 (S-81…S-85)
 - [docs/privacy-policy.md](docs/privacy-policy.md) — политика конфиденциальности
 - [docs/incident-response.md](docs/incident-response.md) — план реагирования
+- [docs/legal-review-v0.7.md](docs/legal-review-v0.7.md) — внутренний юр-ревью privacy/incident
 - [TODO_V0.1.md](TODO_V0.1.md) — архив плана v0.1.0 (S-01…S-29)
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — изменения по спринтам
 - [docs/runbooks/llm-gateway.md](docs/runbooks/llm-gateway.md) — LLM-шлюз: ключи, health, fallback

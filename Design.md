@@ -910,7 +910,8 @@ users(id, email uq, password_hash, role, email_verified_at, is_active, created_a
 email_tokens(id, user_id, kind verify|reset, token, expires_at, used_at)
 refresh_sessions(id, user_id, token_hash, user_agent, expires_at, revoked_at)
 user_profiles(user_id pk→users, display_name, level, billing_tier, prefs jsonb,
-              age_group child|teen|adult|unknown default unknown)  # S-42
+              age_group child|teen|adult|unknown default unknown,  # S-42
+              age_group_confirmed_at, age_group_confirmed_by→users SET NULL)  # S-83
 classes(id, name, teacher_id→users, invite_code uq, created_at)  # S-40
 class_members(class_id→classes, user_id→users, joined_at, pk(class_id,user_id))
 audit_logs(id, actor_id→users SET NULL, actor_email, actor_role, action,
@@ -923,6 +924,8 @@ lrs_deliveries(id, statement_id uq, payload jsonb, status, attempts,
 telegram_links(user_id→users, chat_id uq, consent, created_at, updated_at)  # S-50
 telegram_outbox(id, user_id→users, kind, text, status, attempts, last_error,
                 next_attempt_at, created_at, sent_at)  # S-50
+email_outbox(id, kind, recipient, subject, body, status pending|sent|failed,
+             attempts, last_error, next_attempt_at, created_at, sent_at)  # S-83
 pvp_rooms(id, code uq, host_user_id→users, host_bot_id→bot_versions,
           guest_user_id→users, guest_bot_id→bot_versions, status, rated,
           tournament_id→tournaments, created_at, started_at, finished_at)  # S-51
@@ -1225,6 +1228,8 @@ JWT_SECRET=change-me  JWT_ALGORITHM=HS256  JWT_KID=v1  JWT_TTL=15m  REFRESH_TTL=
 # email (S-75); пусто → dev-console
 SMTP_HOST=  SMTP_PORT=587  SMTP_USER=  SMTP_PASSWORD=  SMTP_FROM=noreply@chessclass.dev
 SMTP_STARTTLS=true  SMTP_SSL=false  SMTP_TIMEOUT_S=15
+# S-83: очередь писем parental consent (retry/backoff, cron каждую минуту)
+EMAIL_OUTBOX_BATCH=50  EMAIL_OUTBOX_MAX_ATTEMPTS=8
 
 # интеграции (backlog)
 ELEVENLABS_API_KEY=   # v0.2, озвучка
@@ -1313,6 +1318,14 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 - S-80 (v0.6.0): релиз — версия 0.6.0 во всех источниках, release-notes,
   тег `v0.6.0`; финальные CI/e2e, staging config, pip-audit. 33 миграции,
   head `0033_s74_parental_consent`; backend — 280 collected, e2e — 16.
+- S-83 (v0.7): legal & privacy review — `docs/legal-review-v0.7.md` (матрица
+  РФ/ЕС/США, 16 открытых вопросов юристу), privacy/incident ред. 1.1;
+  consent enforcement v0.6.1 — подтверждение age_group учителем класса
+  (`POST /classes/{id}/students/{id}/age-group`, `user_profiles.
+  age_group_confirmed_at/by`, сброс при self-PATCH), очередь
+  `email_outbox` + cron `email_outbox_deliver` с backoff. 35 миграций, head
+  `0035_s83_email_outbox`; backend — 290 collected (287 passed + 3 skipped);
+  `tests/test_teacher_age_confirmation.py`, `tests/test_email_outbox.py`.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
@@ -1421,6 +1434,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 | ADR-017 | Сквозная трассировка (OpenTelemetry) с прокидыванием `trace_id` через API → arq → LLM | Текущий `x-request-id` не связывает HTTP-запрос, фоновую задачу и вызов LLM в единую цепочку | 2026-11-05 |
 | ADR-018 | Защита от Prompt Injection (OWASP LLM01): структурное разделение trusted/untrusted контента | В `builder.py` RAG-документы и ввод пользователя склеиваются без изоляции, что открывает путь к indirect prompt injection | 2026-11-05 |
 | ADR-019 | Parental consent workflow (COPPA/GDPR-K): одноразовая email-ссылка, статус в `parental_consents`, UI `/consent` | Для учеников child/teen нужно подтверждение родителя; согласие должно быть доказуемым и отзываемым | 2026-11-06 |
+| ADR-020 | Teacher age confirmation + email outbox с retry: доверенная возрастная группа ученика и надёжная доставка писем parental consent | Self-declared `age_group` нельзя считать доверенным (ребёнок может указать adult и обойти consent); SMTP-сбой у родителя ранее возвращал 502 и терял письмо без повтора | 2026-11-06 |
 
 Статусы: `accepted` (по умолчанию), `proposed`, `superseded`.
 
@@ -1449,7 +1463,12 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 **ADR-019: Parental consent (COPPA/GDPR-K)**
 *   **Контекст:** Платформа обрабатывает данные школьников; для `child/teen` нужно доказамое согласие родителя/опекуна и механизм отзыва.
 *   **Решение:** `parental_consents` хранит `user_id`, parent email, версию политики, статус (`pending/granted/revoked/expired`), timestamps и только SHA-256-хэш одноразового токена (TTL 7 дней). API `/consent/{status,request,confirm,revoke}`; UI `/consent`; подтверждение публичное по ссылке, отзыв — владельцем. События пишутся в `audit_logs`.
-*   **Последствия:** Миграция `0033_s74_parental_consent`; S-75 добавляет SMTP-транспорт (`SMTP_HOST`, STARTTLS/SSL) и enforcement: child/teen без `granted` получает 403 на LLM и PDF-отчёты, dev без SMTP пишет письмо в лог; политика и incident-response — `docs/privacy-policy.md`, `docs/incident-response.md`.
+*   **Последствия:** Миграция `0033_s74_parental_consent`; S-75 добавляет SMTP-транспорт (`SMTP_HOST`, STARTTLS/SSL) и enforcement: child/teen без `granted` получает 403 на LLM и PDF-отчёты, dev без SMTP пишет письмо в лог; политика и incident-response — `docs/privacy-policy.md`, `docs/incident-response.md`. S-83: письмо родителю идёт через `email_outbox` (retry/backoff, без 502), consent DTO получает `ageGroup`/`teacherConfirmed`/`ageGroupConfirmedAt`/`emailQueued` (см. ADR-020).
+
+**ADR-020: Teacher age confirmation + email outbox с retry (S-83)**
+*   **Контекст:** `age_group` задаёт ученик сам, поэтому ребёнок может указать `adult` и обойти parental consent. Одновременно SMTP-сбой при запросе согласия возвращал 502 и письмо терялось: повторной отправки не было, родитель оставался без ссылки.
+*   **Решение:** Возрастную группу ученика класса подтверждает учитель-владелец (или admin) через `POST /classes/{classId}/students/{studentId}/age-group`; в `user_profiles` хранятся `age_group_confirmed_at`/`age_group_confirmed_by`, self-PATCH `age_group` сбрасывает подтверждение (audit `profile.age_group`), подтверждение — audit `classes.student.age_group.confirm`. Письма parental consent не отправляются в HTTP-запросе: строка `email_outbox` (status `pending/sent/failed`, `attempts`, `next_attempt_at`) пишется в той же транзакции, `POST /consent/request` делает одну попытку, затем cron `email_outbox_deliver` (каждую минуту) повторяет с backoff `min(3600, 2^n)`; после `EMAIL_OUTBOX_MAX_ATTEMPTS` строка паркуется; dev-console считается доставкой (`sent`).
+*   **Последствия:** Миграции `0034_s83_teacher_age_confirm` (колонки+индекс `user_profiles`) и `0035_s83_email_outbox` (таблица+индекс+гранты `chess_app` по ADR-015); новые env `EMAIL_OUTBOX_BATCH`/`EMAIL_OUTBOX_MAX_ATTEMPTS`; consent-ответы больше не отдают 502 `email_delivery_failed`, а сообщают `emailDelivered`/`emailQueued`. Ограничения: подтверждение возраста — не верификация личности; рассинхрон teacher-confirm и self-PATCH без сериализации (last-write-wins); retention `email_outbox` пока не автоматизирован (план v0.7); тело письма содержит одноразовую ссылку — residual privacy risk, зафиксирован в legal-review.
 
 ---
 

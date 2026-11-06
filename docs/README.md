@@ -15,11 +15,13 @@
 | `TODO_V0.3.md` | корень | ✅ архив | Спринты v0.3.0: S-46…S-57, этапы E-17…E-20 |
 | `TODO_V0.4.md` | корень | ✅ завершён | Спринты v0.4.0: S-58…S-69, этапы E-21…E-24 |
 | `TODO_V0.5.md` | корень | ✅ завершён | Спринты v0.5.0: S-70…S-74 |
-| `TODO_V0.6.md` | корень | ✅ активный | Спринты v0.6.0: S-75…S-80 |
+| `TODO_V0.6.md` | корень | ✅ завершён | Спринты v0.6.0: S-75…S-80 |
+| `TODO_V0.7.md` | корень | ✅ активный | Спринты v0.7.0: S-81…S-85 |
 | `docs/release-notes-v0.6.0.md` | docs/ | ✅ v0.6.0 | Release notes v0.6.0 |
 | `docs/release-notes-v0.5.0.md` | docs/ | ✅ v0.5.0 | Release notes v0.5.0 |
-| `docs/privacy-policy.md` | docs/ | ✅ v0.5.0 | Политика конфиденциальности (COPPA/GDPR-K) |
-| `docs/incident-response.md` | docs/ | ✅ v0.5.0 | План реагирования на инциденты |
+| `docs/privacy-policy.md` | docs/ | ✅ v0.7.0 | Политика конфиденциальности (COPPA/GDPR-K), ред. 1.1 |
+| `docs/incident-response.md` | docs/ | ✅ v0.7.0 | План реагирования на инциденты, ред. 1.1 |
+| `docs/legal-review-v0.7.md` | docs/ | ✅ S-83 | Внутренний юр-ревью privacy/incident (РФ/ЕС/США), открытые вопросы |
 | `docs/SPEC.md` | docs/ | ✅ живой (S-33) | Контракты: DDL, API-схемы, JSON-форматы, таблицы промптов/весов |
 | `docs/RULES.md` | docs/ | ✅ живой | Процесс: ветки, ревью, отчёт спринта по 7 пунктам, DoD |
 | `docs/CHANGELOG.md` | docs/ | ✅ живой (S-60) | Изменения по спринтам (формат Keep a Changelog) |

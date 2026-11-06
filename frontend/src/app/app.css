@@ -424,6 +424,19 @@ body {
   font-family: monospace;
 }
 
+/* S-83: подтверждение возрастной группы ученика учителем */
+.age-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.age-confirm select.field {
+  max-width: 160px;
+}
+
 .voice-player {
   display: flex;
   flex-wrap: wrap;

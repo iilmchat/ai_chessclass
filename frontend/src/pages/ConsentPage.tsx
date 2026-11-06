@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { ConsentStatusDto } from '../shared/api';
+import type { AgeGroup, ConsentStatusDto } from '../shared/api';
 import {
   ApiError,
   confirmParentalConsent,
@@ -18,6 +18,13 @@ const STATUS_LABELS: Record<string, string> = {
   granted: 'Согласие получено',
   revoked: 'Согласие отозвано',
   expired: 'Срок ссылки истёк',
+};
+
+const AGE_GROUP_LABELS: Record<AgeGroup, string> = {
+  child: 'ребёнок',
+  teen: 'подросток',
+  adult: 'взрослый',
+  unknown: 'не указан',
 };
 
 /** S-74: COPPA/GDPR-K — запрос, подтверждение по ссылке и отзыв согласия. */
@@ -70,9 +77,17 @@ export function ConsentPage() {
       const result = await requestParentalConsent(parentEmail);
       setStatus(result);
       setDevLink(result.confirmUrl ?? '');
-      setNotice(
-        'Запрос создан. В dev-режиме ссылка для родителя показана ниже.',
-      );
+      if (result.emailQueued) {
+        setNotice(
+          'Письмо родителю поставлено в очередь, повторная отправка — автоматически',
+        );
+      } else if (result.emailDelivered) {
+        setNotice('Письмо родителю отправлено.');
+      } else {
+        setNotice(
+          'Запрос создан. В dev-режиме ссылка для родителя показана ниже.',
+        );
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Ошибка запроса');
     } finally {
@@ -120,7 +135,11 @@ export function ConsentPage() {
           {error}
         </p>
       )}
-      {notice && <p className="link-hint">{notice}</p>}
+      {notice && (
+        <p className="link-hint" role="status">
+          {notice}
+        </p>
+      )}
 
       {token && (
         <div className="panel">
@@ -139,6 +158,21 @@ export function ConsentPage() {
               <strong>{STATUS_LABELS[status.status] ?? status.status}</strong>
             </p>
             <p className="class-meta">Версия политики: {status.policyVersion}</p>
+            <p className="class-meta">
+              Возрастная группа: {AGE_GROUP_LABELS[status.ageGroup] ?? status.ageGroup}
+            </p>
+            {status.teacherConfirmed && status.ageGroupConfirmedAt && (
+              <p className="class-meta">
+                Возраст подтверждён учителем:{' '}
+                {new Date(status.ageGroupConfirmedAt).toLocaleString('ru-RU')}
+              </p>
+            )}
+            {status.required && !status.teacherConfirmed && (
+              <p className="link-hint">
+                Возраст пока не подтверждён учителем — попросите учителя
+                подтвердить в классе.
+              </p>
+            )}
             {status.parentEmail && (
               <p className="class-meta">Родитель: {status.parentEmail}</p>
             )}

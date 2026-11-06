@@ -192,6 +192,7 @@ async def telegram_deliver(ctx: dict) -> dict:
 @track_job("telegram_poll")
 async def telegram_poll(ctx: dict) -> dict:
     """Cron (S-68): long-poll fallback getUpdates (webhook выключен)."""
+
     from core.db import session_factory
     from domains.telegram import service as telegram_svc
 
@@ -201,6 +202,25 @@ async def telegram_poll(ctx: dict) -> dict:
             await session.commit()
     if result.get("processed"):
         logger.info("worker: telegram_poll processed=%s", result["processed"])
+    return result
+
+
+@track_job("email_outbox_deliver")
+async def email_outbox_deliver(ctx: dict) -> dict:  # noqa: ARG001 — сигнатура arq
+    """Cron (S-83): доставка email outbox с retry/backoff."""
+    from core.db import session_factory
+    from domains.notifications import service as notifications_svc
+
+    async with db_context(None, "admin"):
+        async with session_factory() as session:
+            result = await notifications_svc.deliver_pending(session)
+            await session.commit()
+    if result.get("sent") or result.get("failed"):
+        logger.info(
+            "worker: email_outbox sent=%s failed=%s",
+            result.get("sent"),
+            result.get("failed"),
+        )
     return result
 
 
@@ -217,6 +237,7 @@ class WorkerSettings:
         lms_sync,
         telegram_deliver,
         telegram_poll,
+        email_outbox_deliver,
     ]
     #: nightly-пересчёт EMA (§10.3) — 03:40 UTC; retention — 04:10 UTC
     cron_jobs = [
@@ -227,6 +248,8 @@ class WorkerSettings:
         arq.cron("app.worker.telegram_deliver", minute=2, run_at_startup=True),
         # S-68: долгая опроска каждые 2 мин (режим без webhook)
         arq.cron("app.worker.telegram_poll", minute=0, second=25, run_at_startup=True),
+        # S-83: email outbox — каждую минуту (:00), в т.ч. сразу при старте
+        arq.cron("app.worker.email_outbox_deliver", run_at_startup=True),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     #: default queue — analyze/pdf; match workers получают WORKER_QUEUE из compose

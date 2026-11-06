@@ -17,7 +17,7 @@ from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
 from domains.classes import service as svc
 from domains.classes.models import Classroom
-from domains.profile.models import UserProfile
+from domains.profile.models import AgeGroup, UserProfile
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
@@ -50,7 +50,25 @@ class ClassMemberOut(CamelModel):
     email: str
     display_name: str | None
     level: str
+    # S-83: возрастная группа и её подтверждение учителем (consent enforcement)
+    age_group: str
+    age_group_confirmed_at: datetime | None
     joined_at: datetime
+
+
+class AgeGroupUpdateIn(CamelModel):
+    """S-83: тело подтверждения возрастной группы учителем."""
+
+    age_group: AgeGroup
+
+
+class ClassMemberAgeGroupOut(CamelModel):
+    """S-83: результат подтверждения возрастной группы ученика."""
+
+    user_id: str
+    age_group: str
+    confirmed_at: datetime
+    confirmed_by: str
 
 
 class ClassDetailOut(ClassOut):
@@ -112,6 +130,8 @@ def _member_out(
         email=user.email,
         display_name=profile.display_name if profile else None,
         level=profile.level.value if profile else "novice",
+        age_group=profile.age_group.value if profile else AgeGroup.UNKNOWN.value,
+        age_group_confirmed_at=profile.age_group_confirmed_at if profile else None,
         joined_at=joined_at,
     )
 
@@ -235,6 +255,44 @@ async def add_member(
     await session.commit()
     profile = await session.get(UserProfile, student.id)
     return _member_out(student, profile, joined_at)
+
+
+@router.post(
+    "/{class_id}/students/{student_id}/age-group",
+    response_model=ClassMemberAgeGroupOut,
+)
+async def confirm_student_age_group(
+    class_id: int,
+    student_id: int,
+    body: AgeGroupUpdateIn,
+    teacher: TeacherOrAdmin,
+    session: DbSession,
+    request: Request,
+) -> ClassMemberAgeGroupOut:
+    """S-83: teacher подтверждает возрастную группу ученика класса.
+
+    Подтверждение — trusted-источник для consent enforcement: перезаписывает
+    self-declared age_group; self-change учеником сбрасывает подтверждение.
+    """
+    profile, confirmed_at = await svc.confirm_student_age_group(
+        session, teacher, class_id, student_id, body.age_group
+    )
+    await audit_svc.record(
+        session,
+        teacher,
+        "classes.student.age_group.confirm",
+        target_type="user",
+        target_id=student_id,
+        meta={"classId": str(class_id), "ageGroup": body.age_group.value},
+        request=request,
+    )
+    await session.commit()
+    return ClassMemberAgeGroupOut(
+        user_id=str(student_id),
+        age_group=profile.age_group.value,
+        confirmed_at=confirmed_at,
+        confirmed_by=str(teacher.id),
+    )
 
 
 @router.delete("/{class_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

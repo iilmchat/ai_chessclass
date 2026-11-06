@@ -1,6 +1,7 @@
 # TODO_V0.7.md — План v0.7.0 «Production Readiness & Legal»
 
-**Статус:** 🔶 В работе (S-81…S-85)
+**Статус:** 🔶 В работе (S-83 ✅; S-81, S-82, S-84, S-85 — впереди)
+**Сводно:** 5 спринтов · **Прогресс: 1/5**
 **Цель:** Довести платформу до состояния, пригодного для реальной школы: live-приёмка на staging с боевыми ключами, prod-контур observability с Alertmanager, юридическая проверка privacy-policy и GPU-туннель на реальной станции.
 
 ## Спринт S-81 (P0): Live Staging Acceptance
@@ -18,6 +19,11 @@
 - [ ] TTS подтверждён (аудио получено, fallback не сработал).
 - [ ] Load smoke: p95 API < 500 мс без LLM, < 5 с с LLM.
 - [ ] Отчёт: `docs/sprint-reports/S-81-YYYY-MM-DD.md`.
+
+> **Блокер (2026-11-06):** боевые ключи LRS/ElevenLabs во всех env-файлах
+> пусты (`LRS_ENABLED=false`, `LRS_KEY/SECRET`, `VOICE_API_KEY` — пусто),
+> внешний LRS-провайдер не подключён. S-81 отложен до предоставления
+> credentials; вместо него выполнен S-83 (legal/consent/email reliability).
 
 ---
 
@@ -42,16 +48,16 @@
 **Ветка:** `feat/s-83-legal`
 
 **Задачи:**
-- [ ] Провести внутреннюю юридическую проверку `docs/privacy-policy.md` и `docs/incident-response.md` (юрисдикции РФ/ЕС/США).
-- [ ] Обновить контакты (privacy@/security@), реквизиты, сроки уведомления (GDPR 72 ч, 152-ФЗ).
-- [ ] Добавить consent enforcement v0.6.1: подтверждение возраста учителем (teacher confirmation of student age_group).
-- [ ] Добавить SMTP retry (очередь писем) для parental consent.
+- [x] Провести внутреннюю юридическую проверку `docs/privacy-policy.md` и `docs/incident-response.md` (юрисдикции РФ/ЕС/США).
+- [x] Обновить контакты (privacy@/security@), реквизиты, сроки уведомления (GDPR 72 ч, 152-ФЗ).
+- [x] Добавить consent enforcement v0.6.1: подтверждение возраста учителем (teacher confirmation of student age_group).
+- [x] Добавить SMTP retry (очередь писем) для parental consent.
 
 **DoD:**
-- [ ] Документы прошли проверку (или зафиксированы открытые вопросы с юристом).
-- [ ] Учитель может подтвердить возраст ученика (эндпоинт + UI).
-- [ ] SMTP retry работает (тест).
-- [ ] Отчёт: `docs/sprint-reports/S-83-YYYY-MM-DD.md`.
+- [x] Документы прошли проверку (или зафиксированы открытые вопросы с юристом).
+- [x] Учитель может подтвердить возраст ученика (эндпоинт + UI).
+- [x] SMTP retry работает (тест).
+- [x] Отчёт: `docs/sprint-reports/S-83-2026-11-06.md`.
 
 ---
 

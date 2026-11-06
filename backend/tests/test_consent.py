@@ -45,6 +45,9 @@ async def test_child_consent_request_confirm_and_revoke(make_client, unique_emai
     assert response.status_code == 200
     assert response.json()["required"] is True
     assert response.json()["status"] == "none"
+    # S-83: self-declared возраст не подтверждён учителем
+    assert response.json()["teacherConfirmed"] is False
+    assert response.json()["ageGroup"] == "child"
 
     response = await client.post(
         f"{API}/consent/request",
@@ -56,6 +59,9 @@ async def test_child_consent_request_confirm_and_revoke(make_client, unique_emai
     assert requested["status"] == "pending"
     assert requested["devToken"]
     assert "/consent?token=" in requested["confirmUrl"]
+    # S-83: письмо уходит через email_outbox; dev-консоль считается доставкой
+    assert requested["emailDelivered"] is True
+    assert requested["emailQueued"] is False
 
     # В БД только SHA-256, исходный токен не сохраняется.
     async with session_factory() as session:

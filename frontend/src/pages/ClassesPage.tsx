@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
+  AgeGroup,
   ClassDashboardDto,
   ClassDetailDto,
   ClassDto,
@@ -8,6 +9,7 @@ import {
   ApiError,
   addClassMember,
   apiFetch,
+  confirmStudentAgeGroup,
   createClass,
   fetchClassDashboard,
   fetchClassDetail,
@@ -19,6 +21,20 @@ import {
   rotateClassInvite,
 } from '../shared/api';
 import { LoginGate } from '../shared/LoginGate';
+
+const AGE_GROUP_OPTIONS: { value: AgeGroup; label: string }[] = [
+  { value: 'child', label: 'ребёнок' },
+  { value: 'teen', label: 'подросток' },
+  { value: 'adult', label: 'взрослый' },
+  { value: 'unknown', label: 'не указан' },
+];
+
+const AGE_GROUP_LABELS: Record<AgeGroup, string> = {
+  child: 'ребёнок',
+  teen: 'подросток',
+  adult: 'взрослый',
+  unknown: 'не указан',
+};
 
 function weakestSkills(member: ClassDashboardDto['members'][number]): string {
   return [...member.skills]
@@ -36,6 +52,7 @@ export function ClassesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ClassDetailDto | null>(null);
   const [dashboard, setDashboard] = useState<ClassDashboardDto | null>(null);
+  const [ageDrafts, setAgeDrafts] = useState<Record<string, AgeGroup>>({});
   const [newName, setNewName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [memberEmail, setMemberEmail] = useState('');
@@ -75,7 +92,13 @@ export function ClassesPage() {
   const loadDetail = useCallback(
     async (classId: string) => {
       try {
-        setDetail(await fetchClassDetail(classId));
+        const detailData = await fetchClassDetail(classId);
+        setDetail(detailData);
+        setAgeDrafts(
+          Object.fromEntries(
+            detailData.members.map((member) => [member.userId, member.ageGroup]),
+          ),
+        );
         if (isTeacher) {
           setDashboard(await fetchClassDashboard(classId));
         } else {
@@ -147,6 +170,15 @@ export function ClassesPage() {
       await loadList();
     }, 'Ученик удалён из класса');
 
+  const onConfirmAge = (userId: string) =>
+    act(async () => {
+      if (!selectedId) return;
+      const ageGroup = ageDrafts[userId];
+      if (!ageGroup) return;
+      await confirmStudentAgeGroup(selectedId, userId, ageGroup);
+      await loadDetail(selectedId);
+    }, 'Возраст ученика подтверждён');
+
   const onRotateInvite = () =>
     act(async () => {
       if (!selectedId) return;
@@ -188,8 +220,16 @@ export function ClassesPage() {
           Выйти
         </button>
       </p>
-      {error && <p className="verdict failed-note">{error}</p>}
-      {notice && <p className="link-hint">{notice}</p>}
+      {error && (
+        <p className="verdict failed-note" role="status">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="link-hint" role="status">
+          {notice}
+        </p>
+      )}
 
       {isTeacher ? (
         <div className="panel">
@@ -306,16 +346,54 @@ export function ClassesPage() {
                   <ul className="facts-list">
                     {detail.members.map((member) => (
                       <li key={member.userId}>
-                        {member.displayName ?? member.email} · {member.email} ·{' '}
-                        {member.level}{' '}
-                        <button
-                          className="link-button"
-                          type="button"
-                          disabled={busy}
-                          onClick={() => onRemoveMember(member.userId)}
-                        >
-                          удалить
-                        </button>
+                        <div>
+                          {member.displayName ?? member.email} · {member.email} ·{' '}
+                          {member.level}
+                        </div>
+                        <div className="class-meta">
+                          возраст: {AGE_GROUP_LABELS[member.ageGroup]}
+                          {member.ageGroupConfirmedAt
+                            ? ` · подтверждён ${new Date(
+                                member.ageGroupConfirmedAt,
+                              ).toLocaleDateString('ru-RU')}`
+                            : ' · не подтверждён учителем'}
+                        </div>
+                        <div className="age-confirm">
+                          <select
+                            className="field"
+                            aria-label={`Возрастная группа для ${member.email}`}
+                            value={ageDrafts[member.userId] ?? member.ageGroup}
+                            disabled={busy}
+                            onChange={(e) =>
+                              setAgeDrafts((prev) => ({
+                                ...prev,
+                                [member.userId]: e.target.value as AgeGroup,
+                              }))
+                            }
+                          >
+                            {AGE_GROUP_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            className="retry-button"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => onConfirmAge(member.userId)}
+                          >
+                            Подтвердить возраст
+                          </button>
+                          <button
+                            className="link-button"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => onRemoveMember(member.userId)}
+                          >
+                            удалить
+                          </button>
+                        </div>
                       </li>
                     ))}
                     {detail.members.length === 0 && (

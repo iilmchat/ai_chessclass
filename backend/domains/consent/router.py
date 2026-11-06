@@ -4,15 +4,17 @@ from datetime import datetime
 
 from fastapi import APIRouter, Request
 from pydantic import EmailStr, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.base import CamelModel
 from core.config import settings
-from core.email import EmailDeliveryError, parental_consent_email, send_email
+from core.email import parental_consent_email
 from core.errors import AppError
 from core.ratelimit import enforce_rate_limit
 from domains.audit import service as audit_svc
 from domains.auth.deps import CurrentUser, DbSession
 from domains.consent import service as svc
+from domains.notifications import service as notifications_svc
 
 router = APIRouter(prefix="/consent", tags=["consent"])
 
@@ -21,6 +23,10 @@ class ConsentStatusOut(CamelModel):
     required: bool
     status: str
     policy_version: str
+    # S-83: возрастная группа и подтверждение учителем (consent enforcement).
+    age_group: str
+    teacher_confirmed: bool
+    age_group_confirmed_at: str | None
     parent_email: EmailStr | None
     requested_at: str | None
     confirmed_at: str | None
@@ -36,6 +42,9 @@ class ConsentRequestOut(ConsentStatusOut):
     dev_token: str | None = None
     confirm_url: str | None = None
     email_delivered: bool = False
+    # S-83: письмо не доставлено сразу — поставлено в email_outbox и будет
+    # повторено cron-задачей `email_outbox_deliver`.
+    email_queued: bool = False
 
 
 class ConsentConfirmIn(CamelModel):
@@ -51,6 +60,9 @@ def _out(state: svc.ConsentState) -> ConsentStatusOut:
         required=state.required,
         status=state.status,
         policy_version=state.policy_version,
+        age_group=state.age_group,
+        teacher_confirmed=state.teacher_confirmed,
+        age_group_confirmed_at=_iso(state.age_group_confirmed_at),
         parent_email=state.parent_email,
         requested_at=_iso(state.requested_at),
         confirmed_at=_iso(state.confirmed_at),
@@ -66,19 +78,29 @@ def _redis(request: Request):
     return client
 
 
-async def _send_parent_email(
-    parent_email: str, link: str, policy_version: str
+async def _enqueue_parent_email(
+    session: AsyncSession,
+    parent_email: str,
+    link: str,
+    policy_version: str,
 ) -> bool:
-    """S-75: SMTP при SMTP_HOST, иначе dev-консоль."""
+    """S-83: письмо родителю — через email_outbox (retry/backoff).
+
+    True — строка доставлена сейчас (SMTP или dev-консоль); False — осталась
+    в очереди на повтор cron-задачей `email_outbox_deliver`.
+    """
     subject, text = parental_consent_email(link, policy_version)
-    try:
-        return await send_email(parent_email, subject, text)
-    except EmailDeliveryError as exc:
-        raise AppError(
-            "email_delivery_failed",
-            "Не удалось отправить письмо родителю; попробуйте позже",
-            502,
-        ) from exc
+    row = await notifications_svc.enqueue(
+        session,
+        to=parent_email,
+        subject=subject,
+        body=text,
+        kind="parental_consent",
+    )
+    delivered = await notifications_svc.deliver_one(session, row)
+    # dev-консоль: transport вернул False, но строка помечена `sent` — это не
+    # очередь на retry, письмо уже записано в лог.
+    return delivered or row.status == "sent"
 
 
 @router.get("/status", response_model=ConsentStatusOut)
@@ -98,7 +120,9 @@ async def request_consent(
     )
     row, raw = await svc.request_consent(session, user.id, str(body.parent_email))
     link = svc.confirm_url(raw)
-    delivered = await _send_parent_email(row.parent_email, link, row.policy_version)
+    delivered = await _enqueue_parent_email(
+        session, row.parent_email, link, row.policy_version
+    )
     await audit_svc.record(
         session,
         user,
@@ -116,6 +140,7 @@ async def request_consent(
         dev_token=raw if dev else None,
         confirm_url=link if dev else None,
         email_delivered=delivered,
+        email_queued=not delivered,
     )
 
 

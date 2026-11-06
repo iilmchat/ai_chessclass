@@ -41,8 +41,8 @@ REPO = _find_script().parents[1]
 def test_alembic_graph_matches_repo() -> None:
     head, count = doc_lint._alembic_graph(REPO)
 
-    assert head == "0033_s74_parental_consent"
-    assert count == 33
+    assert head == "0035_s83_email_outbox"
+    assert count == 35
 
 
 def test_collect_versions_consistent() -> None:

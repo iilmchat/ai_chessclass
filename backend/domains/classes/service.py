@@ -1,8 +1,12 @@
-"""Бизнес-логика классов (S-40): создание, инвайты, участники, дашборд."""
+"""Бизнес-логика классов (S-40): создание, инвайты, участники, дашборд.
+
+S-83: учитель класса подтверждает возрастную группу ученика — trusted-источник
+для consent enforcement; подтверждение хранится в `user_profiles`.
+"""
 
 import logging
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +17,7 @@ from domains.auth.models import User, UserRole
 from domains.bot_lab.models import BotStats
 from domains.classes.models import ClassMember, Classroom
 from domains.cognitive import service as cognitive_service
-from domains.profile.models import UserProfile
+from domains.profile.models import AgeGroup, UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +174,48 @@ async def add_member_by_email(
     await session.refresh(member)
     logger.info("classes: class=%s + student=%s (by teacher)", class_id, student.id)
     return student, member.joined_at
+
+
+async def confirm_student_age_group(
+    session: AsyncSession,
+    teacher: User,
+    class_id: int,
+    student_id: int,
+    age_group: AgeGroup,
+) -> tuple[UserProfile, datetime]:
+    """S-83: teacher подтверждает возрастную группу ученика своего класса.
+
+    Доступ — владелец класса или admin (`ensure_manager`); ученик обязан быть
+    участником класса. Подтверждение перезаписывает self-declared age_group и
+    фиксирует кто/когда подтвердил.
+    """
+    classroom = await get_class(session, class_id)
+    ensure_manager(teacher, classroom)
+    student = await session.get(User, student_id)
+    if student is None:
+        raise AppError("user_not_found", "Пользователь не найден", 404)
+    if not await is_member(session, class_id, student_id):
+        raise AppError("class_member_not_found", "Ученик не найден в классе", 404)
+
+    profile = await session.get(UserProfile, student_id)
+    if profile is None:
+        profile = UserProfile(user_id=student_id)
+        session.add(profile)
+        await session.flush()
+
+    confirmed_at = datetime.now(UTC)
+    profile.age_group = age_group
+    profile.age_group_confirmed_at = confirmed_at
+    profile.age_group_confirmed_by = teacher.id
+    await session.flush()
+    logger.info(
+        "classes: teacher=%s подтвердил age_group=%s для student=%s (class=%s)",
+        teacher.id,
+        age_group.value,
+        student_id,
+        class_id,
+    )
+    return profile, confirmed_at
 
 
 async def join_by_code(

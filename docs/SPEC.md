@@ -29,13 +29,13 @@
 | infra | `/readyz` (дублируется с корня `/`) | GET | ✅ S-03 | ревизия alembic vs head, версия приложения; `status: ready/not-ready` |
 | auth | `POST /auth/register`, `/auth/verify`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `GET /auth/me`, `POST /auth/password-reset`, `/auth/password-reset/confirm` | — | ✅ S-02 | Argon2id; JWT access 15м; refresh — opaque в БД, HttpOnly-cookie `cc_refresh` (path `/api/v1/auth`), ротация; login требует верифицированный email (Design §13.1) |
 | profile | `GET /profile/me`, `PATCH /profile/me`, `GET /profile/students`, `GET /profile/{id}`, `PATCH /profile/{id}/level` | — | ✅ S-03 | RBAC: свой профиль — все; список/чужой — teacher/admin; смена уровня — admin (Design §12.2); пагинация `page`+`pageSize` |
-| consent | `GET /consent/status`, `POST /consent/request`, `/consent/confirm`, `/consent/revoke` | — | ✅ S-74 | COPPA/GDPR-K: child/teen → одноразовая ссылка (SHA-256, TTL 7 дней), confirm публичный, revoke владельцем; audit; DDL — §6 |
+| consent | `GET /consent/status`, `POST /consent/request`, `/consent/confirm`, `/consent/revoke` | — | ✅ S-74/S-83 | COPPA/GDPR-K: child/teen → одноразовая ссылка (SHA-256, TTL 7 дней), confirm публичный, revoke владельцем; email — через `email_outbox` (retry); статус содержит `ageGroup`/`teacherConfirmed` (SPEC §3.31); DDL — §6 |
+| classes | `GET/POST /classes`, `POST /classes/join`, `GET /classes/{id}`, `POST /classes/{id}/invite`, `GET /classes/{id}/dashboard`, `POST/DELETE /classes/{id}/members[/{userId}]`, `POST /classes/{id}/students/{studentId}/age-group` (S-83) | — | ✅ S-40/S-83 | teacher/admin — создание/управление; student — join/свои классы; чужой teacher — 403; учитель подтверждает возраст ученика (SPEC §3.11/§3.31) |
 | python | `GET /py/assignments?level`, `GET/POST /py/assignments`, `PATCH /py/assignments/{id}` (admin), `GET /py/assignments/{id}`, `POST /py/assignments/{id}/submit`, `POST /py/assignments/{id}/hint`, `GET /py/assignments/{id}/solution`, `GET /py/submissions/{id}` | — | ✅ S-08/S-09 | assert-тесты в песочнице; вердикты §3.3; ladder §3.4; флаги §8; тесты ученику не отдаём |
 | python | `/python/run` (песочница), `/python/lessons`, `/python/submissions` | — | 🧱 S-03…S-05 | контракт песочницы — Design §6, лимиты — ADR-002 |
 | chess | `POST /chess/insight`, `GET /chess/positions`, `POST /chess/games/upload` (202), `GET /chess/games/{id}`, `GET /chess/games/{id}/blunders`, `POST /chess/games/{id}/blunders/explain`, `GET /chess/games/{id}/events` (SSE) | — | ✅ S-11/S-12 | факты SF + LLM-объяснение §3.5; партии фоново (arq), blunders §3.6; SF только воркером |
 | bots | `GET /bots`, `POST /bots`, `GET /bots/{id}`, `GET /bots/stats`, `POST /bots/{id}/test`, `POST /bots/{id}/match/run` (202/429 `match_limit`; random/greedy/minimax2/SF-1400/1600/1800), `GET /bots/{id}/matches`, `GET /admin/matches/metrics` (admin) | — | ✅ S-17…S-19/S-37 | choose_move §3.9; per-queue матчи 2/1/1/1; Elo K=32 clamp ±40; sf_sample |
 | skills | `GET /skills/me`, `GET /skills/legend`, `GET /skills/{user}` (teacher/admin), `POST /skills/{user}/recalc` (teacher/admin) | — | ✅ S-16 | EMA-скоры §8, spider-дашборд, рекомендации skill_links; PDF — E-09 |
-| classes | `GET/POST /classes`, `POST /classes/join`, `GET /classes/{id}`, `POST /classes/{id}/invite`, `GET /classes/{id}/dashboard`, `POST/DELETE /classes/{id}/members[/{userId}]` | — | ✅ S-40 | teacher/admin — создание/управление; student — join/свои классы; чужой teacher — 403 (SPEC §3.11) |
 | audit | `GET /admin/audit/logs`, `GET /admin/audit/export.csv` | — | ✅ S-41 | read-only журнал: teacher/admin/auditor; CSV + фильтры (SPEC §3.12) |
 | progress | `GET /progress/me`, `GET /progress/{user}` (teacher/admin) | — | ✅ S-42 | стрики, темы, бейджи; age_group в профиле (SPEC §3.13) |
 | studies | `GET /studies`, `GET /studies/{id}`, `POST /studies/{id}/attempt`; admin: `GET /admin/studies`, `POST /admin/studies/generate`, `POST /admin/studies/{id}/submit`, `POST /admin/studies/{id}/review` | — | ✅ S-43 | генерация SF+LLM, ревью teacher, публикация, попытка решения (SPEC §3.14) |
@@ -367,6 +367,7 @@ week `YYYY-Www` (ISO), score 0..100. Формула: raw = clamp(50 + Σвесо
 // GET /classes/{id}/dashboard → ClassDashboardOut // manager
 // POST /classes/{id}/members { email } → 201 ClassMemberOut // manager
 // DELETE /classes/{id}/members/{userId} → 204     // manager
+// POST /classes/{id}/students/{studentId}/age-group { ageGroup } → 200 ClassMemberAgeGroupOut // S-83, manager; ученик — участник класса
 
 interface ClassOut {
   id: string; name: string; teacherId: string;
@@ -377,6 +378,14 @@ interface ClassDetailOut extends ClassOut { members: ClassMemberOut[]; }
 interface ClassMemberOut {
   userId: string; email: string; displayName: string | null;
   level: string; joinedAt: string;
+  ageGroup: "child" | "teen" | "adult" | "unknown";  // S-83
+  ageGroupConfirmedAt: string | null;                 // S-83
+}
+interface ClassMemberAgeGroupOut {  // S-83
+  userId: string;
+  ageGroup: "child" | "teen" | "adult" | "unknown";
+  confirmedAt: string;
+  confirmedBy: string;
 }
 interface ClassDashboardOut {
   classId: string; className: string; memberCount: number;
@@ -397,6 +406,13 @@ interface ClassDashboardOut {
 - RBAC: создание/инвайт/добавление/удаление/дашборд — teacher-owner или
   admin; чужой teacher — 403 `class_forbidden`; student не создаёт класс
   (403), join — только student; чужой/несуществующий код — 404.
+- S-83: `POST /classes/{id}/students/{studentId}/age-group` — manager
+  подтверждает возрастную группу ученика своего класса; ученик обязан быть
+  участником (`class_member_not_found`, 404), пользователь — существовать
+  (`user_not_found`, 404); audit `classes.student.age_group.confirm`
+  `{classId, ageGroup}`. Подтверждение перезаписывает self-declared
+  `age_group`; self-PATCH профиля сбрасывает `ageGroupConfirmedAt` и пишет
+  audit `profile.age_group` `{from, to}`.
 - Ошибки: `class_not_found`, `class_forbidden`, `class_invite_invalid`,
   `class_student_only`, `class_member_exists` (409), `class_member_role`
   (422), `class_member_not_found`, `class_name_invalid`.
@@ -853,6 +869,49 @@ Telegram, LRS) проходят через `core/egress.py` — request-hook `ma
 **Обновление зависимостей** — только через перегенерацию lock (RULES §6):
 ручной `pip install` в dev-машине не меняет факта сборки.
 
+### 3.31. consent: статус, подтверждение возраста, email outbox (S-74/S-83)
+
+```ts
+// GET /consent/status → ConsentStatusOut
+// POST /consent/request { parentEmail } → ConsentRequestOut        // 200
+// POST /consent/confirm { token } → ConsentStatusOut               // публичный, 410 при недействительном
+// POST /consent/revoke → ConsentStatusOut                          // владелец
+interface ConsentStatusOut {
+  required: boolean;
+  status: "not_required" | "none" | "pending" | "granted" | "revoked" | "expired";
+  policyVersion: string;
+  ageGroup: "child" | "teen" | "adult" | "unknown";   // S-83
+  teacherConfirmed: boolean;                          // S-83: ageGroupConfirmedAt != null
+  ageGroupConfirmedAt: string | null;                 // S-83: подтвердил учитель класса
+  parentEmail: string | null;
+  requestedAt: string | null;
+  confirmedAt: string | null;
+  revokedAt: string | null;
+  expiresAt: string | null;
+}
+interface ConsentRequestOut extends ConsentStatusOut {
+  devToken: string | null;    // только APP_ENV=dev
+  confirmUrl: string | null;  // только APP_ENV=dev
+  emailDelivered: boolean;    // доставлено сразу (SMTP или dev-console)
+  emailQueued: boolean;       // S-83: осталось в email_outbox, повтор cron'ом
+}
+```
+
+- `required` — `age_group in (child, teen)`; `unknown`/`adult` согласия не
+  требуют. Подтверждение возраста учителем **не заменяет** родительское
+  согласие: оно лишь делает `age_group` доверенным (self-PATCH сбрасывает
+  подтверждение).
+- Письмо родителю не отправляется синхронно: `email_outbox` (строка пишется
+  в той же транзакции) + одна попытка в запросе; при ошибке SMTP endpoint
+  отдаёт 200 с `emailQueued=true` (не 502), cron `email_outbox_deliver`
+  повторяет с backoff `min(3600, 2^n)` до `EMAIL_OUTBOX_MAX_ATTEMPTS`, затем
+  строка паркуется (status `failed`). Dev без `SMTP_HOST` — консольный
+  транспорт: строка помечается `sent`, `emailDelivered=true`.
+- Audit: `consent.request`, `consent.granted`, `consent.revoked`,
+  `classes.student.age_group.confirm`, `profile.age_group`.
+- DDL — §6 (`parental_consents`, `email_outbox`); teacher-подтверждение —
+  `user_profiles.age_group_confirmed_at/by` (миграция 0034).
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -1028,6 +1087,23 @@ downgrade до L1 (`quota_downgrade:{tier}`). `anticheat.judge_explain`
 `core.jobs.track_job` делает upsert по `job_id` при исключении задачи;
 ошибка DLQ-записи не маскирует исходное исключение.
 
+**email_outbox** (S-83, миграция 0035): `id` (identity), `kind` (32),
+`recipient` (255), `subject` (255), `body` (text; готовое письмо, включая
+одноразовую ссылку consent), `status` (`pending | sent | failed`),
+`attempts` int default 0, `last_error` text, `next_attempt_at` timestamptz
+default now(), `created_at`, `sent_at`. CHECK `email_outbox_status_values`,
+индекс `ix_email_outbox_status_next(status, next_attempt_at)`. Cron
+`email_outbox_deliver` (каждую минуту) повторяет due-строки с backoff;
+после `EMAIL_OUTBOX_MAX_ATTEMPTS` строка паркуется. DML-гранты `chess_app`
+наследуются через `ALTER DEFAULT PRIVILEGES` (ADR-015). Retention пока не
+автоматизирован — техдолг v0.7.
+
+**user_profiles (S-83, миграция 0034):** `age_group_confirmed_at`
+timestamptz NULL, `age_group_confirmed_by` bigint NULL → `users(id)
+ON DELETE SET NULL`, индекс `ix_user_profiles_age_group_confirmed_by`.
+Проставляет учитель класса через `POST /classes/{id}/students/{id}/age-group`
+(admin тоже может); self-PATCH `age_group` сбрасывает оба поля.
+
 **parental_consents** (S-74, миграция 0033): `id`, `user_id` (CASCADE),
 `token_hash` (unique, SHA-256), `parent_email`, `policy_version`, `status`
 (`pending | granted | revoked | expired`), `requested_at`, `confirmed_at`,
@@ -1160,3 +1236,4 @@ recursion, memory spike, бесконечный цикл (timeout), обрезк
 | 2026-11-03 | S-61: CSP/egress ✅ — §3.29 (CSP report-only→enforce, egress-hook 4 клиентов) | S-61 |
 | 2026-11-03 | S-62: hash-lock ✅ — §3.30 (requirements.lock 46 пакетов с hash, sha256 Stockfish, pip-audit) | S-62 |
 | 2026-11-03 | S-64: RAG-редактор UI ✅ — §3.25 (gold-set 21, results, «/rag» teacher/admin) | S-64 |
+| 2026-11-06 | S-83: consent enforcement + email outbox ✅ — §3.31 (`ageGroup`/`teacherConfirmed`, `emailDelivered`/`emailQueued`, `POST /classes/{id}/students/{id}/age-group`, DDL 0034/0035) | S-83 |
