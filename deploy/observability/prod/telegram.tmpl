@@ -1,0 +1,17 @@
+{{ define "telegram.chessclass" -}}
+{{- $sev := .CommonLabels.severity -}}
+{{- if eq .Status "firing" -}}
+{{- if eq $sev "critical" -}}🔥{{ else }}⚠️{{ end }} <b>{{ .CommonLabels.alertname }}</b> [{{ $sev }}]
+{{- else -}}
+✅ <b>{{ .CommonLabels.alertname }}</b> — resolved
+{{- end }}
+{{ range .Alerts -}}
+<b>{{ .Annotations.summary }}</b>
+{{ .Annotations.description }}
+{{- if .Labels.job }}
+job: <code>{{ .Labels.job }}</code>{{ end }}
+{{- if .Labels.instance }} · instance: <code>{{ .Labels.instance }}</code>{{ end }}
+{{- if .Labels.component }} · component: {{ .Labels.component }}{{ end }}
+{{- if not .StartsAt.IsZero }} · с {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}{{ end }}
+{{ end -}}
+{{ end }}

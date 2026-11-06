@@ -1,7 +1,10 @@
-# Observability v0.6 (S-77)
+# Observability: dev-контур (S-77) и prod-профиль (S-82)
 
-Локальный контур: **OTel Collector → Tempo (traces) / Prometheus (metrics) →
-Grafana**. Профиль `observability` не стартует вместе с обычным dev-стеком.
+Локальный/дев-контур: **OTel Collector → Tempo (traces) / Prometheus
+(metrics) → Grafana**. Профиль `observability` не стартует вместе с обычным
+dev-стеком. Prod-контур (S-82): те же компоненты + **Alertmanager → Telegram**
+с TLS/mTLS и persistent storage; эксплуатация — `docs/runbooks/operations.md`
+§10, алерты и дежурство — `docs/incident-response.md` §4.1.
 
 ## Запуск (dev)
 
@@ -12,7 +15,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 docker compose -f docker-compose.dev.yml --profile observability up -d
 ```
 
-- Grafana: http://localhost:3001 (`admin` / `admin`)
+- Grafana: http://localhost:3001 (`admin` / `admin` — только dev)
 - Prometheus: http://localhost:9091
 - OTLP HTTP: `localhost:4320` (внутри сети `otel-collector:4318`)
 - OTLP gRPC: `localhost:4319` (`otel-collector:4317`)
@@ -20,6 +23,40 @@ docker compose -f docker-compose.dev.yml --profile observability up -d
 
 Для staging используйте `docker-compose.staging.yml --profile observability`:
 Grafana `3002`, Prometheus `9092`, OTLP HTTP `4322`, gRPC `4321`.
+(В prod-профиле те же номера host-портов, но контейнеры `chessclass-prod-*`.)
+
+## Prod-профиль (S-82)
+
+Отличия от dev-контура (конфиги — `deploy/observability/prod/`):
+
+| Что | Dev (S-77) | Prod (S-82) |
+|---|---|---|
+| Запуск | `--profile observability` | `--profile observability` + `.env` с секретами |
+| Tempo retention | 24 h (ephemeral) | **168 h (7 дней)**, volume `chessclass_prod_tempo` |
+| Tempo storage | без volume | `chessclass_prod_tempo:/var/tempo` |
+| Collector → Tempo | plaintext | **mTLS** (внутренний CA, `scripts/gen-internal-certs.ps1`) |
+| Prometheus | rules в конфиге | rules `alerts.yml` + `alerting → alertmanager:9093`, retention 15 d, volume |
+| Alertmanager | нет | Telegram (`telegram_configs`), группировка, inhibit rules |
+| Grafana | admin/admin, host-порт | пароль обязателен, анонимный вход выкл., только loopback + edge `/grafana/` |
+| Публикация портов | loopback | Tempo/collector — **не публикуются**; Prometheus/Alertmanager/Grafana — только `127.0.0.1` |
+
+Секреты не пишутся в конфиги: Alertmanager и Prometheus рендерят
+`*.tmpl` в `/tmp` (chmod 600) при старте — `alertmanager-entrypoint.sh`,
+`prometheus-entrypoint.sh`. Токены в логи не попадают.
+
+### Быстрая проверка prod-контура
+
+```powershell
+# только конфиги (promtool/amtool, без запуска контейнеров)
+.\scripts\observability-selftest.ps1
+
+# + runtime smoke: профиль, targets, маршруты, mTLS-трейс, Grafana; затем stop
+.\scripts\observability-selftest.ps1 -Stack
+```
+
+Runtime smoke использует **фиктивные** `TELEGRAM_BOT_TOKEN` и chat_id: доставка
+в реальный чат проверяется вручную (`operations.md` §10.6). Скрипт
+останавливает только контейнеры профиля (`stop`), volumes сохраняются.
 
 ## Dashboard
 
@@ -31,16 +68,36 @@ Grafana `3002`, Prometheus `9092`, OTLP HTTP `4322`, gRPC `4321`.
 - Tempo traces по `{service.name="chessclass-api"}`; в каждом trace виден
   `trace_id`, который также пишется в JSON-логи и `llm_calls.trace_id`.
 
-Prometheus-алерты (`alerts.yml`): error rate > 5%, p95 latency > 2 s,
-`chessclass_failed_jobs > 10`.
+Prometheus-алерты (`alerts.yml`, 5 правил): `ChessClassApiDown`,
+`ChessClassHighErrorRate` (5xx > 5 %), `ChessClassP95LatencyHigh` (> 2 s),
+`ChessClassDLQGrowth` (`chessclass_failed_jobs > 10`),
+`ChessClassDLQGrowthRate` (рост DLQ). Маршруты: `critical →
+telegram-critical` (повтор 1 ч), `warning → telegram` (повтор 6 ч); inhibit —
+critical гасит warning того же alertname/component, `ChessClassApiDown` гасит
+остальные api-алерты.
 
 ## Проверка конфигурации
 
 ```bash
 docker compose -f docker-compose.dev.yml config -q
+docker compose --env-file .env.prod.example -f docker-compose.prod.yml config -q
 docker run --rm -v "$PWD/deploy/observability/otel-collector.yml:/etc/otelcol/config.yaml:ro" \
   otel/opentelemetry-collector-contrib:0.164.0 validate --config=/etc/otelcol/config.yaml
+# правила и рендер конфигов prod — см. scripts/observability-selftest.ps1
 ```
 
-Collector хранит traces в Tempo 24 часа (`block_retention`); Prometheus —
-process-local метрики API (при нескольких репликах нужно скрейпить каждую).
+Collector хранит traces в Tempo: dev — 24 часа, prod — 7 дней; Prometheus —
+process-local метрики API (при нескольких репликах нужно скрейпить каждую),
+prod — retention 15 дней в volume `chessclass_prod_prometheus`.
+
+## Ограничения
+
+- Alertmanager не умеет env-expansion в конфиге — используется рендер из
+  шаблона; при ошибке рендера контейнер падает осознанно (алерты не теряются
+  молча).
+- При ошибке доставки в Telegram библиотека печатает URL вида
+  `https://api.telegram.org/bot<TOKEN>/sendMessage`: логи Alertmanager нужно
+  считать чувствительными (доступ и retention — по политике оператора,
+  `docs/runbooks/operations.md` §10.9).
+- mTLS — только на OTLP-приёмниках Tempo; HTTP API Tempo — plaintext внутри
+  сети без публикации порта (Grafana читает по нему без клиентского cert).

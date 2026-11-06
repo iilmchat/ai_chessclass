@@ -1231,6 +1231,12 @@ SMTP_STARTTLS=true  SMTP_SSL=false  SMTP_TIMEOUT_S=15
 # S-83: очередь писем parental consent (retry/backoff, cron каждую минуту)
 EMAIL_OUTBOX_BATCH=50  EMAIL_OUTBOX_MAX_ATTEMPTS=8
 
+# prod-observability (S-82): профиль observability, только loopback-порты
+PROMETHEUS_PORT=9092  ALERTMANAGER_PORT=9093  GRAFANA_PORT=3002
+GRAFANA_ADMIN_USER=chessadmin  GRAFANA_ADMIN_PASSWORD=<change-me>
+GRAFANA_ROOT_URL=https://<host>/grafana/
+TELEGRAM_ALERT_CHAT_ID=-100…   # бот — TELEGRAM_BOT_TOKEN; пусто → AM не стартует
+
 # интеграции (backlog)
 ELEVENLABS_API_KEY=   # v0.2, озвучка
 ```
@@ -1252,6 +1258,16 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 - Наблюдаемость (S-46): `/metrics` (DB/Redis, очереди, LLM/voice cost, диск),
   `/admin/observability/{summary,alerts,costs,costs.csv,retention/*}`;
   алерты по бюджету/диску/очередям/TLS; UI `/ops`.
+- Prod-observability (S-82, ADR-021): профиль `observability` в
+  `docker-compose.prod.yml` (не стартует по умолчанию): OTel Collector →
+  Tempo (traces, retention 7 дней, volume `chessclass_prod_tempo`),
+  Prometheus (retention 15 дней, `alerts.yml` → Alertmanager) → Grafana
+  (loopback + edge `/grafana/`), Alertmanager → Telegram. mTLS
+  collector→Tempo по внутреннему CA (`scripts/gen-internal-certs.ps1`,
+  `deploy/internal-certs/` не в git). Проверка контура —
+  `scripts/observability-selftest.ps1 [-Stack]`; эксплуатация —
+  `docs/runbooks/operations.md` §10, дежурство — `docs/incident-response.md`
+  §4.1.
 - KI-001: не запускать команды `docker stop/delete` на чужих контейнерах;
   перед любым действием — сначала `docker ps`, сверяя имена контейнеров.
 
@@ -1326,6 +1342,15 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `email_outbox` + cron `email_outbox_deliver` с backoff. 35 миграций, head
   `0035_s83_email_outbox`; backend — 290 collected (287 passed + 3 skipped);
   `tests/test_teacher_age_confirmation.py`, `tests/test_email_outbox.py`.
+- S-82 (v0.7): prod-observability — профиль `observability` (tempo,
+  otel-collector, prometheus, alertmanager, grafana), mTLS collector→Tempo,
+  Tempo retention 168h / Prometheus 15d на volumes `chessclass_prod_*`,
+  Alertmanager → Telegram (`telegram_configs`, route critical/warning,
+  inhibit rules), 5 правил в `alerts.yml`, Grafana без admin/admin и только
+  через edge `/grafana/`/VPN. Секреты рендерятся entrypoint'ами из env
+  (Alertmanager/Prometheus не умеют env-expansion). Backend — 300 collected
+  (297 passed + 3 skipped), `tests/test_observability_config.py` (12 проверок
+  конфигов); миграций по-прежнему 35, head `0035_s83_email_outbox`.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
@@ -1435,6 +1460,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 | ADR-018 | Защита от Prompt Injection (OWASP LLM01): структурное разделение trusted/untrusted контента | В `builder.py` RAG-документы и ввод пользователя склеиваются без изоляции, что открывает путь к indirect prompt injection | 2026-11-05 |
 | ADR-019 | Parental consent workflow (COPPA/GDPR-K): одноразовая email-ссылка, статус в `parental_consents`, UI `/consent` | Для учеников child/teen нужно подтверждение родителя; согласие должно быть доказуемым и отзываемым | 2026-11-06 |
 | ADR-020 | Teacher age confirmation + email outbox с retry: доверенная возрастная группа ученика и надёжная доставка писем parental consent | Self-declared `age_group` нельзя считать доверенным (ребёнок может указать adult и обойти consent); SMTP-сбой у родителя ранее возвращал 502 и терял письмо без повтора | 2026-11-06 |
+| ADR-021 | Prod-observability: профиль `observability` (OTel Collector → Tempo/Prometheus → Grafana + Alertmanager → Telegram) с mTLS и persistent storage | Dev-профиль S-77 эфемерный (Tempo 24 ч, admin/admin, без алертов), а прод-инциденты нужно замечать без ручного просмотра `/ops` | 2026-11-06 |
 
 Статусы: `accepted` (по умолчанию), `proposed`, `superseded`.
 
@@ -1469,6 +1495,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 *   **Контекст:** `age_group` задаёт ученик сам, поэтому ребёнок может указать `adult` и обойти parental consent. Одновременно SMTP-сбой при запросе согласия возвращал 502 и письмо терялось: повторной отправки не было, родитель оставался без ссылки.
 *   **Решение:** Возрастную группу ученика класса подтверждает учитель-владелец (или admin) через `POST /classes/{classId}/students/{studentId}/age-group`; в `user_profiles` хранятся `age_group_confirmed_at`/`age_group_confirmed_by`, self-PATCH `age_group` сбрасывает подтверждение (audit `profile.age_group`), подтверждение — audit `classes.student.age_group.confirm`. Письма parental consent не отправляются в HTTP-запросе: строка `email_outbox` (status `pending/sent/failed`, `attempts`, `next_attempt_at`) пишется в той же транзакции, `POST /consent/request` делает одну попытку, затем cron `email_outbox_deliver` (каждую минуту) повторяет с backoff `min(3600, 2^n)`; после `EMAIL_OUTBOX_MAX_ATTEMPTS` строка паркуется; dev-console считается доставкой (`sent`).
 *   **Последствия:** Миграции `0034_s83_teacher_age_confirm` (колонки+индекс `user_profiles`) и `0035_s83_email_outbox` (таблица+индекс+гранты `chess_app` по ADR-015); новые env `EMAIL_OUTBOX_BATCH`/`EMAIL_OUTBOX_MAX_ATTEMPTS`; consent-ответы больше не отдают 502 `email_delivery_failed`, а сообщают `emailDelivered`/`emailQueued`. Ограничения: подтверждение возраста — не верификация личности; рассинхрон teacher-confirm и self-PATCH без сериализации (last-write-wins); retention `email_outbox` пока не автоматизирован (план v0.7); тело письма содержит одноразовую ссылку — residual privacy risk, зафиксирован в legal-review.
+
+**ADR-021: Prod-observability (профиль `observability`) (S-82)**
+*   **Контекст:** Dev-профиль S-77 поднимался вручную, Tempo хранил трейсы 24 ч без volume, Grafana работала с `admin/admin`, а алерты Prometheus никто не получал: инциденты замечались только при ручном просмотре `/ops`. Для реальной школы нужен дежурный канал и сохраняемые трейсы.
+*   **Решение:** Профиль `observability` в `docker-compose.prod.yml` (не входит в дефолтный `up`): `otel-collector` (OTLP :4317/:4318, внутренний порт) → `tempo` (retention **168h**, volume `chessclass_prod_tempo`, mTLS на OTLP-приёмниках по внутреннему CA) и `prometheus` (retention 15 дней, scrape `/metrics` с `METRICS_TOKEN`, `alerts.yml` → `alertmanager:9093`) → `grafana` (loopback + edge `/grafana/`, обязательный `GRAFANA_ADMIN_PASSWORD`, anonymous off). `alertmanager` доставляет в Telegram (`telegram_configs`, route `critical → telegram-critical` (1 ч), `warning → telegram` (6 ч), inhibit rules). Секреты не живут в конфигах: Alertmanager и Prometheus рендерят `*.tmpl` в `/tmp` (chmod 600) entrypoint'ами, т.к. оба не поддерживают env-expansion. Внутренние сертификаты — `scripts/gen-internal-certs.ps1` → `deploy/internal-certs/` (не в git).
+*   **Последствия:** Новые порты только на loopback: Prometheus 9092, Alertmanager 9093, Grafana 3002 (ADR-013 не меняется); volumes `chessclass_prod_tempo/prometheus/alertmanager/grafana`; env `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`, `GRAFANA_ROOT_URL`, `PROMETHEUS_PORT`, `ALERTMANAGER_PORT`, `GRAFANA_PORT`, `TELEGRAM_ALERT_CHAT_ID`, `OTEL_ENABLED`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `METRICS_TOKEN`. Ограничения: HTTP API Tempo — plaintext внутри сети (порт не публикуется), mTLS только на OTLP; Alertmanager печатает в логах URL с bot token при ошибке доставки — логи считать чувствительными; доставка в Telegram зависит от egress; проверка контура — `scripts/observability-selftest.ps1 [-Stack]`.
 
 ---
 

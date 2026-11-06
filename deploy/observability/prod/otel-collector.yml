@@ -1,0 +1,56 @@
+# S-82: prod-OTel Collector — приём OTLP от API/воркера, экспорт трейсов в
+# Tempo по mTLS (внутренний CA), метрик — в Prometheus-формате (:8889).
+# Портов на хост не публикует: API ходит на http://otel-collector:4318
+# внутри сети chessclass-prod-net.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 384
+  batch: {}
+
+exporters:
+  # mTLS: клиентский сертификат проверяется Tempo по внутреннему CA.
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: false
+      ca_file: /etc/obs-certs/ca.crt
+      cert_file: /etc/obs-certs/collector.crt
+      key_file: /etc/obs-certs/collector.key
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 2s
+      max_interval: 30s
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+
+extensions:
+  # Healthcheck для compose healthcheck и runbook-проверок.
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  telemetry:
+    logs:
+      level: info
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]

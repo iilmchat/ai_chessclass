@@ -1,0 +1,64 @@
+# S-82: Alertmanager prod — доставка в Telegram (встроенные telegram_configs).
+# Это ШАБЛОН: Alertmanager 0.28 не умеет env-expansion в конфиге, поэтому
+# entrypoint.sh рендерит этот файл в /tmp/alertmanager.yml, подставляя
+# env TELEGRAM_BOT_TOKEN и TELEGRAM_ALERT_CHAT_ID. Рендер-файл живёт только
+# в контейнере (chmod 600), токен не логируется и не коммитится.
+global:
+  resolve_timeout: 1m
+  telegram_api_url: https://api.telegram.org
+
+templates:
+  - /etc/alertmanager/telegram.tmpl
+
+route:
+  receiver: telegram
+  # Группируем по сути алерта: один incident — одно сообщение, а не шум.
+  group_by: [alertname, severity, component]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+  routes:
+    # critical — быстрее повторяем и отдельным каналом-получателем.
+    - matchers:
+        - severity="critical"
+      receiver: telegram-critical
+      repeat_interval: 1h
+      continue: false
+    # warning — реже, чтобы не будить дежурного ночью.
+    - matchers:
+        - severity="warning"
+      receiver: telegram
+      repeat_interval: 6h
+
+receivers:
+  - name: telegram
+    telegram_configs:
+      - bot_token: __TELEGRAM_BOT_TOKEN__
+        chat_id: __TELEGRAM_ALERT_CHAT_ID__
+        parse_mode: HTML
+        send_resolved: true
+        message: '{{ template "telegram.chessclass" . }}'
+
+  - name: telegram-critical
+    telegram_configs:
+      - bot_token: __TELEGRAM_BOT_TOKEN__
+        chat_id: __TELEGRAM_ALERT_CHAT_ID__
+        parse_mode: HTML
+        send_resolved: true
+        message: '{{ template "telegram.chessclass" . }}'
+
+# Подавление дублей: critical уже сообщает о проблеме — warning того же
+# alertname/component не нужен. Падение API гасит остальные api-алерты
+# (они следствие недоступности, а не отдельные инциденты).
+inhibit_rules:
+  - source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+    equal: [alertname, component]
+
+  - source_matchers:
+      - alertname="ChessClassApiDown"
+    target_matchers:
+      - component="api"
+    equal: [component]

@@ -1,0 +1,49 @@
+# S-82: prod-Tempo — mTLS на OTLP-приёмниках (collector → Tempo),
+# retention 7 дней, persistent volume chessclass_prod_tempo:/var/tempo.
+# HTTP API (:3200) — plaintext, но порт НЕ публикуется на хост: по нему ходит
+# только Grafana внутри сети chessclass-prod-net (см. datasources.yml).
+# Сертификаты — ./deploy/internal-certs (scripts/gen-internal-certs.ps1),
+# в git не попадают.
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9096
+  log_level: info
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+          # mTLS: принимаем только клиентов с сертификатом внутреннего CA.
+          tls:
+            cert_file: /etc/obs-certs/tempo.crt
+            key_file: /etc/obs-certs/tempo.key
+            client_ca_file: /etc/obs-certs/ca.crt
+        grpc:
+          endpoint: 0.0.0.0:4317
+          tls:
+            cert_file: /etc/obs-certs/tempo.crt
+            key_file: /etc/obs-certs/tempo.key
+            client_ca_file: /etc/obs-certs/ca.crt
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    # S-82: 7 дней retained traces (в dev-профиле S-77 было 24h).
+    block_retention: 168h
+    compacted_block_retention: 1h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+
+# Не отправляем usage-отчёты наружу (prod-контур, egress allowlist S-61).
+usage_report:
+  reporting_enabled: false

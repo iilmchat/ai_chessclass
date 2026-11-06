@@ -1,0 +1,6 @@
+# S-82: внутренний CA и mTLS-сертификаты observability — только на сервере.
+*.crt
+*.key
+*.csr
+*.srl
+!.gitignore

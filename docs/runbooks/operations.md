@@ -174,3 +174,292 @@ docker compose -f docker-compose.prod.yml restart edge
   `age_group` — только самооценка/teacher, без даты рождения.
 - Security-проверки: `python -m pytest tests/test_auth_hardening.py -q`;
   refresh reuse уже покрыт `test_auth_flow.py`.
+
+## 10. Prod-observability (S-82)
+
+Профиль `observability` в `docker-compose.prod.yml`: OTel Collector → Tempo
+(traces) и Prometheus (metrics) → Grafana; правила Prometheus → Alertmanager
+→ Telegram. Dev-контур S-77 (те же компоненты локально) — в
+`deploy/observability/README.md`, prod-конфиги — в `deploy/observability/prod/`.
+Здесь — эксплуатация профиля: запуск, проверки, действия по алертам. Состав и
+значения конфигов не дублируются: источник — файлы в `deploy/observability/`
+и `docker-compose.prod.yml`.
+
+### 10.1. Состав профиля
+
+| Сервис | Контейнер | Доступ | Роль |
+|---|---|---|---|
+| `tempo` | `chessclass-prod-tempo` | только внутри сети, наружу портов нет | хранение traces; volume `chessclass_prod_tempo` |
+| `otel-collector` | `chessclass-prod-otel-collector` | OTLP внутри сети: `otel-collector:4318` (HTTP), gRPC `:4317`; health `:13133` | приём spans от api/worker |
+| `prometheus` | `chessclass-prod-prometheus` | `127.0.0.1:${PROMETHEUS_PORT:-9092}` | scrape `/metrics`, правила `deploy/observability/alerts.yml` |
+| `alertmanager` | `chessclass-prod-alertmanager` | `127.0.0.1:${ALERTMANAGER_PORT:-9093}` | группировка и доставка в Telegram, silences |
+| `grafana` | `chessclass-prod-grafana` | `https://<host>/grafana/` через `edge`; loopback `${GRAFANA_PORT:-3002}` | дашборды, запросы в Tempo/метрики |
+
+Профиль **не стартует по умолчанию**: обычный `up -d` поднимает только базовый
+стек (db, redis, migrate, api, worker*, web, edge). Без профиля нет traces и
+нет алертов: API продолжает отдавать `/metrics`, но собирать его некому.
+Traces не экспортируются, пока `OTEL_ENABLED` не `true`, а endpoint не задан.
+
+### 10.2. Подготовка prod-env и сертификатов
+
+1. **prod-env.** Переменные задаются в одном prod-файле (`.env`; шаблон —
+   `.env.prod.example`, на сервере `cp .env.prod.example .env`; в командах
+   ниже `--env-file .env`). Не дублируйте значения между `.env` и
+   `.env.prod`.
+
+   | Переменная | Значение | Комментарий |
+   |---|---|---|
+   | `OTEL_ENABLED` | `true` | включает экспорт spans из api/worker |
+   | `OTEL_SERVICE_NAME` | `chessclass-api` | имя сервиса в Tempo |
+   | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4318` | OTLP/HTTP внутри compose-сети |
+   | `GRAFANA_ADMIN_USER` | `chessadmin` | логин администратора; сменить при первом запуске |
+   | `GRAFANA_ADMIN_PASSWORD` | `CHANGE_ME` | обязателен: при пустом значении Grafana не стартует |
+   | `GRAFANA_ROOT_URL` | `https://<host>/grafana/` | внешний URL за edge (подпуть `/grafana/`) |
+   | `PROMETHEUS_PORT` | `9092` | loopback-порт Prometheus |
+   | `ALERTMANAGER_PORT` | `9093` | loopback-порт Alertmanager |
+   | `GRAFANA_PORT` | `3002` | loopback-порт Grafana для отладки |
+   | `TELEGRAM_BOT_TOKEN` | `CHANGE_ME` | токен бота дежурного чата, только в prod-env |
+   | `TELEGRAM_ALERT_CHAT_ID` | `-100…` | id чата/канала (у групп и каналов отрицательный); пусто → Alertmanager не стартует |
+   | `METRICS_TOKEN` | `CHANGE_ME` | bearer-токен для scrape `/metrics`; одно значение для api и Prometheus |
+
+2. **Внутренние сертификаты TLS** (collector → Tempo, mTLS):
+
+   ```powershell
+   .\scripts\gen-internal-certs.ps1
+   ```
+
+   Скрипт создаёт внутренний CA и сертификаты в `deploy/internal-certs/`
+   (CA, серверный сертификат Tempo, клиентский сертификат collector).
+   Каталог не в git; приватные ключи не копировать в чаты и бэкапы
+   репозитория. Сертификаты нужны до первого запуска профиля; после
+   перегенерации — перезапустить `tempo` и `otel-collector` (см. §10.3).
+   Контейнеры Tempo и collector работают не от root, но ключи им должны быть
+   читаемы; при ошибке `permission denied` на `/etc/obs-certs/*.key` — смотреть
+   права каталога и монтирования сертификатов.
+
+3. **Секреты до запуска.**
+
+   ```bash
+   git check-ignore -v .env .env.prod deploy/internal-certs/ca.key
+   ```
+
+   Команда должна показать совпадения: prod-env и ключи внутреннего CA
+   исключены из git (см. §10.9).
+
+4. **Egress.** Для доставки алертов с сервера должен быть доступен
+   `api.telegram.org` (или `telegram_api_url` из шаблона Alertmanager); если
+   сервер за allowlist/firewall — добавить домен заранее, иначе алерты
+   не уйдут.
+
+### 10.3. Запуск, остановка, логи
+
+```bash
+cd /opt/chessclass
+docker compose --env-file .env -f docker-compose.prod.yml --profile observability up -d
+```
+
+Порядок запуска задан зависимостями в compose: tempo → otel-collector →
+prometheus и alertmanager → grafana; отдельные команды не нужны. Первый
+запуск создаёт volumes `chessclass_prod_tempo`, `chessclass_prod_prometheus`
+и другие.
+
+Статус и здоровье:
+
+```bash
+docker compose --env-file .env -f docker-compose.prod.yml --profile observability ps
+```
+
+Ожидаемо: контейнеры `running`; у сервисов с healthcheck — `healthy` (первые
+секунды после старта — `starting`). `unhealthy`/`restarting` — смотреть логи
+сервиса. Типичные причины `restarting` при первом запуске: пустой
+`TELEGRAM_ALERT_CHAT_ID` (Alertmanager не стартует осознанно), недоступные
+контейнеру ключи `/etc/obs-certs/*.key` (Tempo/collector), ошибка TLS-конфига
+Tempo в его логах.
+
+Логи:
+
+```bash
+docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+  logs --tail=200 tempo
+# то же для otel-collector, prometheus, alertmanager, grafana
+```
+
+Остановка. Данные сохраняются в volumes:
+
+```bash
+# погасить только наблюдаемость (API/edge продолжают работать)
+docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+  stop tempo otel-collector prometheus alertmanager grafana
+
+# снять контейнеры всего prod-стека вместе с профилем (штатная полная остановка)
+docker compose --env-file .env -f docker-compose.prod.yml --profile observability down
+```
+
+> **Внимание.** `down` с профилем удаляет контейнеры всего проекта, включая
+> базовые (api/edge/db), — это полная остановка prod, а не только
+> наблюдаемости. Для остановки одной наблюдаемости используйте `stop` с
+> перечислением сервисов. Ключ `-v` дополнительно удаляет volumes с traces и
+> метриками: при инциденте данные нужны для разбора, `down -v` не применять.
+
+### 10.4. Адреса и доступ
+
+| Что | Адрес | Примечание |
+|---|---|---|
+| Grafana (дежурство) | `https://<host>/grafana/` | только VPN/доверенная сеть, TLS на `edge` |
+| Grafana (отладка) | `http://127.0.0.1:${GRAFANA_PORT:-3002}` | только с самого сервера или через SSH-туннель |
+| Prometheus | `http://127.0.0.1:${PROMETHEUS_PORT:-9092}` | UI: `/graph`, `/alerts`, `/rules`, `/targets` |
+| Alertmanager | `http://127.0.0.1:${ALERTMANAGER_PORT:-9093}` | UI и API v2: `/api/v2/status`, `/api/v2/alerts` |
+| OTLP для api/worker | `http://otel-collector:4318` | только внутри compose-сети, с хоста не публикуется |
+| Tempo | внутри сети, через Grafana | наружу портов не публикует; UI/API — из Grafana |
+
+Если loopback-порты нужны с рабочей машины:
+
+```bash
+ssh -L 9092:127.0.0.1:9092 -L 9093:127.0.0.1:9093 -L 3002:127.0.0.1:3002 <user>@<host>
+```
+
+### 10.5. Проверка готовности
+
+```bash
+curl -s http://127.0.0.1:9092/-/ready        # Prometheus Server is Ready.
+curl -s http://127.0.0.1:9093/-/ready        # OK
+curl -s http://127.0.0.1:3002/api/health     # {"database":"ok",...}
+curl -s http://127.0.0.1:9092/api/v1/rules   # 5 правил ChessClass*
+curl -s http://127.0.0.1:9093/api/v2/status  # cluster/version/config
+```
+
+- `/api/v1/rules` пуст или в rules нет `ChessClassHighErrorRate` — Prometheus
+  не увидел `deploy/observability/alerts.yml`; проверить prod-конфиг
+  Prometheus и его логи.
+- `curl -s http://127.0.0.1:9092/api/v1/targets` — target `chessclass-api`
+  должен быть `up`; если `down`, проверить `METRICS_TOKEN` (значение одно для
+  api и Prometheus) и доступность `api:8020/metrics`.
+- Collector: health-расширение слушает `:13133` (порт внутренний). Если в
+  compose задан healthcheck — статус в `docker compose ps` (подробно —
+  `docker inspect --format '{{.State.Health.Status}}' chessclass-prod-otel-collector`);
+  независимая проверка — target `otel-collector` в Prometheus `/api/v1/targets`
+  (`up`) и отсутствие ошибок TLS/экспорта в логах collector.
+- Traces: Grafana → Explore → Tempo → поиск по `trace_id` из логов API или
+  `llm_calls.trace_id`. Пусто — проверить `OTEL_ENABLED`, endpoint collector и
+  логи `tempo`/`otel-collector` (TLS-ошибки сертификатов видны там).
+- Список активных алертов:
+
+  ```bash
+  docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+    exec alertmanager amtool alert query --alertmanager.url=http://127.0.0.1:9093
+  ```
+
+  `--alertmanager.url=http://127.0.0.1:9093` можно не указывать внутри
+  контейнера Alertmanager.
+
+### 10.6. Проверка доставки алерта в Telegram
+
+Telegram-чат дежурного получает алерты от Alertmanager; `chat_id` — `-100…`
+(заглушка), токен бота — только в prod-env. Проверка — тестовым алертом,
+который через 5 минут сам станет `resolved` (проверяет и `send_resolved`).
+Если `TELEGRAM_BOT_TOKEN` или `TELEGRAM_ALERT_CHAT_ID` пусты, Alertmanager не
+стартует (в `docker compose ps` — `restarting`) — это осознанно, чтобы не
+терять алерты молча.
+
+1. **Отправить тестовый алерт** (5 минут, затем авто-resolved):
+
+   ```bash
+   docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+     exec alertmanager amtool alert add ChessClassTestAlert \
+     severity=warning component=observability \
+     --annotation=summary='Проверка доставки алертов' \
+     --annotation=description='Тестовое уведомление из runbook operations §10' \
+     --start="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+     --end="$(date -u -d '+5 min' +%Y-%m-%dT%H:%M:%SZ)" \
+     --alertmanager.url=http://127.0.0.1:9093
+   ```
+
+2. **Убедиться, что алерт принят и доставлен:**
+
+   ```bash
+   docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+     exec alertmanager amtool alert query --alertmanager.url=http://127.0.0.1:9093
+   docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+     logs --tail=100 alertmanager
+   ```
+
+   В чате — сообщение `firing` (severity/warning, alertname, summary,
+   description, job), через ~5 минут — `resolved`. В логах Alertmanager —
+   строка `notify success` (доставлено) или `notify failed` (причина).
+
+3. **Если сообщение не пришло** — по порядку:
+
+   - `.env` на сервере: `TELEGRAM_BOT_TOKEN` и `TELEGRAM_ALERT_CHAT_ID`
+     заполнены (не пустые, без кавычек/пробелов). Конфиг рендерится из
+     шаблона при старте контейнера, поэтому после правки `.env` нужно
+     **пересоздать** контейнер, а не просто перезапустить:
+     `up -d --force-recreate alertmanager`.
+   - `TELEGRAM_ALERT_CHAT_ID` — id чата/канала (`-100…`); для группы бот
+     должен быть участником, для канала — администратором; бот не заблокирован
+     пользователем. Проверка бота: `curl -s "https://api.telegram.org/bot<TOKEN>/getMe"`
+     (токен не выводить в чаты/тикеты), для чата —
+     `.../bot<TOKEN>/getChat?chat_id=<chat_id>`.
+   - Egress: `api.telegram.org` (или `telegram_api_url` из шаблона) доступен с
+     сервера/из сети Alertmanager — проверить firewall/allowlist (§10.2, п. 4).
+   - Шаблон сообщения `deploy/observability/prod/telegram.tmpl` и маршруты —
+     в prod-конфиге Alertmanager; ошибка рендера шаблона видна как
+     `notify failed` в логах. Правки — только через репозиторий.
+   - `send_resolved: true` — если `firing` пришёл, а `resolved` нет, проверить
+     этот параметр и `resolve_timeout` в prod-конфиге Alertmanager.
+
+### 10.7. Алерт → что делать
+
+Условия, пороги и метки — в `deploy/observability/alerts.yml`; ниже — первые
+шаги дежурного, диагностика и эскалация — в `docs/incident-response.md` §4.1.
+
+| Алерт | Суть | Первые шаги |
+|---|---|---|
+| `ChessClassApiDown` | API не скрейпится (`up == 0`) | `docker compose ... ps api`; `curl -s http://127.0.0.1:8020/healthz` и `/readyz`; логи `api`; БД/Redis; внешний `https://<host>/healthz`; при падении — рестарт `api` и проверка §6 |
+| `ChessClassHighErrorRate` | >5% HTTP 5xx за 5 минут | `/ops`, логи `api` по `request_id`, всплеск 5xx в `/metrics`; trace в Tempo; проверить БД/Redis/диск/LLM-провайдера; причина и действия — §6 |
+| `ChessClassP95LatencyHigh` | p95 > 2 с | Grafana: p95 по route; самые медленные traces в Tempo; БД (медленные запросы, пул соединений), LLM-таймауты, очередь |
+| `ChessClassDLQGrowth` | `chessclass_failed_jobs > 10` | `/ops` → DLQ; причина падений задач; логи `worker`; разобрать и повторить задачи; не чистить очередь без разбора |
+| `ChessClassDLQGrowthRate` | быстрый рост DLQ | как `DLQGrowth`; проверить конкретный тип задач (analyze/pdf/матчи), свежий деплой/зависимость |
+
+Маршруты Alertmanager: critical повторяется каждый час, warning — раз в
+6 часов; `ChessClassApiDown` подавляет остальные алерты `component="api"`,
+critical подавляет warning с тем же alertname/component.
+
+### 10.8. Retention и данные
+
+| Данные | Где | По умолчанию | Как менять |
+|---|---|---|---|
+| Traces (Tempo) | volume `chessclass_prod_tempo:/var/tempo` | 168 часов (7 дней), `block_retention` | правка prod-конфига Tempo в репозитории → `up -d --force-recreate tempo` |
+| Metrics (Prometheus) | volume `chessclass_prod_prometheus:/prometheus` | 15 дней (`--storage.tsdb.retention.time`) | правка prod-конфига/команды Prometheus → `up -d --force-recreate prometheus` |
+| Silences/история Alertmanager | volume `chessclass_prod_alertmanager:/alertmanager` | 120 часов (`--data.retention`) | правка prod-конфига Alertmanager → `up -d --force-recreate alertmanager` |
+
+- Старые блоки Tempo удаляет компактор при следующем цикле; Prometheus
+  удаляет блоки старше retention сам. Уменьшение retention сокращает данные,
+  доступные для постмортема, — не сокращать до разбора инцидента.
+- Место проверять до увеличения retention: traces объёмнее метрик.
+- Конфиги монтируются в контейнеры из репозитория (read-only): правка файла
+  внутри контейнера или на сервере мимо репозитория не переживёт пересоздание
+  и расходится с git.
+
+### 10.9. Безопасность профиля
+
+- **Grafana не публикуется наружу**: только `https://<host>/grafana/` через
+  `edge` (VPN/доверенная сеть) и loopback-порт для отладки; анонимный доступ
+  и регистрация выключены. Пароль администратора обязателен
+  (`GRAFANA_ADMIN_PASSWORD`), дефолтной пары admin/admin нет.
+- **Prometheus и Alertmanager** — только loopback (`127.0.0.1`), наружу не
+  публиковать; удалённый доступ — SSH-туннель.
+- **Tempo** портов не публикует; связка collector ↔ Tempo — mTLS, клиентский
+  сертификат из `deploy/internal-certs/`.
+- **Токен бота и chat_id** — только в prod-env; не логировать, не вставлять в
+  чаты/тикеты/скриншоты. Рендер конфига с токеном живёт внутри контейнера;
+  готовый конфиг с секретом не сохранять в репозиторий и бэкапы. При утечке —
+  перевыпустить токен у BotFather, обновить `.env`, пересоздать
+  `alertmanager`.
+- **METRICS_TOKEN** — общий секрет api ↔ Prometheus; менять одновременно в
+  `.env`, затем пересоздать `api` и `prometheus`.
+- **Внутренний CA** (`deploy/internal-certs/`) и prod-env исключены из git
+  (проверка — §10.2, п. 3); ротация CA — перегенерация сертификатов и
+  перезапуск `tempo`/`otel-collector`.
+- Не отключать Alertmanager и не править правила «чтобы убрать шум»: только
+  silence с комментарием и TTL, с записью в журнал инцидента
+  (`docs/incident-response.md` §4.1).

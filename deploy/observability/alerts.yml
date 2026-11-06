@@ -1,6 +1,25 @@
+# S-82: правила Prometheus для prod-контура observability.
+# Алерты уходят в Alertmanager (Telegram) по route severity=critical/warning.
+# Метрики: chessclass_http_requests_total / ..._duration_seconds_* /
+# chessclass_failed_jobs — см. backend/domains/observability (S-46/S-77).
 groups:
   - name: chessclass
+    interval: 30s
     rules:
+      # --- API: доступность и качество -------------------------------------
+      - alert: ChessClassApiDown
+        expr: up{job="chessclass-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "ChessClass: API недоступен"
+          description: >-
+            Prometheus не может скрейпить /metrics 2 минуты. Проверьте
+            `docker compose -f docker-compose.prod.yml ps` и логи api, затем
+            readyz и диск. Runbook: docs/runbooks/operations.md §10.
+
       - alert: ChessClassHighErrorRate
         expr: |
           sum(rate(chessclass_http_requests_total{status=~"5.."}[5m]))
@@ -9,10 +28,13 @@ groups:
           > 0.05
         for: 5m
         labels:
-          severity: warning
+          severity: critical
+          component: api
         annotations:
           summary: "ChessClass: >5% HTTP 5xx за 5 минут"
-          description: "Проверьте /ops, trace_id в Tempo и failed_jobs."
+          description: >-
+            Доля 5xx выше 5%. Проверьте /ops, последние trace_id в Tempo
+            (Grafana), failed_jobs и LLM-провайдера.
 
       - alert: ChessClassP95LatencyHigh
         expr: |
@@ -23,15 +45,35 @@ groups:
         for: 5m
         labels:
           severity: warning
+          component: api
         annotations:
           summary: "ChessClass: p95 latency > 2s"
-          description: "Смотрите route в Grafana и trace в Tempo."
+          description: >-
+            Смотрите route в Grafana (dashboards chessclass-http-traces) и
+            trace в Tempo по trace_id; проверьте LLM-провайдера и БД.
 
+      # --- Воркеры: DLQ ----------------------------------------------------
       - alert: ChessClassDLQGrowth
         expr: chessclass_failed_jobs > 10
         for: 10m
         labels:
           severity: warning
+          component: worker
         annotations:
-          summary: "ChessClass: растёт DLQ failed_jobs"
-          description: "Откройте /ops → DLQ и проверьте failed_jobs."
+          summary: "ChessClass: в DLQ больше 10 упавших задач"
+          description: >-
+            Откройте /ops → «DLQ: упавшие задачи», разберите ошибки и
+            используйте retry после исправления причины. Runbook §10.
+
+      - alert: ChessClassDLQGrowthRate
+        expr: delta(chessclass_failed_jobs[15m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "ChessClass: DLQ растёт (>5 задач за 15 минут)"
+          description: >-
+            Массовые падения фоновых задач. Проверьте worker-логи по
+            trace_id, БД/Redis и LLM-провайдера; эскалируйте как SEV-2 при
+            продолжении роста.

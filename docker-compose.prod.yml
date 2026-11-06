@@ -22,6 +22,10 @@ x-backend-env: &backend-env
   LLM_EMBED_MODEL: ${LLM_EMBED_MODEL:-}
   WEB_BASE_URL: ${WEB_BASE_URL:-http://localhost:3200}
   REPORTS_DIR: /srv/reports
+  # S-82: трейсы в prod-профиль observability (collector внутри сети).
+  OTEL_ENABLED: ${OTEL_ENABLED:-false}
+  OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-chessclass-api}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
 
 x-env-file: &env-file
   - path: ${ENV_FILE:-.env}
@@ -266,6 +270,124 @@ services:
     networks: [ccnet]
     restart: unless-stopped
 
+  # --- S-82: prod-observability (профиль observability, НЕ стартует по умолчанию).
+  # Запуск: docker compose --env-file .env -f docker-compose.prod.yml \
+  #           --profile observability up -d
+  # TLS: сертификаты из ./deploy/internal-certs (scripts/gen-internal-certs.ps1).
+  # Наружу публикуется только loopback (127.0.0.1) для отладки; Grafana — через
+  # edge по /grafana/ (VPN/доверенная сеть). Tempo и collector портов не публикуют.
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: chessclass-prod-tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./deploy/observability/prod/tempo.yml:/etc/tempo.yml:ro
+      - ./deploy/internal-certs:/etc/obs-certs:ro
+      - chessclass_prod_tempo:/var/tempo
+    healthcheck:
+      # HTTP API Tempo — plaintext внутри сети (mTLS только на OTLP-приёмниках).
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3200/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    container_name: chessclass-prod-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/observability/prod/otel-collector.yml:/etc/otelcol/config.yaml:ro
+      - ./deploy/internal-certs:/etc/obs-certs:ro
+    # Healthcheck не задаём: образ distroless (нет sh/wget) — живость видна по
+    # target otel-collector в Prometheus (:8889) и по логам контейнера.
+    depends_on:
+      tempo:
+        condition: service_started
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: chessclass-prod-prometheus
+    # Конфиг — шаблон: entrypoint рендерит METRICS_TOKEN и запускает Prometheus.
+    entrypoint: ["/bin/sh", "/etc/prometheus/prometheus-entrypoint.sh"]
+    environment:
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
+    volumes:
+      - ./deploy/observability/prod:/etc/prometheus:ro
+      # Правила — отдельный mount: /etc/prometheus смонтирован read-only целиком,
+      # вложенный mount в него невозможен.
+      - ./deploy/observability/alerts.yml:/etc/prometheus-rules/alerts.yml:ro
+      - chessclass_prod_prometheus:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9092}:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
+      retries: 10
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: chessclass-prod-alertmanager
+    # Образ имеет ENTRYPOINT=/bin/alertmanager — заменяем целиком, иначе
+    # command уйдёт аргументами в alertmanager (`unexpected /bin/sh`).
+    entrypoint: ["/bin/sh", "/etc/alertmanager/alertmanager-entrypoint.sh"]
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ALERT_CHAT_ID: ${TELEGRAM_ALERT_CHAT_ID:-}
+    volumes:
+      - ./deploy/observability/prod:/etc/alertmanager:ro
+      - chessclass_prod_alertmanager:/alertmanager
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9093/-/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 10
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: chessclass-prod-grafana
+    environment:
+      # Дефолтный admin/admin отключён: пароль обязателен и задаётся в .env.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-chessadmin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-https://localhost/grafana/}
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - chessclass_prod_grafana:/var/lib/grafana
+    ports:
+      # Только loopback: доступ дежурного — через edge-TLS (/grafana/) или VPN.
+      - "127.0.0.1:${GRAFANA_PORT:-3002}:3000"
+    depends_on:
+      - prometheus
+      - tempo
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
+
   # Ручные операции: docker compose -f docker-compose.prod.yml run --rm seed
   seed:
     build:
@@ -297,6 +419,15 @@ volumes:
     name: chessclass_prod_archive
   chessclass_certbot:
     name: chessclass_prod_certbot
+  # S-82: persistent storage observability-профиля (Tempo 7 дней, Prometheus 15d)
+  chessclass_prod_tempo:
+    name: chessclass_prod_tempo
+  chessclass_prod_prometheus:
+    name: chessclass_prod_prometheus
+  chessclass_prod_alertmanager:
+    name: chessclass_prod_alertmanager
+  chessclass_prod_grafana:
+    name: chessclass_prod_grafana
 
 networks:
   ccnet:

@@ -9,6 +9,32 @@
 
 ### Добавлено
 
+#### S-82 — OTel Collector в prod + Alertmanager (2026-11-06)
+- Профиль `observability` в `docker-compose.prod.yml` (не стартует по
+  умолчанию): `tempo` (retention **168h**, volume `chessclass_prod_tempo`,
+  mTLS на OTLP), `otel-collector` (OTLP внутри сети, экспорт в Tempo по mTLS),
+  `prometheus` (retention 15 дней, `alerts.yml` → `alertmanager:9093`),
+  `alertmanager` (Telegram, grouping/inhibit), `grafana` (edge `/grafana/`,
+  обязательный пароль, anonymous off).
+- `deploy/observability/prod/*`: prod-конфиги Tempo/Collector/Prometheus,
+  шаблон Alertmanager + `telegram.tmpl`, entrypoint-рендер секретов
+  (`alertmanager-entrypoint.sh`, `prometheus-entrypoint.sh`).
+- `scripts/gen-internal-certs.ps1` — внутренний CA + mTLS-сертификаты
+  (`deploy/internal-certs/`, не в git); `deploy/internal-certs/.gitignore`.
+- `alerts.yml` расширен до 5 правил: `ChessClassApiDown`,
+  `ChessClassHighErrorRate`, `ChessClassP95LatencyHigh`,
+  `ChessClassDLQGrowth`, `ChessClassDLQGrowthRate` (labels
+  `severity`/`component`).
+- `scripts/observability-selftest.ps1` — статические проверки
+  (compose/promtool/amtool) и `-Stack` runtime smoke (targets, маршруты,
+  mTLS-трейс, Grafana).
+- Запуск: `docker compose --env-file .env -f docker-compose.prod.yml
+  --profile observability up -d`; доки — `docs/runbooks/operations.md` §10,
+  `docs/incident-response.md` §4.1, `deploy/observability/README.md`.
+- Тесты: `tests/test_observability_config.py` расширен до 12 проверок
+  (профиль/volumes/TLS/retention/маршруты/entrypoint/edge/runbook);
+  backend — 300 collected (297 passed + 3 skipped).
+
 #### S-83 — Legal & Privacy Review (2026-11-06)
 - Внутренний юр-ревью privacy-policy/incident-response по юрисдикциям
   РФ/ЕС/США: `docs/legal-review-v0.7.md` (матрица юрисдикций, 12 пробелов,

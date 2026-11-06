@@ -1,7 +1,7 @@
 # TODO_V0.7.md — План v0.7.0 «Production Readiness & Legal»
 
-**Статус:** 🔶 В работе (S-83 ✅; S-81, S-82, S-84, S-85 — впереди)
-**Сводно:** 5 спринтов · **Прогресс: 1/5**
+**Статус:** 🔶 В работе (S-82 ✅, S-83 ✅; S-81 ждёт боевых ключей, S-84/S-85 впереди)
+**Сводно:** 5 спринтов · **Прогресс: 2/5**
 **Цель:** Довести платформу до состояния, пригодного для реальной школы: live-приёмка на staging с боевыми ключами, prod-контур observability с Alertmanager, юридическая проверка privacy-policy и GPU-туннель на реальной станции.
 
 ## Спринт S-81 (P0): Live Staging Acceptance
@@ -31,16 +31,25 @@
 **Ветка:** `feat/s-82-prod-observability`
 
 **Задачи:**
-- [ ] Развернуть OTel Collector + Tempo + Prometheus + Grafana в prod-контуре (с TLS, persistent storage).
-- [ ] Настроить Alertmanager с доставкой в Telegram (или PagerDuty) для алертов: 5xx-rate, p95, failed_jobs, DLQ.
-- [ ] Обновить `deploy/observability/` (prod-профиль), `docker-compose.prod.yml`.
-- [ ] Обновить `docs/runbooks/operations.md`.
+- [x] Развернуть OTel Collector + Tempo + Prometheus + Grafana в prod-контуре (с TLS, persistent storage).
+- [x] Настроить Alertmanager с доставкой в Telegram (или PagerDuty) для алертов: 5xx-rate, p95, failed_jobs, DLQ.
+- [x] Обновить `deploy/observability/` (prod-профиль), `docker-compose.prod.yml`.
+- [x] Обновить `docs/runbooks/operations.md`.
 
 **DoD:**
-- [ ] Алерт «5xx > 5%» доходит до Telegram-чата дежурного.
-- [ ] Tempo хранит трейсы 7 дней (persistent volume).
-- [ ] Grafana доступна только через edge-TLS/VPN.
-- [ ] Отчёт: `docs/sprint-reports/S-82-YYYY-MM-DD.md`.
+- [x] Алерт «5xx > 5%» доходит до Telegram-чата дежурного.
+- [x] Tempo хранит трейсы 7 дней (persistent volume).
+- [x] Grafana доступна только через edge-TLS/VPN.
+- [x] Отчёт: `docs/sprint-reports/S-82-2026-11-06.md`.
+
+> **Факты реализации:** профиль `observability` в `docker-compose.prod.yml`
+> (tempo, otel-collector, prometheus, alertmanager, grafana; volumes
+> `chessclass_prod_*`); Tempo `block_retention: 168h`, mTLS на OTLP
+> (внутренний CA — `scripts/gen-internal-certs.ps1`); Prometheus retention
+> 15 дней, rules → `alertmanager:9093`; Alertmanager рендерит конфиг из
+> шаблона (Telegram `telegram_configs`, route critical/warning, inhibit);
+> Grafana — обязательный пароль, anonymous off, loopback + edge `/grafana/`.
+> Проверки: `scripts/observability-selftest.ps1 [-Stack]`.
 
 ---
 
