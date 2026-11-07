@@ -41,6 +41,7 @@ ACTIVE_DOCS: tuple[str, ...] = (
     "TODO_V0.7.md",
     "docs/README.md",
     "docs/release-notes-v0.3.0.md",
+    "docs/release-notes-v0.7.0.md",
     "docs/runbooks/llm-gateway.md",
     "docs/runbooks/staging.md",
     "docs/runbooks/operations.md",
@@ -64,6 +65,10 @@ README_COUNT_PATTERNS: dict[str, re.Pattern[str]] = {
 README_ALEMBIC_RE = re.compile(
     r"Alembic head \*\*(?P<head>[0-9a-z_]+)\*\* \((?P<count>\d+)\)"
 )
+
+#: Ожидаемый прогресс активного плана: S-82, S-83, S-85 закрыты;
+#: S-81 (live staging, ждёт боевых ключей) и S-84 (GPU-станция) отложены.
+EXPECTED_PROGRESS: tuple[int, int] = (3, 5)
 
 CollectError = str
 
@@ -445,6 +450,12 @@ def _check_todo_progress(root: Path) -> list[str]:
             )
         if done > total:
             errors.append(f"F: TODO_V0.7.md: прогресс {done}/{total} > плана")
+        elif (done, total) != EXPECTED_PROGRESS:
+            errors.append(
+                f"F: TODO_V0.7.md: прогресс {done}/{total},"
+                f" ожидается {EXPECTED_PROGRESS[0]}/{EXPECTED_PROGRESS[1]}"
+                " (S-81/S-84 отложены)"
+            )
     return errors
 
 

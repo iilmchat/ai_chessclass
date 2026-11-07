@@ -49,7 +49,19 @@ def test_collect_versions_consistent() -> None:
     versions = doc_lint._collect_versions(REPO)
 
     assert versions
-    assert all(value == "0.6.0" for value in versions.values())
+    assert all(value == "0.7.0" for value in versions.values())
+
+
+def test_release_notes_for_current_version_exist() -> None:
+    version = doc_lint._collect_versions(REPO)["backend/pyproject.toml"]
+
+    assert (REPO / f"docs/release-notes-v{version}.md").is_file()
+
+
+def test_todo_progress_matches_deferred_sprints() -> None:
+    # S-82, S-83, S-85 закрыты; S-81 (ключи) и S-84 (станция) отложены.
+    assert doc_lint._check_todo_progress(REPO) == []
+    assert doc_lint.EXPECTED_PROGRESS == (3, 5)
 
 
 def test_stale_markers_detected(tmp_path: Path) -> None:

@@ -1,11 +1,12 @@
 # TODO_V0.7.md — План v0.7.0 «Production Readiness & Legal»
 
-**Статус:** 🔶 В работе (S-82 ✅, S-83 ✅; S-81 ждёт боевых ключей, S-84/S-85 впереди)
-**Сводно:** 5 спринтов · **Прогресс: 2/5**
+**Статус:** ✅ v0.7.0 (S-82 ✅, S-83 ✅, S-85 ✅; S-81/S-84 ⏸️ отложены)
+**Сводно:** 5 спринтов · **Прогресс: 3/5**
 **Цель:** Довести платформу до состояния, пригодного для реальной школы: live-приёмка на staging с боевыми ключами, prod-контур observability с Alertmanager, юридическая проверка privacy-policy и GPU-туннель на реальной станции.
 
 ## Спринт S-81 (P0): Live Staging Acceptance
 **Ветка:** `feat/s-81-live-staging`
+**Статус:** ⏸️ Отложен (требуются внешние ключи LRS/ElevenLabs)
 
 **Задачи:**
 - [ ] Подключить боевые ключи LRS (OAuth2) и ElevenLabs на staging (внешние credentials в `.env.staging`, не в git).
@@ -72,6 +73,7 @@
 
 ## Спринт S-84 (P1): GPU Tunnel on Real Station
 **Ветка:** `feat/s-84-gpu-tunnel`
+**Статус:** ⏸️ Отложен (требуется физическая станция RTX 3060 + LM Studio)
 
 **Задачи:**
 - [ ] Настроить обратный SSH-туннель на реальной Windows-станции (RTX 3060 + LM Studio).
@@ -89,12 +91,19 @@
 
 ## Спринт S-85 (P0): Release v0.7.0
 **Ветка:** `release/v0.7.0`
+**Статус:** ✅ Завершён (2026-11-07)
 
 **Задачи:**
-- [ ] Обновить версии до 0.7.0, счётчики, `docs/release-notes-v0.7.0.md`.
-- [ ] Финальный `ci.ps1` + `e2e.ps1` + staging smoke.
-- [ ] Тег `v0.7.0`, squash-merge в main.
+- [x] Обновить версии до 0.7.0, счётчики, `docs/release-notes-v0.7.0.md`.
+- [x] Финальный `ci.ps1` + `e2e.ps1` + staging smoke.
+- [x] Тег `v0.7.0`, squash-merge в main.
 
 **DoD:**
-- [ ] Тег `v0.7.0` запушен.
-- [ ] Отчёт: `docs/sprint-reports/S-85-YYYY-MM-DD.md`.
+- [x] Тег `v0.7.0` запушен.
+- [x] Отчёт: `docs/sprint-reports/S-85-2026-11-07.md`.
+
+> **Факты релиза:** версия 0.7.0 во всех источниках (backend/frontend,
+> IMAGE_TAG prod/staging); release-notes v0.7.0 и CHANGELOG `[0.7.0]`;
+> финальные прогоны `ci.ps1`, `e2e.ps1`, Vitest/build, `observability-selftest`
+> и `docker compose config -q` — зелёные. S-81/S-84 остаются отложенными:
+> live LRS/TTS не проверены без боевых ключей, GPU-туннель — без станции.
