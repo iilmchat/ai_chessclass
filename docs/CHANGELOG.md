@@ -5,6 +5,42 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
+## [Unreleased] — v0.7.1
+
+### Добавлено
+
+#### S-86 — Email Outbox Hardening (2026-11-08)
+- `deliver_pending` использует `SELECT … FOR UPDATE SKIP LOCKED`: два
+  параллельных cron-воркера не выбирают одно и то же письмо; блокировка
+  живёт до commit транзакции.
+- Retention `email_outbox`: env `EMAIL_OUTBOX_RETENTION_DAYS=30`; `sent` и
+  `failed` старше срока архивируются в gzip-JSONL (`email_outbox-*.jsonl.gz`)
+  и удаляются, `pending` не затрагивается. Политика добавлена в
+  `run_retention`/`retention_counts` и админский `/retention/status`.
+- Индекс `ix_email_outbox_status_next(status, next_attempt_at)` уже создан
+  миграцией `0035_s83_email_outbox`; новая миграция не требуется — 35
+  миграций, head прежний.
+- Тесты: `test_deliver_pending_skips_locked` (два параллельных прохода,
+  каждое письмо ровно один раз), `test_email_outbox_due_index_exists`,
+  `test_retention_email_outbox` (архив/удаление, pending сохраняется).
+  Backend — 305 collected (302 passed + 3 skipped).
+- `TODO_V0.7.1.md` — план цикла v0.7.1 (S-86…S-89); `TODO_V0.7.md`
+  зафиксировал, что S-86 в него не входит.
+
+### Изменено
+- `scripts/doc_lint.py` — активный план `TODO_V0.7.1.md`, прогресс 1/4;
+  `backend/tests/test_doc_lint.py` — ожидания v0.7.1.
+- `docs/SPEC.md` (§3.17, DDL `email_outbox`), `Design.md` (ADR-020, §16.1),
+  README/docs README — SKIP LOCKED, retention, env.
+
+### Исправлено
+- `frontend/src/pages/BotsPage.tsx` — optimistic update после `POST /bots`:
+  commit сессии может произойти после ответа, и немедленный `GET /bots`
+  возвращал старый список; кнопка «Матч vs random» не появлялась
+  (флейк e2e `full-journey`).
+- `frontend/e2e/full-journey.spec.ts` — PDF-проверка ждёт доступности
+  отчёта (`expect.poll`), не превращая read-after-write в флейк.
+
 ## [0.7.0] - 2026-11-07
 
 ### Добавлено

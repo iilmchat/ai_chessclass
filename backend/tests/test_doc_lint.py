@@ -58,10 +58,10 @@ def test_release_notes_for_current_version_exist() -> None:
     assert (REPO / f"docs/release-notes-v{version}.md").is_file()
 
 
-def test_todo_progress_matches_deferred_sprints() -> None:
-    # S-82, S-83, S-85 закрыты; S-81 (ключи) и S-84 (станция) отложены.
+def test_todo_progress_matches_active_plan() -> None:
+    # S-86 закрыт; S-87…S-89 — план v0.7.1.
     assert doc_lint._check_todo_progress(REPO) == []
-    assert doc_lint.EXPECTED_PROGRESS == (3, 5)
+    assert doc_lint.EXPECTED_PROGRESS == (1, 4)
 
 
 def test_stale_markers_detected(tmp_path: Path) -> None:

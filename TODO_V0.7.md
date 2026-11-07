@@ -107,3 +107,10 @@
 > финальные прогоны `ci.ps1`, `e2e.ps1`, Vitest/build, `observability-selftest`
 > и `docker compose config -q` — зелёные. S-81/S-84 остаются отложенными:
 > live LRS/TTS не проверены без боевых ключей, GPU-туннель — без станции.
+
+---
+
+> **S-86…S-89 не входят в v0.7.0**: цикл v0.7.1 «Tech Debt Cleanup»
+> описан в `TODO_V0.7.1.md` (S-86 email outbox hardening — SKIP LOCKED и
+> retention; S-87 observability hardening; S-88 ротация сертификатов;
+> S-89 релиз v0.7.1).

@@ -1,6 +1,6 @@
 """S-46: retention — архив и удаление старых журналов/кэша."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import sqlalchemy as sa
@@ -9,6 +9,7 @@ from core.config import settings
 from core.db import session_factory
 from domains.audit.models import AuditLog
 from domains.auth.models import User, UserRole
+from domains.notifications.models import EmailOutbox
 from domains.observability.models import FailedJob
 from domains.retention.service import last_run, retention_counts, run_retention
 from domains.studies.models import ChessStudy, StudyStatus
@@ -166,4 +167,96 @@ async def test_retention_archives_and_keeps_published(
                 "OR action = 'retention.run'"
             )
         )
+        await session.commit()
+
+
+async def test_retention_email_outbox(tmp_path, monkeypatch):
+    """S-86: sent/failed старше retention архивируются и удаляются."""
+    kind = "test-retention-email-outbox"
+    now = datetime(2026, 11, 8, tzinfo=UTC)
+    old = now - timedelta(days=60)
+    recent = now - timedelta(days=1)
+
+    async with session_factory() as session:
+        await session.execute(
+            sa.delete(EmailOutbox).where(EmailOutbox.kind == kind)
+        )
+        session.add_all(
+            [
+                EmailOutbox(
+                    kind=kind,
+                    recipient="parent@example.com",
+                    subject="old sent",
+                    body="old-sent-body",
+                    status="sent",
+                    attempts=1,
+                    next_attempt_at=old,
+                    created_at=old,
+                    sent_at=old,
+                ),
+                EmailOutbox(
+                    kind=kind,
+                    recipient="parent@example.com",
+                    subject="old failed",
+                    body="old-failed-body",
+                    status="failed",
+                    attempts=8,
+                    last_error="smtp down",
+                    next_attempt_at=old,
+                    created_at=old,
+                ),
+                EmailOutbox(
+                    kind=kind,
+                    recipient="parent@example.com",
+                    subject="old pending",
+                    body="old-pending-body",
+                    status="pending",
+                    attempts=0,
+                    next_attempt_at=old,
+                    created_at=old,
+                ),
+                EmailOutbox(
+                    kind=kind,
+                    recipient="parent@example.com",
+                    subject="fresh sent",
+                    body="fresh-sent-body",
+                    status="sent",
+                    attempts=1,
+                    next_attempt_at=recent,
+                    created_at=recent,
+                    sent_at=recent,
+                ),
+            ]
+        )
+        await session.commit()
+
+    monkeypatch.setattr(settings, "retention_archive_dir", str(tmp_path / "archive"))
+    monkeypatch.setattr(settings, "email_outbox_retention_days", 30)
+
+    async with session_factory() as session:
+        counts = await retention_counts(session, now=now)
+        email_count = next(item for item in counts if item["policy"] == "email_outbox")
+        assert email_count["retentionDays"] == 30
+        assert email_count["rows"] == 2
+
+        results = await run_retention(session, now=now)
+        await session.commit()
+        policy = next(item for item in results if item.policy == "email_outbox")
+        assert policy.rows == 2
+        assert policy.archived == 2
+        assert policy.deleted == 2
+        assert policy.archive_path is not None
+
+        remaining = {
+            row.subject: row.status
+            for row in (
+                await session.execute(
+                    sa.select(EmailOutbox).where(EmailOutbox.kind == kind)
+                )
+            ).scalars()
+        }
+        assert remaining == {"old pending": "pending", "fresh sent": "sent"}
+        assert list((tmp_path / "archive").glob("email_outbox-*.jsonl.gz"))
+
+        await session.execute(sa.delete(EmailOutbox).where(EmailOutbox.kind == kind))
         await session.commit()

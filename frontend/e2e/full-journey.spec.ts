@@ -150,6 +150,16 @@ test.describe('authenticated journey', () => {
       expect(created.status()).toBe(201);
       const { reportId } = (await created.json()) as { reportId: number };
 
+      // S-86: commit сессии может произойти после ответа POST — даём отчёту
+      // стать видимым, не превращая read-after-write в флейк.
+      await expect
+        .poll(
+          async () =>
+            (await admin.get(`${API}/reports/pdf/${reportId}`, { headers }))
+              .status(),
+          { timeout: 5_000 }
+        )
+        .toBe(200);
       const pdf = await admin.get(`${API}/reports/pdf/${reportId}`, {
         headers,
       });

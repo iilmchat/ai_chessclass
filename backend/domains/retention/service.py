@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from domains.audit import service as audit_svc
 from domains.audit.models import AuditLog
+from domains.notifications.models import EmailOutbox
 from domains.observability.models import FailedJob
 from domains.studies.models import ChessStudy, StudyStatus
 from domains.voice.models import VoiceAudio
@@ -195,6 +196,35 @@ async def run_retention(
         RetentionResult(**{**asdict(result), "cutoff": failed_cutoff.isoformat()})
     )
 
+    # S-86: email_outbox — архивируем/удаляем терминальные строки (sent/failed)
+    # старше retention. Для sent используем sent_at, для failed — created_at;
+    # pending-строки не трогаем, чтобы не потерять недоставленное письмо.
+    email_cutoff = now - timedelta(days=settings.email_outbox_retention_days)
+    email_rows = list(
+        (
+            await session.execute(
+                select(EmailOutbox)
+                .where(
+                    EmailOutbox.status.in_(("sent", "failed")),
+                    func.coalesce(EmailOutbox.sent_at, EmailOutbox.created_at)
+                    < email_cutoff,
+                )
+                .order_by(EmailOutbox.id)
+                .limit(batch)
+            )
+        ).scalars()
+    )
+    result = await _process(
+        session,
+        policy="email_outbox",
+        rows=email_rows,
+        dry_run=dry_run,
+        now=now,
+    )
+    results.append(
+        RetentionResult(**{**asdict(result), "cutoff": email_cutoff.isoformat()})
+    )
+
     if not dry_run:
         await audit_svc.record(
             session,
@@ -251,6 +281,12 @@ async def retention_counts(
             settings.failed_jobs_retention_days,
             FailedJob.failed_at,
         ),
+        (
+            "email_outbox",
+            EmailOutbox,
+            settings.email_outbox_retention_days,
+            func.coalesce(EmailOutbox.sent_at, EmailOutbox.created_at),
+        ),
     ]
     out: list[dict] = []
     for policy, model, days, time_col in checks:
@@ -260,6 +296,8 @@ async def retention_counts(
             stmt = stmt.where(
                 ChessStudy.status.in_([StudyStatus.DRAFT, StudyStatus.REJECTED])
             )
+        elif policy == "email_outbox":
+            stmt = stmt.where(EmailOutbox.status.in_(("sent", "failed")))
         count = int(await session.scalar(stmt) or 0)
         out.append(
             {
