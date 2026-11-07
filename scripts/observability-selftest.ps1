@@ -130,12 +130,26 @@ try {
         throw "Prometheus/Alertmanager не готовы за 180 с"
     }
     Check "Prometheus видит все targets" {
-        $targets = (Invoke-RestMethod -Uri "$prom/api/v1/targets").data.activeTargets
-        $jobs = $targets | ForEach-Object { $_.labels.job }
+        # Первый scrape идёт через scrape_interval (15 с): readiness Prometheus
+        # не означает, что target уже опрошен. Ждём до 90 с.
+        $deadline = (Get-Date).AddSeconds(90)
+        $targets = @()
+        $jobs = @()
+        $down = @()
+        do {
+            $targets = (Invoke-RestMethod -Uri "$prom/api/v1/targets").data.activeTargets
+            $jobs = $targets | ForEach-Object { $_.labels.job }
+            $down = @($targets | Where-Object { $_.health -ne "up" })
+            if ($down.Count -eq 0) {
+                $missing = @("chessclass-api", "otel-collector", "prometheus", "alertmanager") |
+                    Where-Object { $jobs -notcontains $_ }
+                if ($missing.Count -eq 0) { return }
+            }
+            Start-Sleep -Seconds 3
+        } while ((Get-Date) -lt $deadline)
         foreach ($job in @("chessclass-api", "otel-collector", "prometheus", "alertmanager")) {
             Assert-True ($jobs -contains $job) "target не найден: $job"
         }
-        $down = $targets | Where-Object { $_.health -ne "up" }
         Assert-True ($down.Count -eq 0) ("targets down: " + (($down | ForEach-Object { $_.labels.job }) -join ","))
     }
     Check "правила загружены в Prometheus (5)" {
@@ -144,7 +158,14 @@ try {
         Assert-True ($count -eq 5) "rules=$count"
     }
     Check "Alertmanager связан с Prometheus" {
-        $ams = (Invoke-RestMethod -Uri "$prom/api/v1/alertmanagers").data.activeAlertmanagers
+        # Service discovery Alertmanager также обновляется по интервалу.
+        $deadline = (Get-Date).AddSeconds(90)
+        $ams = @()
+        do {
+            $ams = @((Invoke-RestMethod -Uri "$prom/api/v1/alertmanagers").data.activeAlertmanagers)
+            if ($ams.Count -ge 1) { return }
+            Start-Sleep -Seconds 3
+        } while ((Get-Date) -lt $deadline)
         Assert-True ($ams.Count -ge 1) "нет активных Alertmanager"
     }
     Check "маршруты Alertmanager: critical→telegram-critical, warning→telegram" {

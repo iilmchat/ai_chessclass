@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.6.0 · **Дата:** 2026-11-06
+**Версия:** v0.7.0 · **Дата:** 2026-11-07
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 
@@ -1285,7 +1285,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 | LLM-контракты | vcr/провайдер-mock; echo-fallback в CI | средний |
 | API | TestClient-контракты (auth, RBAC, пагинация) | высокий |
 | Frontend | vitest + RTL (ключевые экраны) | средний |
-| e2e | Playwright (7 сценариев: регистрация → задание → бот-матч → дашборд) | высокий |
+| e2e | Playwright (16 сценариев: journey, axe, PvP, RAG/review/ops/telegram/consent/chess-a11y) | высокий |
 
 - S-71: после seeds CI блокирующе запускает `chess_rag_eval.py` (MISS →
   exit 1) и `rag_gold_check.py` (мёртвый gold-кейс → exit 1); локально —
@@ -1351,6 +1351,13 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   (Alertmanager/Prometheus не умеют env-expansion). Backend — 300 collected
   (297 passed + 3 skipped), `tests/test_observability_config.py` (12 проверок
   конфигов); миграций по-прежнему 35, head `0035_s83_email_outbox`.
+- S-85 (v0.7.0): релиз — версия 0.7.0 во всех источниках (backend/frontend,
+  `IMAGE_TAG` prod/staging), `docs/release-notes-v0.7.0.md`, CHANGELOG
+  `[0.7.0]`, тег `v0.7.0`; финальные `ci.ps1`/`e2e.ps1`, Vitest/build,
+  observability-selftest и `docker compose config -q` — зелёные. 35 миграций,
+  head `0035_s83_email_outbox`; backend — 302 collected (299 passed +
+  3 skipped), e2e — 16. S-81 (live staging) и S-84 (GPU-туннель) отложены
+  до появления боевых ключей LRS/TTS и физической станции RTX 3060.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

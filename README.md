@@ -4,8 +4,8 @@
 лаборатория с разбором партий, конструктор ботов с лестницей Elo и когнитивный
 дашборд навыков — **один профиль, один уровень, один LLM-ассистент** на все домены.
 
-**Версия:** v0.6.0 (51/51 спринтов, релиз) · **Предыдущая:** v0.5.0
-([release notes](docs/release-notes-v0.5.0.md)) · **© 2026 RuChating (iilmchat)**
+**Версия:** v0.7.0 (54/56 спринтов, релиз; S-81/S-84 отложены) · **Предыдущая:** v0.6.0
+([release notes](docs/release-notes-v0.6.0.md)) · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
 [![load](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml/badge.svg?event=schedule)](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml)
@@ -84,14 +84,14 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
   согласия для LLM/PDF (S-75), DLQ-операции/retry (S-76), OTel Collector +
   Grafana p95/error/trace_id (S-77), GPU-ключ/SSH-runbook (S-78), live LRS
   OAuth2, TTS fallback и a11y-доска (S-79); далее release v0.6.0.
-- **v0.7 (S-81…S-85, в работе)** — prod-observability с Alertmanager и
+- **v0.7 (S-81…S-85, релиз)** — prod-observability с Alertmanager и
   доставкой алертов в Telegram (S-82: OTel Collector → Tempo/Prometheus →
   Grafana, mTLS, retention 7/15 дней, профиль `observability`); внутренняя
   юридическая проверка privacy-policy/incident-response (РФ/ЕС/США) и
   consent enforcement v0.6.1: подтверждение возрастной группы ученика
   учителем, очередь `email_outbox` с retry/backoff для писем родителям
-  (S-83); далее live staging (S-81, ждёт боевых ключей LRS/TTS),
-  GPU-туннель (S-84), релиз v0.7.0 (S-85).
+  (S-83); релиз v0.7.0 (S-85). Отложены: live staging-приёмка (S-81, ждёт
+  боевых ключей LRS/TTS) и GPU-туннель (S-84, нет физической станции).
 
 ---
 
@@ -146,15 +146,15 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v0.6.0** (2026-11-06, релиз) |
-| Спринты | **53 закрыто** (S-30…S-83), этапы E-11…E-24 ✅; v0.7: S-82 ✅, S-83 ✅, S-81 ждёт боевых ключей, далее S-84/S-85 |
-| Тесты backend | **300 passed** (число собранных тестов; факт — 287 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82) |
+| Версия | **v0.7.0** (2026-11-07, релиз) |
+| Спринты | **54 закрыто** (S-30…S-85), этапы E-11…E-24 ✅; v0.7: S-82 ✅, S-83 ✅, S-85 ✅; S-81 ⏸️ (нет боевых ключей LRS/TTS), S-84 ⏸️ (нет физической станции) |
+| Тесты backend | **302 passed** (число собранных тестов; факт — 299 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **16 passed** (Playwright: journey 7 + axe 2 + PvP 1 + RAG/review/ops/telegram/consent/chess-a11y 6) |
 | Миграции | Alembic head **0035_s83_email_outbox** (35) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
-| Следующий этап | v0.7: live staging-приёмка (S-81), prod OTel/Alertmanager (S-82), GPU-туннель (S-84), релиз v0.7.0 (S-85) |
+| Следующий этап | v0.7.1/v0.8: live staging-приёмка с боевыми ключами (S-81), GPU-туннель на станции (S-84), мониторинг reconnect |
 
 ---
 
@@ -170,9 +170,10 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [TODO_V0.4.md](TODO_V0.4.md) — завершённый план v0.4.0 (S-58…S-69)
 - [TODO_V0.5.md](TODO_V0.5.md) — завершённый план v0.5.0 (S-70…S-74)
 - [TODO_V0.6.md](TODO_V0.6.md) — завершённый план v0.6.0 (S-75…S-80)
+- [TODO_V0.7.md](TODO_V0.7.md) — план v0.7.0 (S-81…S-85; S-81/S-84 отложены)
+- [docs/release-notes-v0.7.0.md](docs/release-notes-v0.7.0.md) — release notes v0.7.0
 - [docs/release-notes-v0.6.0.md](docs/release-notes-v0.6.0.md) — release notes v0.6.0
 - [docs/release-notes-v0.5.0.md](docs/release-notes-v0.5.0.md) — release notes v0.5.0
-- [TODO_V0.7.md](TODO_V0.7.md) — активный план v0.7.0 (S-81…S-85)
 - [docs/privacy-policy.md](docs/privacy-policy.md) — политика конфиденциальности
 - [docs/incident-response.md](docs/incident-response.md) — план реагирования
 - [docs/legal-review-v0.7.md](docs/legal-review-v0.7.md) — внутренний юр-ревью privacy/incident

@@ -5,9 +5,26 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
-## [Unreleased] — v0.7.0
+## [0.7.0] - 2026-11-07
 
 ### Добавлено
+
+#### S-85 — Release v0.7.0 (2026-11-07)
+- Версия **0.7.0** во всех источниках: `backend/pyproject.toml`,
+  `backend/app/__init__.py`, `backend/app/main.py`, `frontend/package.json`,
+  `frontend/package-lock.json`, `IMAGE_TAG` в prod/staging compose и
+  `.env.prod.example` / `.env.staging.example`.
+- `docs/release-notes-v0.7.0.md`; CHANGELOG `[0.7.0]`; README/Design/docs README
+  переведены на v0.7.0.
+- `TODO_V0.7.md`: S-85 ✅, прогресс **3/5**; S-81 и S-84 помечены
+  `⏸️ Отложен` (нет боевых ключей LRS/TTS / нет физической станции).
+- `scripts/doc_lint.py`: ожидаемый прогресс `(3, 5)` и release-notes v0.7.0
+  в активных документах; `backend/tests/test_doc_lint.py` — версия 0.7.0,
+  head 35, проверка прогресса и release-notes; backend — **302 collected**
+  (299 passed + 3 skipped).
+- Финальные прогоны: `ci.ps1`, `e2e.ps1 test`, Vitest/build,
+  `observability-selftest.ps1`, `docker compose config -q` для prod/staging.
+- Тег `v0.7.0` создан и запушен; отчёт `docs/sprint-reports/S-85-2026-11-07.md`.
 
 #### S-82 — OTel Collector в prod + Alertmanager (2026-11-06)
 - Профиль `observability` в `docker-compose.prod.yml` (не стартует по
@@ -56,8 +73,9 @@
   (+6); backend — 290 collected (287 passed + 3 skipped).
 
 ### Изменено
-- `scripts/doc_lint.py` — активный план `TODO_V0.7.md`, прогресс v0.7;
-  README/Design/SPEC/CHANGELOG обновлены (35 миграций, head
+- `scripts/doc_lint.py` — активный план `TODO_V0.7.md`, прогресс v0.7
+  (ожидается **3/5**, S-81/S-84 отложены), release-notes v0.7.0 в активных
+  документах; README/Design/SPEC/CHANGELOG обновлены (35 миграций, head
   `0035_s83_email_outbox`).
 
 ### Исправлено
