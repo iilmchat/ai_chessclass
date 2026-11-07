@@ -189,9 +189,23 @@ export function BotsPage() {
 
   const create = () =>
     act(async () => {
-      await apiFetch('/bots', { method: 'POST', body: JSON.stringify({ code }) });
+      const created = await apiFetch<BotDto>('/bots', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      });
+      // S-86: optimistic update — не зависим от гонки read-after-write:
+      // commit сессии может произойти уже после ответа POST, и немедленный
+      // GET /bots вернул бы старый список без новой версии.
+      setBots((prev) =>
+        prev.some((bot) => bot.id === created.id) ? prev : [...prev, created]
+      );
       setCode(DEFAULT_BOT_CODE);
-      loadAll();
+      apiFetch<{ elo: number; wins: number; losses: number; draws: number }>('/bots/stats')
+        .then(setStats)
+        .catch(() => undefined);
+      apiFetch<LeaderRow[]>('/bots/leaderboard')
+        .then(setLeaderboard)
+        .catch(() => undefined);
     });
 
   const test = (botId: string) =>

@@ -1229,7 +1229,7 @@ JWT_SECRET=change-me  JWT_ALGORITHM=HS256  JWT_KID=v1  JWT_TTL=15m  REFRESH_TTL=
 SMTP_HOST=  SMTP_PORT=587  SMTP_USER=  SMTP_PASSWORD=  SMTP_FROM=noreply@chessclass.dev
 SMTP_STARTTLS=true  SMTP_SSL=false  SMTP_TIMEOUT_S=15
 # S-83: очередь писем parental consent (retry/backoff, cron каждую минуту)
-EMAIL_OUTBOX_BATCH=50  EMAIL_OUTBOX_MAX_ATTEMPTS=8
+EMAIL_OUTBOX_BATCH=50  EMAIL_OUTBOX_MAX_ATTEMPTS=8  EMAIL_OUTBOX_RETENTION_DAYS=30
 
 # prod-observability (S-82): профиль observability, только loopback-порты
 PROMETHEUS_PORT=9092  ALERTMANAGER_PORT=9093  GRAFANA_PORT=3002
@@ -1358,6 +1358,14 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   head `0035_s83_email_outbox`; backend — 302 collected (299 passed +
   3 skipped), e2e — 16. S-81 (live staging) и S-84 (GPU-туннель) отложены
   до появления боевых ключей LRS/TTS и физической станции RTX 3060.
+- S-86 (v0.7.1): email outbox hardening — `deliver_pending` выбирает
+  due-строки с `FOR UPDATE SKIP LOCKED` (параллельные воркеры не дублируют
+  отправку), retention `EMAIL_OUTBOX_RETENTION_DAYS=30` архивирует gzip-JSONL
+  и удаляет `sent`/`failed`, `pending` не трогает; индекс
+  `ix_email_outbox_status_next(status, next_attempt_at)` уже был в `0035`,
+  новая миграция не требуется (35 миграций, head `0035_s83_email_outbox`).
+  Тесты: параллельный `deliver_pending`, наличие индекса, retention.
+  Backend — 305 collected (302 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
@@ -1501,7 +1509,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 **ADR-020: Teacher age confirmation + email outbox с retry (S-83)**
 *   **Контекст:** `age_group` задаёт ученик сам, поэтому ребёнок может указать `adult` и обойти parental consent. Одновременно SMTP-сбой при запросе согласия возвращал 502 и письмо терялось: повторной отправки не было, родитель оставался без ссылки.
 *   **Решение:** Возрастную группу ученика класса подтверждает учитель-владелец (или admin) через `POST /classes/{classId}/students/{studentId}/age-group`; в `user_profiles` хранятся `age_group_confirmed_at`/`age_group_confirmed_by`, self-PATCH `age_group` сбрасывает подтверждение (audit `profile.age_group`), подтверждение — audit `classes.student.age_group.confirm`. Письма parental consent не отправляются в HTTP-запросе: строка `email_outbox` (status `pending/sent/failed`, `attempts`, `next_attempt_at`) пишется в той же транзакции, `POST /consent/request` делает одну попытку, затем cron `email_outbox_deliver` (каждую минуту) повторяет с backoff `min(3600, 2^n)`; после `EMAIL_OUTBOX_MAX_ATTEMPTS` строка паркуется; dev-console считается доставкой (`sent`).
-*   **Последствия:** Миграции `0034_s83_teacher_age_confirm` (колонки+индекс `user_profiles`) и `0035_s83_email_outbox` (таблица+индекс+гранты `chess_app` по ADR-015); новые env `EMAIL_OUTBOX_BATCH`/`EMAIL_OUTBOX_MAX_ATTEMPTS`; consent-ответы больше не отдают 502 `email_delivery_failed`, а сообщают `emailDelivered`/`emailQueued`. Ограничения: подтверждение возраста — не верификация личности; рассинхрон teacher-confirm и self-PATCH без сериализации (last-write-wins); retention `email_outbox` пока не автоматизирован (план v0.7); тело письма содержит одноразовую ссылку — residual privacy risk, зафиксирован в legal-review.
+*   **Последствия:** Миграции `0034_s83_teacher_age_confirm` (колонки+индекс `user_profiles`) и `0035_s83_email_outbox` (таблица+индекс+гранты `chess_app` по ADR-015); новые env `EMAIL_OUTBOX_BATCH`/`EMAIL_OUTBOX_MAX_ATTEMPTS`; consent-ответы больше не отдают 502 `email_delivery_failed`, а сообщают `emailDelivered`/`emailQueued`. Ограничения: подтверждение возраста — не верификация личности; рассинхрон teacher-confirm и self-PATCH без сериализации (last-write-wins); тело письма содержит одноразовую ссылку — residual privacy risk, зафиксирован в legal-review. **S-86:** `deliver_pending` использует `FOR UPDATE SKIP LOCKED` (параллельные cron-воркеры не дублируют отправку), индекс `(status, next_attempt_at)` уже есть с `0035`; retention `EMAIL_OUTBOX_RETENTION_DAYS=30` архивирует gzip-JSONL и удаляет `sent`/`failed`, не трогая `pending`.
 
 **ADR-021: Prod-observability (профиль `observability`) (S-82)**
 *   **Контекст:** Dev-профиль S-77 поднимался вручную, Tempo хранил трейсы 24 ч без volume, Grafana работала с `admin/admin`, а алерты Prometheus никто не получал: инциденты замечались только при ручном просмотре `/ops`. Для реальной школы нужен дежурный канал и сохраняемые трейсы.

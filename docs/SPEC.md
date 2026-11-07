@@ -586,7 +586,8 @@ interface TournamentDetailOut extends TournamentOut {
 ```
 
 - Retention: `audit_logs` 365 дн., `llm_calls` 180, `voice_audio`/`voice_usage`
-  30, draft/rejected `chess_studies` 90, `failed_jobs` 90; gzip-JSONL в
+  30, draft/rejected `chess_studies` 90, `failed_jobs` 90, `email_outbox` 30
+  (S-86: только `sent`/`failed`; `pending` не удаляется); gzip-JSONL в
   `RETENTION_ARCHIVE_DIR` перед удалением; published studies не удаляются;
   dry-run без записи.
 - S-76: retry ставит задачу в arq (для `run_match` — в очередь оппонента),
@@ -1095,8 +1096,14 @@ default now(), `created_at`, `sent_at`. CHECK `email_outbox_status_values`,
 индекс `ix_email_outbox_status_next(status, next_attempt_at)`. Cron
 `email_outbox_deliver` (каждую минуту) повторяет due-строки с backoff;
 после `EMAIL_OUTBOX_MAX_ATTEMPTS` строка паркуется. DML-гранты `chess_app`
-наследуются через `ALTER DEFAULT PRIVILEGES` (ADR-015). Retention пока не
-автоматизирован — техдолг v0.7.
+наследуются через `ALTER DEFAULT PRIVILEGES` (ADR-015).
+**S-86:** `deliver_pending` выбирает строки с
+`SELECT … FOR UPDATE SKIP LOCKED`, поэтому параллельные воркеры не берут
+одно письмо дважды; индекс `(status, next_attempt_at)` уже покрывает
+выборку. Retention `EMAIL_OUTBOX_RETENTION_DAYS=30`: `sent`/`failed`
+старше срока архивируются в gzip-JSONL и удаляются, `pending` не
+затрагивается. `body` содержит только текст письма, ссылку и версию
+политики; имени/email ребёнка в теле нет (PII остаётся в `recipient`).
 
 **user_profiles (S-83, миграция 0034):** `age_group_confirmed_at`
 timestamptz NULL, `age_group_confirmed_by` bigint NULL → `users(id)

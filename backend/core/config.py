@@ -168,6 +168,8 @@ class Settings(BaseSettings):
     # --- email outbox (S-83): очередь писем с retry/backoff
     email_outbox_batch: int = 50
     email_outbox_max_attempts: int = 8
+    #: S-86: sent/failed старше N дней архивируются (gzip) и удаляются
+    email_outbox_retention_days: int = 30
     # --- tracing (S-73, ADR-017)
     otel_enabled: bool = False
     otel_service_name: str = "chessclass-api"

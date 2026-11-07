@@ -125,6 +125,14 @@ async def deliver_one(
 async def _due_rows(
     session: AsyncSession, *, limit: int | None
 ) -> list[EmailOutbox]:
+    """Выбрать due-строки, заблокировав их для других воркеров.
+
+    S-86: `FOR UPDATE SKIP LOCKED` — параллельные cron-тики (несколько
+    arq-воркеров/реплик) не возьмут одну и ту же строку: занятые строки
+    пропускаются, а не ждут освобождения. Блокировка живёт до commit/rollback
+    транзакции `deliver_pending`, поэтому каждое письмо обрабатывается ровно
+    одним процессом.
+    """
     now = _now()
     return list(
         (
@@ -137,6 +145,7 @@ async def _due_rows(
                 )
                 .order_by(EmailOutbox.id)
                 .limit(limit or settings.email_outbox_batch)
+                .with_for_update(skip_locked=True)
             )
         ).scalars()
     )

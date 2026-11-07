@@ -16,7 +16,8 @@
 | `TODO_V0.4.md` | корень | ✅ завершён | Спринты v0.4.0: S-58…S-69, этапы E-21…E-24 |
 | `TODO_V0.5.md` | корень | ✅ завершён | Спринты v0.5.0: S-70…S-74 |
 | `TODO_V0.6.md` | корень | ✅ завершён | Спринты v0.6.0: S-75…S-80 |
-| `TODO_V0.7.md` | корень | ✅ активный | Спринты v0.7.0: S-81…S-85 (S-81/S-84 отложены) |
+| `TODO_V0.7.md` | корень | ✅ завершён | Спринты v0.7.0: S-81…S-85 (S-81/S-84 отложены) |
+| `TODO_V0.7.1.md` | корень | ✅ активный | Спринты v0.7.1: S-86…S-89 (tech debt cleanup) |
 | `docs/release-notes-v0.7.0.md` | docs/ | ✅ v0.7.0 | Release notes v0.7.0 |
 | `docs/release-notes-v0.6.0.md` | docs/ | ✅ v0.6.0 | Release notes v0.6.0 |
 | `docs/release-notes-v0.5.0.md` | docs/ | ✅ v0.5.0 | Release notes v0.5.0 |
@@ -30,6 +31,7 @@
 | `docs/sprint-reports/` | docs/ | по ходу | Отчёты спринтов (по 7 пунктам; шаблон в RULES) |
 | `docs/runbooks/` | docs/ | ✅ S-31/S-38/S-58 | Эксплуатация: LLM-шлюз, бэкапы, TLS, инциденты, staging-контур (`staging.md`) |
 | `docs/sprint-reports/S-85-2026-11-07.md` | docs/ | ✅ S-85 | Отчёт релиза v0.7.0 (прогоны, тег, риски) |
+| `docs/sprint-reports/S-86-2026-11-08.md` | docs/ | ✅ S-86 | Email outbox hardening (SKIP LOCKED, retention) |
 
 ## Исходные проекты (первоисточники контента)
 
