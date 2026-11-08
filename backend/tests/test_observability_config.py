@@ -6,6 +6,7 @@ entrypoint-рендер секретов и документацию runbook.
 """
 
 import json
+import re
 from pathlib import Path
 
 import yaml
@@ -15,7 +16,14 @@ ROOT = _MOUNT if (_MOUNT / "deploy").is_dir() else Path(__file__).resolve().pare
 OBS = ROOT / "deploy/observability"
 PROD = OBS / "prod"
 
-OBS_SERVICES = ("tempo", "otel-collector", "prometheus", "alertmanager", "grafana")
+OBS_SERVICES = (
+    "tempo",
+    "otel-collector",
+    "node-exporter",
+    "prometheus",
+    "alertmanager",
+    "grafana",
+)
 
 
 def _load(path: Path) -> dict:
@@ -162,8 +170,8 @@ def test_alertmanager_telegram_route_and_inhibit():
     assert config["templates"] == ["/etc/alertmanager/telegram.tmpl"]
 
     receivers = {item["name"]: item for item in config["receivers"]}
-    assert set(receivers) == {"telegram", "telegram-critical"}
-    for name in receivers:
+    assert set(receivers) == {"telegram", "telegram-critical", "email"}
+    for name in ("telegram", "telegram-critical"):
         telegram = receivers[name]["telegram_configs"][0]
         assert telegram["bot_token"] == "__TELEGRAM_BOT_TOKEN__"
         assert telegram["chat_id"] == "__TELEGRAM_ALERT_CHAT_ID__"
@@ -175,11 +183,28 @@ def test_alertmanager_telegram_route_and_inhibit():
     assert set(route["group_by"]) == {"alertname", "severity", "component"}
     assert route["group_wait"] == "30s"
     assert route["repeat_interval"] == "3h"
-    children = {item["receiver"]: item for item in route["routes"]}
-    assert children["telegram-critical"]["matchers"] == ['severity="critical"']
-    assert children["telegram-critical"]["repeat_interval"] == "1h"
-    assert children["telegram"]["matchers"] == ['severity="warning"']
-    assert children["telegram"]["repeat_interval"] == "6h"
+
+    # S-87: critical и warning идут в Telegram и в email; continue: true —
+    # второй receiver не отменяет первый.
+    children = route["routes"]
+    assert [item["receiver"] for item in children] == [
+        "telegram-critical",
+        "email",
+        "telegram",
+        "email",
+    ]
+    assert [item["matchers"] for item in children] == [
+        ['severity="critical"'],
+        ['severity="critical"'],
+        ['severity="warning"'],
+        ['severity="warning"'],
+    ]
+    assert children[0]["continue"] is True
+    assert children[2]["continue"] is True
+    assert children[0]["repeat_interval"] == "1h"
+    assert children[1]["repeat_interval"] == "1h"
+    assert children[2]["repeat_interval"] == "6h"
+    assert children[3]["repeat_interval"] == "6h"
 
     # Inhibit: critical гасит warning того же alertname/component,
     # ApiDown гасит остальные api-алерты.
@@ -196,6 +221,88 @@ def test_alertmanager_telegram_route_and_inhibit():
     assert "Annotations.summary" in template
 
 
+def test_alertmanager_second_receiver_email_and_masking():
+    """S-87: email — второй канал; логи Alertmanager маскируют bot token."""
+    config = _load(PROD / "alertmanager.yml.tmpl")
+    email = {item["name"]: item for item in config["receivers"]}["email"]
+    email_config = email["email_configs"][0]
+    assert email_config["to"] == "__ALERT_EMAIL_TO__"
+    assert email_config["smarthost"] == "__SMTP_HOST__:__SMTP_PORT__"
+    assert email_config["send_resolved"] is True
+    assert email_config["require_tls"] == "__SMTP_REQUIRE_TLS__"
+    # Email-блоки условные: без SMTP_HOST/ALERT_EMAIL_TO entrypoint их удаляет.
+    template = (PROD / "alertmanager.yml.tmpl").read_text(encoding="utf-8")
+    begin_markers = re.findall(r"(?m)^\s*# __EMAIL_BEGIN__\s*$", template)
+    end_markers = re.findall(r"(?m)^\s*# __EMAIL_END__\s*$", template)
+    assert len(begin_markers) == len(end_markers) == 3
+
+    render = (PROD / "alertmanager-render.sh").read_text(encoding="utf-8")
+    assert "SMTP_HOST" in render and "ALERT_EMAIL_TO" in render
+    assert "# __EMAIL_BEGIN__" in render and "sed -i" in render
+    assert "chmod 600" in render
+
+    entrypoint = (PROD / "alertmanager-entrypoint.sh").read_text(encoding="utf-8")
+    assert "alertmanager-render.sh" in entrypoint
+    assert "redact-logs.awk" in entrypoint
+    assert "amtool check-config" in entrypoint
+
+    redact = (PROD / "redact-logs.awk").read_text(encoding="utf-8")
+    assert "bot[0-9]+:[A-Za-z0-9_-]+" in redact
+    assert "bot<REDACTED>" in redact
+    assert "Authorization: Bearer <REDACTED>" in redact
+
+    # В prod-конфигах нет реального/похожего на реальный токена: только
+    # шаблонные placeholder'ы и regex-фильтр.
+    token_re = re.compile(r"bot\d+:[A-Za-z0-9_-]{20,}")
+    for path in PROD.rglob("*"):
+        if path.is_file():
+            assert not token_re.search(path.read_text(encoding="utf-8")), path
+
+
+def test_selftest_covers_masking_and_second_receiver():
+    """S-87: selftest проверяет маскировку, email-приёмник и disk-alert."""
+    selftest = (ROOT / "scripts/observability-selftest.ps1").read_text(encoding="utf-8")
+    for needle in (
+        "redact-logs.awk",
+        "SMTP-приёмник",
+        "node-exporter",
+        "ChessClassSelftest",
+        "bot<REDACTED>",
+        "ChessClassObservabilityDiskFull",
+    ):
+        assert needle in selftest, needle
+    assert "up -d tempo otel-collector node-exporter prometheus alertmanager grafana" in selftest
+
+    sink = ROOT / "scripts/observability-smtp-sink.py"
+    assert sink.is_file()
+    assert "SMTP sink ready" in sink.read_text(encoding="utf-8")
+
+
+def test_observability_disk_alert_uses_node_exporter():
+    """S-87: диск traces измеряется node_exporter'ом на volume /var/tempo."""
+    alerts = _load(OBS / "alerts.yml")
+    rules = {
+        rule["alert"]: rule for group in alerts["groups"] for rule in group["rules"]
+    }
+    disk = rules["ChessClassObservabilityDiskFull"]
+    assert disk["labels"]["severity"] == "critical"
+    assert disk["labels"]["component"] == "observability"
+    assert 'mountpoint="/var/tempo"' in disk["expr"]
+    assert "node_filesystem_avail_bytes" in disk["expr"]
+    assert "node_filesystem_size_bytes" in disk["expr"]
+    assert "< 0.10" in disk["expr"]
+
+    compose = _load(ROOT / "docker-compose.prod.yml")
+    node_exporter = compose["services"]["node-exporter"]
+    assert "observability" in node_exporter["profiles"]
+    assert "chessclass_prod_tempo:/var/tempo:ro" in node_exporter["volumes"]
+    assert "ports" not in node_exporter
+
+    prom = (PROD / "prometheus.yml.tmpl").read_text(encoding="utf-8")
+    assert "job_name: node-exporter" in prom
+    assert "node-exporter:9100" in prom
+
+
 def test_alerts_cover_required_signals():
     alerts = _load(OBS / "alerts.yml")
     rules = {
@@ -207,11 +314,12 @@ def test_alerts_cover_required_signals():
         "ChessClassP95LatencyHigh",
         "ChessClassDLQGrowth",
         "ChessClassDLQGrowthRate",
+        "ChessClassObservabilityDiskFull",
     ):
         assert name in rules, name
     for rule in rules.values():
         assert rule["labels"]["severity"] in {"warning", "critical"}
-        assert rule["labels"]["component"] in {"api", "worker"}
+        assert rule["labels"]["component"] in {"api", "worker", "observability"}
         assert rule["annotations"]["summary"]
         assert rule["annotations"]["description"]
     # 5xx-rate и p95 считаются по HTTP-метрикам, DLQ — по счётчику failed_jobs.
@@ -229,9 +337,19 @@ def test_entrypoints_and_cert_script():
     assert alertmanager_entrypoint.startswith("#!/bin/sh")
     assert "set -eu" in alertmanager_entrypoint
     assert "umask 077" in alertmanager_entrypoint
-    assert "TELEGRAM_BOT_TOKEN:?" in alertmanager_entrypoint
+    assert "alertmanager-render.sh" in alertmanager_entrypoint
+    assert "redact-logs.awk" in alertmanager_entrypoint
     assert "amtool check-config" in alertmanager_entrypoint
-    assert "chmod 600" in alertmanager_entrypoint
+    assert "mkfifo" in alertmanager_entrypoint
+    assert "kill -TERM" in alertmanager_entrypoint
+
+    alertmanager_render = (PROD / "alertmanager-render.sh").read_text(encoding="utf-8")
+    assert alertmanager_render.startswith("#!/bin/sh")
+    assert "TELEGRAM_BOT_TOKEN:?" in alertmanager_render
+    assert "chmod 600" in alertmanager_render
+    assert "sed_escape" in alertmanager_render
+    assert "__SMTP_PASSWORD__" in alertmanager_render
+    assert "ALERT_EMAIL_TO" in alertmanager_render
 
     prometheus_entrypoint = (PROD / "prometheus-entrypoint.sh").read_text(
         encoding="utf-8"
@@ -240,8 +358,10 @@ def test_entrypoints_and_cert_script():
     assert "__METRICS_TOKEN__" in prometheus_entrypoint
     assert "--storage.tsdb.retention.time" in prometheus_entrypoint
 
-    # Секреты не логируются: entrypoint не печатает значения env.
+    # Секреты не логируются: entrypoint/render не печатают значения env.
     assert "echo \"$TELEGRAM_BOT_TOKEN\"" not in alertmanager_entrypoint
+    assert "echo \"$TELEGRAM_BOT_TOKEN\"" not in alertmanager_render
+    assert "echo \"$SMTP_PASSWORD\"" not in alertmanager_render
 
     cert_script = (ROOT / "scripts/gen-internal-certs.ps1").read_text(encoding="utf-8")
     assert "alpine/openssl" in cert_script
@@ -266,6 +386,8 @@ def test_env_examples_document_observability():
         "METRICS_TOKEN",
         "OTEL_ENABLED",
         "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "ALERT_EMAIL_TO",
+        "ALERT_TELEGRAM_API_URL",
     ):
         assert f"{key}=" in prod_env, key
     assert "CHANGE_ME_GRAFANA_PASSWORD" in prod_env
@@ -289,6 +411,11 @@ def test_runbooks_document_alerts_and_duty():
     assert "TELEGRAM_ALERT_CHAT_ID" in operations
     assert "amtool" in operations
     assert "gen-internal-certs.ps1" in operations
+    # S-87: маскировка, второй канал и диск observability описаны в §10.
+    assert "Маскировка секретов" in operations
+    assert "Второй канал" in operations
+    assert "ChessClassObservabilityDiskFull" in operations
     incident = (ROOT / "docs/incident-response.md").read_text(encoding="utf-8")
     assert "Алерты и дежурство" in incident
     assert "Alertmanager" in incident
+    assert "ALERT_EMAIL_TO" in incident

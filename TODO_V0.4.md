@@ -204,7 +204,7 @@ RAG-редактор — API-only, CSP/axe/hash-lock/egress — остаточн
   **e2e `pvp.spec.ts` — два браузера: host создаёт комнату, guest входит
   по коду, обе страницы ждут done на реальном SF-воркере, реплей с доской
   и шагами, жалоба через UI, admin закрывает reviewed+note в UI —
-  1 passed (14.1с) на изолированномe2e-стенде**
+  1 passed (14.1с) на изолированном e2e-стенде**
   `scripts/e2e-targeted.ps1`; backend 223 теста, ruff/mypy 0, vitest 5/5,
   tsc build green; отчёт — `docs/sprint-reports/S-65-2026-11-03.md`)
 - **Фикс по ходу:** `GET /pvp/rooms/{id}/replay?match_id=` — параметр

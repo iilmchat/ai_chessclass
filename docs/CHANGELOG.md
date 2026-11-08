@@ -9,6 +9,26 @@
 
 ### Добавлено
 
+#### S-87 — Observability Hardening (2026-11-08)
+- Логи Alertmanager проходят через `deploy/observability/prod/redact-logs.awk`:
+  `bot<digits>:<token>` → `bot<REDACTED>`, `Authorization: Bearer …` →
+  `Authorization: Bearer <REDACTED>`. Фильтр построчный (`fflush`), поэтому
+  `docker logs` не задерживает строки; тест — selftest и
+  `tests/test_observability_config.py`.
+- Второй receiver email: `alertmanager-render.sh` подставляет SMTP-настройки
+  и включает блоки `# __EMAIL_BEGIN__ … # __EMAIL_END__` только при заданных
+  `SMTP_HOST` + `ALERT_EMAIL_TO`. Маршруты `critical → telegram-critical,email`
+  и `warning → telegram,email` — отдельные routes с `continue: true`, поэтому
+  сбой одного канала не блокирует другой.
+- `node-exporter` в профиле `observability` монтирует volumes профиля
+  read-only; правило `ChessClassObservabilityDiskFull` (critical, <10% на
+  `/var/tempo`, `for: 10m`).
+- Runbook `operations.md` §10.6/§10.7/§10.10–§10.12, incident-response §4.1
+  (резервный email-канал), `deploy/observability/README.md`.
+- Тесты: `test_alertmanager_second_receiver_email_and_masking`,
+  `test_observability_disk_alert_uses_node_exporter`, обновлённые проверки
+  маршрутов/правил; backend — 308 collected (305 passed + 3 skipped).
+
 #### S-86 — Email Outbox Hardening (2026-11-08)
 - `deliver_pending` использует `SELECT … FOR UPDATE SKIP LOCKED`: два
   параллельных cron-воркера не выбирают одно и то же письмо; блокировка
@@ -28,8 +48,11 @@
   зафиксировал, что S-86 в него не входит.
 
 ### Изменено
-- `scripts/doc_lint.py` — активный план `TODO_V0.7.1.md`, прогресс 1/4;
+- `scripts/doc_lint.py` — активный план `TODO_V0.7.1.md`, прогресс 2/4;
   `backend/tests/test_doc_lint.py` — ожидания v0.7.1.
+- `scripts/observability-selftest.ps1` — рендер через entrypoint-скрипты,
+  проверка маскировки, SMTP-приёмник и доставка email в runtime, 6 targets /
+  6 правил.
 - `docs/SPEC.md` (§3.17, DDL `email_outbox`), `Design.md` (ADR-020, §16.1),
   README/docs README — SKIP LOCKED, retention, env.
 

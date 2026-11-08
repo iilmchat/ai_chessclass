@@ -33,6 +33,11 @@ scrape_configs:
     static_configs:
       - targets: ["otel-collector:8889"]
 
+  # S-87: файловые системы volumes observability (node_filesystem_*).
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]

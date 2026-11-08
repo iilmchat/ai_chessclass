@@ -2,9 +2,11 @@
 
 Локальный/дев-контур: **OTel Collector → Tempo (traces) / Prometheus
 (metrics) → Grafana**. Профиль `observability` не стартует вместе с обычным
-dev-стеком. Prod-контур (S-82): те же компоненты + **Alertmanager → Telegram**
-с TLS/mTLS и persistent storage; эксплуатация — `docs/runbooks/operations.md`
-§10, алерты и дежурство — `docs/incident-response.md` §4.1.
+dev-стеком. Prod-контур (S-82): те же компоненты + **Alertmanager →
+Telegram/email** с TLS/mTLS и persistent storage; S-87 добавляет маскировку
+логов, второй email-receiver и node-exporter для алерта о диске; эксплуатация —
+`docs/runbooks/operations.md` §10, алерты и дежурство —
+`docs/incident-response.md` §4.1.
 
 ## Запуск (dev)
 
@@ -36,13 +38,16 @@ Grafana `3002`, Prometheus `9092`, OTLP HTTP `4322`, gRPC `4321`.
 | Tempo storage | без volume | `chessclass_prod_tempo:/var/tempo` |
 | Collector → Tempo | plaintext | **mTLS** (внутренний CA, `scripts/gen-internal-certs.ps1`) |
 | Prometheus | rules в конфиге | rules `alerts.yml` + `alerting → alertmanager:9093`, retention 15 d, volume |
-| Alertmanager | нет | Telegram (`telegram_configs`), группировка, inhibit rules |
+| Alertmanager | нет | Telegram + email (`telegram_configs`/`email_configs`), группировка, inhibit rules |
+| node-exporter | нет | метрики диска volumes профиля, алерт `ChessClassObservabilityDiskFull` |
 | Grafana | admin/admin, host-порт | пароль обязателен, анонимный вход выкл., только loopback + edge `/grafana/` |
 | Публикация портов | loopback | Tempo/collector — **не публикуются**; Prometheus/Alertmanager/Grafana — только `127.0.0.1` |
 
 Секреты не пишутся в конфиги: Alertmanager и Prometheus рендерят
-`*.tmpl` в `/tmp` (chmod 600) при старте — `alertmanager-entrypoint.sh`,
-`prometheus-entrypoint.sh`. Токены в логи не попадают.
+`*.tmpl` в `/tmp` (chmod 600) при старте — `alertmanager-render.sh`
+(вызывается `alertmanager-entrypoint.sh`), `prometheus-entrypoint.sh`. Логи
+Alertmanager дополнительно проходят `redact-logs.awk` (bot token/Bearer →
+`<REDACTED>`), но остаются чувствительными (TTL — runbook §10.10).
 
 ### Быстрая проверка prod-контура
 
@@ -68,13 +73,15 @@ Runtime smoke использует **фиктивные** `TELEGRAM_BOT_TOKEN` �
 - Tempo traces по `{service.name="chessclass-api"}`; в каждом trace виден
   `trace_id`, который также пишется в JSON-логи и `llm_calls.trace_id`.
 
-Prometheus-алерты (`alerts.yml`, 5 правил): `ChessClassApiDown`,
+Prometheus-алерты (`alerts.yml`, 6 правил): `ChessClassApiDown`,
 `ChessClassHighErrorRate` (5xx > 5 %), `ChessClassP95LatencyHigh` (> 2 s),
 `ChessClassDLQGrowth` (`chessclass_failed_jobs > 10`),
-`ChessClassDLQGrowthRate` (рост DLQ). Маршруты: `critical →
-telegram-critical` (повтор 1 ч), `warning → telegram` (повтор 6 ч); inhibit —
-critical гасит warning того же alertname/component, `ChessClassApiDown` гасит
-остальные api-алерты.
+`ChessClassDLQGrowthRate` (рост DLQ),
+`ChessClassObservabilityDiskFull` (<10% на `/var/tempo`). Маршруты: `critical →
+telegram-critical,email` (повтор 1 ч), `warning → telegram,email` (повтор
+6 ч); email включается при `SMTP_HOST` + `ALERT_EMAIL_TO`; inhibit — critical
+гасит warning того же alertname/component, `ChessClassApiDown` гасит остальные
+api-алерты.
 
 ## Проверка конфигурации
 
@@ -96,8 +103,10 @@ prod — retention 15 дней в volume `chessclass_prod_prometheus`.
   шаблона; при ошибке рендера контейнер падает осознанно (алерты не теряются
   молча).
 - При ошибке доставки в Telegram библиотека печатает URL вида
-  `https://api.telegram.org/bot<TOKEN>/sendMessage`: логи Alertmanager нужно
-  считать чувствительными (доступ и retention — по политике оператора,
-  `docs/runbooks/operations.md` §10.9).
+  `https://api.telegram.org/bot<TOKEN>/sendMessage`; S-87 маскирует его
+  (`bot<REDACTED>`) построчным awk-фильтром. Шаблоны узкие, поэтому логи всё
+  равно чувствительны (доступ и TTL — `docs/runbooks/operations.md` §10.10).
+- Email-receiver требует STARTTLS (обычно 587); implicit TLS 465 Alertmanager
+  не поддерживает — используйте relay/порт 587.
 - mTLS — только на OTLP-приёмниках Tempo; HTTP API Tempo — plaintext внутри
   сети без публикации порта (Grafana читает по нему без клиентского cert).

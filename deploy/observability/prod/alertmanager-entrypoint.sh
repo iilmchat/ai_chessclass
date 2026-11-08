@@ -1,33 +1,51 @@
 #!/bin/sh
-# S-82: entrypoint Alertmanager в prod-профиле observability.
+# S-82/S-87: entrypoint Alertmanager в prod-профиле observability.
 #
-# Alertmanager 0.28 не поддерживает подстановку env в конфиг (флага
-# --config.expand-env нет), поэтому конфиг — шаблон: рендерим его из
-# TELEGRAM_BOT_TOKEN / TELEGRAM_ALERT_CHAT_ID при старте контейнера.
-# Рендер-файл создаётся в /tmp с правами 600 и не попадает в логи/артефакты.
+# 1. Рендерит конфиг из шаблона (alertmanager-render.sh): секреты из env,
+#    условный email-receiver.
+# 2. Проверяет конфиг amtool'ом — ошибка рендера не должна тихо жить до
+#    первого алерта.
+# 3. Запускает Alertmanager, пропуская stdout/stderr через redact-logs.awk:
+#    при ошибке Telegram-доставки URL содержит bot token, в docker logs он
+#    попадать не должен.
 set -eu
 umask 077
 
-: "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN не задан — доставка алертов в Telegram невозможна}"
-: "${TELEGRAM_ALERT_CHAT_ID:?TELEGRAM_ALERT_CHAT_ID не задан — укажите chat_id дежурного чата}"
-
-TEMPLATE="/etc/alertmanager/alertmanager.yml.tmpl"
 RENDERED="/tmp/alertmanager.yml"
+LOG_FIFO="/tmp/alertmanager.log.fifo"
 
-sed \
-  -e "s|__TELEGRAM_BOT_TOKEN__|${TELEGRAM_BOT_TOKEN}|g" \
-  -e "s|__TELEGRAM_ALERT_CHAT_ID__|${TELEGRAM_ALERT_CHAT_ID}|g" \
-  "$TEMPLATE" > "$RENDERED"
-chmod 600 "$RENDERED"
+/bin/sh /etc/alertmanager/alertmanager-render.sh "$RENDERED"
 
-# Сразу проверяем конфиг: ошибка рендера не должна тихо жить до первого алерта.
 if ! /bin/amtool check-config "$RENDERED" >/dev/null; then
   echo "alertmanager: невалидный конфиг после рендера шаблона" >&2
   exit 1
 fi
 
-exec /bin/alertmanager \
+# FIFO нужен, чтобы фильтр читал логи отдельным процессом, а Shell знал PID
+# Alertmanager и мог передать ему SIGTERM при docker stop.
+rm -f "$LOG_FIFO"
+mkfifo "$LOG_FIFO"
+chmod 600 "$LOG_FIFO"
+
+/bin/awk -f /etc/alertmanager/redact-logs.awk < "$LOG_FIFO" &
+redact_pid=$!
+
+/bin/alertmanager \
   --config.file="$RENDERED" \
   --storage.path=/alertmanager \
   --web.listen-address=:9093 \
-  --data.retention=120h
+  --data.retention=120h > "$LOG_FIFO" 2>&1 &
+am_pid=$!
+
+forward_term() {
+  kill -TERM "$am_pid" 2>/dev/null || true
+}
+trap forward_term TERM INT
+
+status=0
+wait "$am_pid" || status=$?
+# Alertmanager закрыл stdout -> awk получил EOF; дожидаемся, чтобы последние
+# строки успели уйти в docker logs.
+wait "$redact_pid" || true
+rm -f "$LOG_FIFO"
+exit "$status"

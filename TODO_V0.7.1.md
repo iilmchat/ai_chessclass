@@ -1,7 +1,7 @@
 # TODO_V0.7.1.md — План v0.7.1 «Tech Debt Cleanup»
 
-**Статус:** 🔶 В работе (S-86 ✅; S-87…S-89 впереди)
-**Сводно:** 4 спринта · **Прогресс: 1/4**
+**Статус:** 🔶 В работе (S-86 ✅, S-87 ✅; S-88…S-89 впереди)
+**Сводно:** 4 спринта · **Прогресс: 2/4**
 **Цель:** Закрыть техдолг, накопленный в v0.7.0: надёжность email outbox при параллельных воркерах, retention писем, маскировка секретов в логах observability, ротация внутренних сертификатов и релиз v0.7.1.
 
 ## Спринт S-86 (P0): Email Outbox Hardening
@@ -23,18 +23,19 @@
 
 ## Спринт S-87 (P0): Observability Hardening
 **Ветка:** `feat/s-87-observability-hardening`
+**Статус:** ✅ Завершён (2026-11-08)
 
 **Задачи:**
-- [ ] Маскировать Telegram bot token и `Authorization` в логах Alertmanager/collector.
-- [ ] Добавить второй receiver (email/webhook) и проверить маршрут critical/warning.
-- [ ] Алерт «диск заполнен» (prometheus rule + runbook).
-- [ ] Обновить `docs/runbooks/operations.md` и `scripts/observability-selftest.ps1`.
+- [x] Маскировать Telegram bot token и `Authorization` в логах Alertmanager/collector.
+- [x] Добавить второй receiver (email/webhook) и проверить маршрут critical/warning.
+- [x] Алерт «диск заполнен» (prometheus rule + node-exporter + runbook).
+- [x] Обновить `docs/runbooks/operations.md` и `scripts/observability-selftest.ps1`.
 
 **DoD:**
-- [ ] В логах нет raw-токенов (тест/греп).
-- [ ] Второй receiver получает тестовый алерт.
-- [ ] Алерт по диску срабатывает на пороге.
-- [ ] Отчёт: `docs/sprint-reports/S-87-YYYY-MM-DD.md`.
+- [x] В логах нет raw-токенов (`redact-logs.awk`, selftest).
+- [x] Второй receiver получает тестовый алерт (email через SMTP-приёмник selftest).
+- [x] Алерт по диску `ChessClassObservabilityDiskFull` на пороге 10%.
+- [x] Отчёт: `docs/sprint-reports/S-87-2026-11-08.md`.
 
 ---
 

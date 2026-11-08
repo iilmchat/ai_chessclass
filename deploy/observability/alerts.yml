@@ -77,3 +77,25 @@ groups:
             Массовые падения фоновых задач. Проверьте worker-логи по
             trace_id, БД/Redis и LLM-провайдера; эскалируйте как SEV-2 при
             продолжении роста.
+
+      # --- Наблюдаемость: диск ----------------------------------------------
+      # node-exporter (S-87) монтирует volume chessclass_prod_tempo в /var/tempo,
+      # поэтому mountpoint в метрике — путь внутри его контейнера.
+      - alert: ChessClassObservabilityDiskFull
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/var/tempo"}
+            /
+            node_filesystem_size_bytes{mountpoint="/var/tempo"}
+          ) < 0.10
+        for: 10m
+        labels:
+          severity: critical
+          component: observability
+        annotations:
+          summary: "ChessClass: диск observability заполнен (<10% свободно)"
+          description: >-
+            На volume chessclass_prod_tempo (/var/tempo) меньше 10% свободного
+            места: Tempo перестанет принимать трейсы, Prometheus/Alertmanager
+            могут потерять данные. Проверьте `df -h` и размер volumes,
+            освободите место или уменьшите retention (operations.md §10.8).

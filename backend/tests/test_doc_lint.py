@@ -59,9 +59,9 @@ def test_release_notes_for_current_version_exist() -> None:
 
 
 def test_todo_progress_matches_active_plan() -> None:
-    # S-86 закрыт; S-87…S-89 — план v0.7.1.
+    # S-86 и S-87 закрыты; S-88…S-89 — план v0.7.1.
     assert doc_lint._check_todo_progress(REPO) == []
-    assert doc_lint.EXPECTED_PROGRESS == (1, 4)
+    assert doc_lint.EXPECTED_PROGRESS == (2, 4)
 
 
 def test_stale_markers_detected(tmp_path: Path) -> None:

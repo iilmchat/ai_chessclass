@@ -93,8 +93,9 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
   (S-83); релиз v0.7.0 (S-85). Отложены: live staging-приёмка (S-81, ждёт
   боевых ключей LRS/TTS) и GPU-туннель (S-84, нет физической станции).
 - **v0.7.1 (S-86…S-89, в работе)** — tech debt cleanup: `FOR UPDATE
-  SKIP LOCKED` и retention `email_outbox` (S-86), observability hardening
-  (S-87), ротация сертификатов (S-88), релиз v0.7.1 (S-89).
+  SKIP LOCKED` и retention `email_outbox` (S-86 ✅), observability hardening
+  (S-87 ✅: маскировка логов, email-receiver, disk-alert), ротация
+  сертификатов (S-88), релиз v0.7.1 (S-89).
 
 ---
 
@@ -151,13 +152,13 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 |------------|----------|
 | Версия | **v0.7.0** (2026-11-07, релиз) |
 | Спринты | **54 закрыто** (S-30…S-85), этапы E-11…E-24 ✅; v0.7: S-82 ✅, S-83 ✅, S-85 ✅; S-81 ⏸️ (нет боевых ключей LRS/TTS), S-84 ⏸️ (нет физической станции) |
-| Тесты backend | **305 passed** (число собранных тестов; факт — 302 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86) |
+| Тесты backend | **308 passed** (число собранных тестов; факт — 305 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **16 passed** (Playwright: journey 7 + axe 2 + PvP 1 + RAG/review/ops/telegram/consent/chess-a11y 6) |
 | Миграции | Alembic head **0035_s83_email_outbox** (35) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
-| Следующий этап | v0.7.1: S-86 email outbox hardening ✅, S-87 observability hardening, S-88 ротация сертификатов, S-89 релиз v0.7.1 |
+| Следующий этап | v0.7.1: S-86 email outbox hardening ✅, S-87 observability hardening ✅, S-88 ротация сертификатов, S-89 релиз v0.7.1 |
 
 ---
 
@@ -176,6 +177,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [TODO_V0.7.md](TODO_V0.7.md) — завершённый план v0.7.0 (S-81…S-85)
 - [TODO_V0.7.1.md](TODO_V0.7.1.md) — активный план v0.7.1 (S-86…S-89)
 - [docs/sprint-reports/S-86-2026-11-08.md](docs/sprint-reports/S-86-2026-11-08.md) — отчёт S-86
+- [docs/sprint-reports/S-87-2026-11-08.md](docs/sprint-reports/S-87-2026-11-08.md) — отчёт S-87
 - [docs/release-notes-v0.7.0.md](docs/release-notes-v0.7.0.md) — release notes v0.7.0
 - [docs/release-notes-v0.6.0.md](docs/release-notes-v0.6.0.md) — release notes v0.6.0
 - [docs/release-notes-v0.5.0.md](docs/release-notes-v0.5.0.md) — release notes v0.5.0

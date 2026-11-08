@@ -311,6 +311,25 @@ services:
     networks: [ccnet]
     restart: unless-stopped
 
+  # S-87: метрики файловых систем для алерта «диск observability заполнен».
+  # node-exporter видит volumes профиля как отдельные mountpoint'ы (/var/tempo
+  # и т.д.), поэтому правило сравнивает avail/size именно хранилища traces.
+  # Портов не публикует: scrape идёт по внутренней сети.
+  node-exporter:
+    image: prom/node-exporter:v1.9.0
+    container_name: chessclass-prod-node-exporter
+    command:
+      - "--path.rootfs=/"
+      - "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run)($|/)"
+    volumes:
+      - chessclass_prod_tempo:/var/tempo:ro
+      - chessclass_prod_prometheus:/prometheus:ro
+      - chessclass_prod_alertmanager:/alertmanager:ro
+      - chessclass_prod_grafana:/var/lib/grafana:ro
+    profiles: ["observability"]
+    networks: [ccnet]
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:v3.1.0
     container_name: chessclass-prod-prometheus
@@ -346,6 +365,18 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_ALERT_CHAT_ID: ${TELEGRAM_ALERT_CHAT_ID:-}
+      # S-87: переопределяется только для selftest (детерминированный сбой
+      # Telegram без egress); в prod — https://api.telegram.org.
+      ALERT_TELEGRAM_API_URL: ${ALERT_TELEGRAM_API_URL:-https://api.telegram.org}
+      # S-87: второй receiver (email). Включается, когда SMTP_HOST и
+      # ALERT_EMAIL_TO непустые; иначе entrypoint удаляет email-блоки.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@chessclass.dev}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
     volumes:
       - ./deploy/observability/prod:/etc/alertmanager:ro
       - chessclass_prod_alertmanager:/alertmanager
@@ -357,6 +388,13 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 10
+    # S-87: логи Alertmanager чувствительны даже после маскировки — ограничиваем
+    # объём/время хранения на уровне docker (TTL в runbook §10.10).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     profiles: ["observability"]
     networks: [ccnet]
     restart: unless-stopped

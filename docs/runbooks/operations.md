@@ -113,6 +113,9 @@ docker compose -f docker-compose.prod.yml restart edge
 - Ротация `POSTGRES_PASSWORD`: обновить `.env`, `ALTER USER`, перезапуск
   api/worker/migrate.
 - Ротация `LLM_API_KEY` — см. `llm-gateway.md` §4.
+- Ротация `SMTP_PASSWORD`: обновить `.env`, пересоздать `alertmanager`
+  (email-receiver, §10.11) и `worker` (email outbox); проверить тестовым
+  алертом/письмом.
 - Seed-пароли менять до первого prod-запуска; после — через админку/смену
   пароля, не пересидировать.
 
@@ -191,6 +194,7 @@ docker compose -f docker-compose.prod.yml restart edge
 |---|---|---|---|
 | `tempo` | `chessclass-prod-tempo` | только внутри сети, наружу портов нет | хранение traces; volume `chessclass_prod_tempo` |
 | `otel-collector` | `chessclass-prod-otel-collector` | OTLP внутри сети: `otel-collector:4318` (HTTP), gRPC `:4317`; health `:13133` | приём spans от api/worker |
+| `node-exporter` | `chessclass-prod-node-exporter` | только внутри сети `:9100` | метрики файловых систем volumes observability (S-87) |
 | `prometheus` | `chessclass-prod-prometheus` | `127.0.0.1:${PROMETHEUS_PORT:-9092}` | scrape `/metrics`, правила `deploy/observability/alerts.yml` |
 | `alertmanager` | `chessclass-prod-alertmanager` | `127.0.0.1:${ALERTMANAGER_PORT:-9093}` | группировка и доставка в Telegram, silences |
 | `grafana` | `chessclass-prod-grafana` | `https://<host>/grafana/` через `edge`; loopback `${GRAFANA_PORT:-3002}` | дашборды, запросы в Tempo/метрики |
@@ -220,6 +224,8 @@ Traces не экспортируются, пока `OTEL_ENABLED` не `true`, �
    | `GRAFANA_PORT` | `3002` | loopback-порт Grafana для отладки |
    | `TELEGRAM_BOT_TOKEN` | `CHANGE_ME` | токен бота дежурного чата, только в prod-env |
    | `TELEGRAM_ALERT_CHAT_ID` | `-100…` | id чата/канала (у групп и каналов отрицательный); пусто → Alertmanager не стартует |
+   | `ALERT_EMAIL_TO` | `duty@…` | второй канал (email); включается вместе с `SMTP_HOST` из §5 |
+   | `ALERT_TELEGRAM_API_URL` | `https://api.telegram.org` | только для selftest/отладки; в prod оставить default |
    | `METRICS_TOKEN` | `CHANGE_ME` | bearer-токен для scrape `/metrics`; одно значение для api и Prometheus |
 
 2. **Внутренние сертификаты TLS** (collector → Tempo, mTLS):
@@ -324,7 +330,7 @@ ssh -L 9092:127.0.0.1:9092 -L 9093:127.0.0.1:9093 -L 3002:127.0.0.1:3002 <user>@
 curl -s http://127.0.0.1:9092/-/ready        # Prometheus Server is Ready.
 curl -s http://127.0.0.1:9093/-/ready        # OK
 curl -s http://127.0.0.1:3002/api/health     # {"database":"ok",...}
-curl -s http://127.0.0.1:9092/api/v1/rules   # 5 правил ChessClass*
+curl -s http://127.0.0.1:9092/api/v1/rules   # 6 правил ChessClass*
 curl -s http://127.0.0.1:9093/api/v2/status  # cluster/version/config
 ```
 
@@ -352,7 +358,7 @@ curl -s http://127.0.0.1:9093/api/v2/status  # cluster/version/config
   `--alertmanager.url=http://127.0.0.1:9093` можно не указывать внутри
   контейнера Alertmanager.
 
-### 10.6. Проверка доставки алерта в Telegram
+### 10.6. Проверка доставки алертов (Telegram + email)
 
 Telegram-чат дежурного получает алерты от Alertmanager; `chat_id` — `-100…`
 (заглушка), токен бота — только в prod-env. Проверка — тестовым алертом,
@@ -407,6 +413,23 @@ Telegram-чат дежурного получает алерты от Alertmanag
    - `send_resolved: true` — если `firing` пришёл, а `resolved` нет, проверить
      этот параметр и `resolve_timeout` в prod-конфиге Alertmanager.
 
+4. **Второй канал (email).** Если в `.env` заданы `SMTP_HOST` и
+   `ALERT_EMAIL_TO`, тот же алерт уходит на email независимо от Telegram
+   (§10.11). Проверка маршрута:
+
+   ```bash
+   docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+     exec alertmanager amtool config routes test \
+     severity=critical alertname=ChessClassTestAlert component=observability \
+     --config.file=/tmp/alertmanager.yml
+   ```
+
+   Ожидаемо: `telegram-critical,email` (для warning — `telegram,email`).
+   Письмо придёт на `ALERT_EMAIL_TO`; если его нет — смотреть
+   `logs alertmanager` по `integration=email`, проверить `SMTP_HOST/PORT`
+   (нужен STARTTLS, обычно 587; implicit TLS 465 не поддерживается),
+   `SMTP_USER/PASSWORD` и доступность SMTP с сервера.
+
 ### 10.7. Алерт → что делать
 
 Условия, пороги и метки — в `deploy/observability/alerts.yml`; ниже — первые
@@ -419,10 +442,12 @@ Telegram-чат дежурного получает алерты от Alertmanag
 | `ChessClassP95LatencyHigh` | p95 > 2 с | Grafana: p95 по route; самые медленные traces в Tempo; БД (медленные запросы, пул соединений), LLM-таймауты, очередь |
 | `ChessClassDLQGrowth` | `chessclass_failed_jobs > 10` | `/ops` → DLQ; причина падений задач; логи `worker`; разобрать и повторить задачи; не чистить очередь без разбора |
 | `ChessClassDLQGrowthRate` | быстрый рост DLQ | как `DLQGrowth`; проверить конкретный тип задач (analyze/pdf/матчи), свежий деплой/зависимость |
+| `ChessClassObservabilityDiskFull` | на `/var/tempo` < 10% свободно | `df -h` на хосте и `docker system df -v`; размер volume `chessclass_prod_tempo`; освободить место или уменьшить retention Tempo (§10.8, §10.12); не удалять volume без разбора |
 
 Маршруты Alertmanager: critical повторяется каждый час, warning — раз в
 6 часов; `ChessClassApiDown` подавляет остальные алерты `component="api"`,
-critical подавляет warning с тем же alertname/component.
+critical подавляет warning с тем же alertname/component. При настроенном
+email оба уровня дополнительно уходят в email (второй receiver, §10.11).
 
 ### 10.8. Retention и данные
 
@@ -436,6 +461,8 @@ critical подавляет warning с тем же alertname/component.
   удаляет блоки старше retention сам. Уменьшение retention сокращает данные,
   доступные для постмортема, — не сокращать до разбора инцидента.
 - Место проверять до увеличения retention: traces объёмнее метрик.
+- Свободное место на volume traces контролирует `node-exporter`; при остатке
+  < 10% срабатывает `ChessClassObservabilityDiskFull` (§10.7, §10.12).
 - Конфиги монтируются в контейнеры из репозитория (read-only): правка файла
   внутри контейнера или на сервере мимо репозитория не переживёт пересоздание
   и расходится с git.
@@ -452,8 +479,9 @@ critical подавляет warning с тем же alertname/component.
   сертификат из `deploy/internal-certs/`.
 - **Токен бота и chat_id** — только в prod-env; не логировать, не вставлять в
   чаты/тикеты/скриншоты. Рендер конфига с токеном живёт внутри контейнера;
-  готовый конфиг с секретом не сохранять в репозиторий и бэкапы. При утечке —
-  перевыпустить токен у BotFather, обновить `.env`, пересоздать
+  готовый конфиг с секретом не сохранять в репозиторий и бэкапы. Логи
+  Alertmanager проходят маскировку (§10.10), но остаются чувствительными. При
+  утечке — перевыпустить токен у BotFather, обновить `.env`, пересоздать
   `alertmanager`.
 - **METRICS_TOKEN** — общий секрет api ↔ Prometheus; менять одновременно в
   `.env`, затем пересоздать `api` и `prometheus`.
@@ -463,3 +491,64 @@ critical подавляет warning с тем же alertname/component.
 - Не отключать Alertmanager и не править правила «чтобы убрать шум»: только
   silence с комментарием и TTL, с записью в журнал инцидента
   (`docs/incident-response.md` §4.1).
+
+### 10.10. Маскировка секретов в логах
+
+Alertmanager 0.28 не умеет log-фильтры, а при ошибке Telegram-доставки его
+библиотека печатает URL `https://api.telegram.org/bot<TOKEN>/sendMessage`.
+Поэтому entrypoint запускает Alertmanager с фильтром
+`deploy/observability/prod/redact-logs.awk`:
+
+- `bot<digits>:<token>` → `bot<REDACTED>`;
+- `Authorization: Bearer <token>` → `Authorization: Bearer <REDACTED>`.
+
+Фильтр работает построчно (`fflush`), поэтому `docker logs` не задерживает
+строки. Проверка после тестового алерта с ошибкой доставки:
+
+```bash
+docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+  logs --tail=200 alertmanager | grep -E 'bot[0-9]+:' && echo LEAK || echo masked
+```
+
+Команда должна печатать `masked`. Строка `bot<REDACTED>` — нормальный признак
+сработавшей маскировки. **TTL:** логи Alertmanager хранить не дольше 14 дней;
+compose ограничивает json-file (`max-size=10m`, `max-file=5`), в внешний
+SIEM/архив логи выгружать только после маскировки. Ограничение: шаблоны
+узкие — URL-encoded или иной формат токена может не совпасть, поэтому логи в
+любом случае считать чувствительными и не публиковать. При подозрении на
+утечку — перевыпустить токен, пересоздать `alertmanager`, зафиксировать
+инцидент (`docs/incident-response.md` §4.1).
+
+### 10.11. Второй receiver: email
+
+Второй канал включается, когда в `.env` одновременно заданы `SMTP_HOST` (из
+§5, STARTTLS-порт 587) и `ALERT_EMAIL_TO`. Тогда `alertmanager-render.sh`
+оставляет в конфиге receiver `email` и маршруты:
+
+- `critical` → `telegram-critical`, затем `email` (повтор 1 ч);
+- `warning` → `telegram`, затем `email` (повтор 6 ч).
+
+Это отдельные маршруты с `continue: true`, а не несколько integrations в одном
+receiver: у каждого receiver свой retry, поэтому недоступность SMTP не
+задерживает Telegram и наоборот. Если `SMTP_HOST`/`ALERT_EMAIL_TO` не заданы,
+email-блоки удаляются при рендере — профиль работает как раньше (только
+Telegram). Проверка маршрута — §10.6, п. 4. Alertmanager не поддерживает
+implicit TLS (465): для 465 используйте отдельный relay/порт 587.
+
+### 10.12. Диск observability
+
+`node-exporter` (профиль `observability`) монтирует volumes профиля
+read-only, поэтому видит их как mountpoint'ы `/var/tempo`, `/prometheus`,
+`/alertmanager`, `/var/lib/grafana`. Правило:
+
+```promql
+(node_filesystem_avail_bytes{mountpoint="/var/tempo"}
+ / node_filesystem_size_bytes{mountpoint="/var/tempo"}) < 0.10
+```
+
+— алерт `ChessClassObservabilityDiskFull` (critical, `for: 10m`). Первые шаги:
+`df -h` на хосте, `docker system df -v`, размер `chessclass_prod_tempo`;
+освободить место или уменьшить retention Tempo (§10.8), не удаляя volume.
+Если алерт не приходит, проверить target `node-exporter` в Prometheus
+(`/targets`, `up`) и что volume смонтирован в контейнер
+(`docker inspect chessclass-prod-node-exporter`).

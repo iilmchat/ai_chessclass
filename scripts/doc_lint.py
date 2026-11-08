@@ -67,9 +67,9 @@ README_ALEMBIC_RE = re.compile(
     r"Alembic head \*\*(?P<head>[0-9a-z_]+)\*\* \((?P<count>\d+)\)"
 )
 
-#: Ожидаемый прогресс активного плана v0.7.1: S-86 закрыт;
-#: S-87…S-89 впереди.
-EXPECTED_PROGRESS: tuple[int, int] = (1, 4)
+#: Ожидаемый прогресс активного плана v0.7.1: S-86 и S-87 закрыты;
+#: S-88…S-89 впереди.
+EXPECTED_PROGRESS: tuple[int, int] = (2, 4)
 
 CollectError = str
 
