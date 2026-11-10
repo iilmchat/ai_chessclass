@@ -10,10 +10,10 @@
   C) счётчики тестов в README: backend vs `pytest --collect-only` (--tests-count
      auto|N), frontend vs `it(` в frontend/src/**/*.test.ts(x), e2e vs `test(`
      в frontend/e2e/*.spec.ts;
-  D) ровно один активный план в docs/README.md (TODO_V0.7.1.md), архивные планы;
+  D) ровно один активный план в docs/README.md (TODO_V0.8.md), архивные планы;
   E) стрейл-маркеры только в активных доках, версия в шапке Design.md,
      release-notes текущей версии;
-  F) активный этап и прогресс в TODO_V0.7.1.md.
+  F) активный этап и прогресс в TODO_V0.8.md.
 
 CLI:
     python scripts/doc_lint.py [--root PATH] [--tests-count auto|N]
@@ -40,6 +40,7 @@ ACTIVE_DOCS: tuple[str, ...] = (
     "Design.md",
     "TODO_V0.7.md",
     "TODO_V0.7.1.md",
+    "TODO_V0.8.md",
     "docs/README.md",
     "docs/release-notes-v0.3.0.md",
     "docs/release-notes-v0.7.0.md",
@@ -68,8 +69,9 @@ README_ALEMBIC_RE = re.compile(
     r"Alembic head \*\*(?P<head>[0-9a-z_]+)\*\* \((?P<count>\d+)\)"
 )
 
-#: Ожидаемый прогресс активного плана v0.7.1: S-86…S-89 закрыты.
-EXPECTED_PROGRESS: tuple[int, int] = (4, 4)
+#: Активный план и ожидаемый прогресс: v0.8.0, S-90…S-94 впереди.
+ACTIVE_PLAN: str = "TODO_V0.8.md"
+EXPECTED_PROGRESS: tuple[int, int] = (0, 5)
 
 CollectError = str
 
@@ -353,11 +355,12 @@ def _check_active_plan(root: Path) -> list[str]:
             f"D: в docs/README.md строк со статусом 'активный' —"
             f" {len(active_rows)} (нужна ровно одна)"
         )
-    elif "TODO_V0.7.1.md" not in active_rows[0]:
+    elif ACTIVE_PLAN not in active_rows[0]:
         errors.append(
-            "D: активный план — не TODO_V0.7.1.md: " + active_rows[0].strip()
+            f"D: активный план — не {ACTIVE_PLAN}: " + active_rows[0].strip()
         )
     for name in (
+        ACTIVE_PLAN,
         "TODO_V0.7.1.md",
         "TODO_V0.7.md",
         "TODO_V0.6.md",
@@ -440,32 +443,32 @@ def _check_stale(root: Path) -> list[str]:
 
 def _check_todo_progress(root: Path) -> list[str]:
     try:
-        text = read_text(root / "TODO_V0.7.1.md")
+        text = read_text(root / ACTIVE_PLAN)
     except OSError as exc:
-        return [f"F: TODO_V0.7.1.md не читается: {exc}"]
+        return [f"F: {ACTIVE_PLAN} не читается: {exc}"]
     errors: list[str] = []
-    if "v0.7.1" not in text:
-        errors.append("F: TODO_V0.7.1.md не упоминает активный этап v0.7.1")
+    if "v0.8.0" not in text:
+        errors.append(f"F: {ACTIVE_PLAN} не упоминает активный этап v0.8.0")
     if "Прогресс:" not in text:
-        errors.append("F: TODO_V0.7.1.md: нет строки 'Прогресс:'")
+        errors.append(f"F: {ACTIVE_PLAN}: нет строки 'Прогресс:'")
     summary = re.search(r"\*\*Сводно:\*\*\s*(\d+)\s+спринт", text)
     progress = re.search(r"\*\*Прогресс:\s*(\d+)/(\d+)", text)
     if summary is None:
-        errors.append("F: TODO_V0.7.1.md: нет '**Сводно:** N спринт'")
+        errors.append(f"F: {ACTIVE_PLAN}: нет '**Сводно:** N спринт'")
     if progress is None:
-        errors.append("F: TODO_V0.7.1.md: нет '**Прогресс: X/Y'")
+        errors.append(f"F: {ACTIVE_PLAN}: нет '**Прогресс: X/Y'")
     elif summary is not None:
         done, total = int(progress.group(1)), int(progress.group(2))
         if total != int(summary.group(1)):
             errors.append(
-                f"F: TODO_V0.7.1.md: Сводно={summary.group(1)} спринтов,"
+                f"F: {ACTIVE_PLAN}: Сводно={summary.group(1)} спринтов,"
                 f" Прогресс={done}/{total}"
             )
         if done > total:
-            errors.append(f"F: TODO_V0.7.1.md: прогресс {done}/{total} > плана")
+            errors.append(f"F: {ACTIVE_PLAN}: прогресс {done}/{total} > плана")
         elif (done, total) != EXPECTED_PROGRESS:
             errors.append(
-                f"F: TODO_V0.7.1.md: прогресс {done}/{total},"
+                f"F: {ACTIVE_PLAN}: прогресс {done}/{total},"
                 f" ожидается {EXPECTED_PROGRESS[0]}/{EXPECTED_PROGRESS[1]}"
             )
     return errors
@@ -494,7 +497,7 @@ def _checkers(
         ),
         ("D", "один активный план", lambda: _check_active_plan(root)),
         ("E", "нет стрейл-маркеров", lambda: _check_stale(root)),
-        ("F", "прогресс TODO_V0.7.1", lambda: _check_todo_progress(root)),
+        ("F", f"прогресс {ACTIVE_PLAN}", lambda: _check_todo_progress(root)),
     ]
 
 
