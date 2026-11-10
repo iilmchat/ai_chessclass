@@ -8,8 +8,12 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.authz import (
+    ensure_can_access_pvp_room,
+    teacher_student_ids,
+)
 from core.errors import AppError
-from domains.auth.models import User
+from domains.auth.models import User, UserRole
 from domains.bot_lab.models import BotVersion
 from domains.profile.models import UserProfile
 from domains.pvp.models import PvpComplaint, PvpRating, PvpRoom
@@ -293,14 +297,18 @@ async def add_complaint(
     return complaint
 
 
-async def list_complaints(session: AsyncSession) -> list[PvpComplaint]:
-    return list(
-        (
-            await session.execute(
-                select(PvpComplaint).order_by(PvpComplaint.id.desc())
-            )
-        ).scalars()
-    )
+async def list_complaints(
+    session: AsyncSession, user: User
+) -> list[PvpComplaint]:
+    stmt = select(PvpComplaint).order_by(PvpComplaint.id.desc())
+    # S-91: teacher — только жалобы комнат со своими учениками.
+    if user.role is UserRole.TEACHER:
+        student_ids = teacher_student_ids(user.id)
+        stmt = stmt.join(PvpRoom, PvpRoom.id == PvpComplaint.room_id).where(
+            (PvpRoom.host_user_id.in_(student_ids))
+            | (PvpRoom.guest_user_id.in_(student_ids))
+        )
+    return list((await session.execute(stmt)).scalars())
 
 
 async def get_complaint(session: AsyncSession, complaint_id: int) -> PvpComplaint:
@@ -320,6 +328,8 @@ async def review_complaint(
 ) -> PvpComplaint:
     """open → reviewed|rejected (S-65): вердикт за учителем (ADR-005)."""
     complaint = await get_complaint(session, complaint_id)
+    room = await get_room(session, complaint.room_id)
+    await ensure_can_access_pvp_room(reviewer, room, session)
     if complaint.status != "open":
         raise AppError("pvp_complaint_reviewed", "Жалоба уже разобрана", 409)
     if status not in ("reviewed", "rejected"):

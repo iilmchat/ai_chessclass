@@ -30,6 +30,12 @@ async def test_auditor_reads_and_teacher_actions_are_logged(
     auditor_headers, auditor_id = await _headers(
         client, f"a-{unique_email}", UserRole.AUDITOR
     )
+    # S-91: auditor scope fail-closed — выдаём явные права admin'ом.
+    response = await admin_client.patch(
+        f"{API}/admin/users/{auditor_id}/auditor-scope",
+        json={"scopes": {"audit": True, "reports": True, "flags": True}},
+    )
+    assert response.status_code == 200, response.text
     student_email = f"s-{unique_email}"
     student_headers, student_id = await _headers(
         client, student_email, UserRole.STUDENT

@@ -17,7 +17,7 @@ from core.base import CamelModel
 from domains.audit import service as audit_svc
 from domains.audit.models import AuditLog
 from domains.auth.deps import DbSession, require_scope
-from domains.auth.models import User
+from domains.auth.models import User, UserRole
 
 router = APIRouter(prefix="/admin/audit", tags=["audit"])
 
@@ -74,6 +74,10 @@ async def list_logs(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200, alias="pageSize"),
 ) -> AuditPageOut:
+    # S-91: teacher видит только свои действия; admin/auditor — весь журнал
+    # в пределах своего scope. Явный actorId не расширяет область учителя.
+    if _guard.role is UserRole.TEACHER:
+        actor_id = _guard.id
     rows, total = await audit_svc.list_logs(
         session,
         actor_id=actor_id,
@@ -105,6 +109,8 @@ async def export_csv(
     date_from: datetime | None = Query(default=None, alias="dateFrom"),
     date_to: datetime | None = Query(default=None, alias="dateTo"),
 ) -> Response:
+    if user.role is UserRole.TEACHER:
+        actor_id = user.id
     rows = await audit_svc.export_logs(
         session,
         actor_id=actor_id,

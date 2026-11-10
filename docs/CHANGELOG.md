@@ -8,6 +8,21 @@
 ## [Unreleased] — v0.8.0
 
 ### Добавлено
+#### S-91 — Object-Level Authorization (BOLA fix) (2026-11-11)
+- `core/authz.py`: единый слой `ensure_can_access_student_data/report/bot/
+  game/submission/pvp_room`; admin — всё, teacher — только ученики своих
+  классов, student — свои объекты, auditor — явный scope (fail-closed);
+  чужой существующий объект → 403, отсутствующий → 404.
+- Покрыты PDF (генерация/скачивание), audit (teacher — только свои действия,
+  auditor scope `audit`), боты/матчи/реплеи, шахматные партии, сдачи,
+  профиль/прогресс/навыки, PvP-комнаты/жалобы, флаги/вердикты античита.
+- Списки `profile/students`, `admin/audit`, `anticheat/flags|judge`,
+  `admin/pvp/complaints` фильтруются по классам/actor/scope.
+- Тесты: `test_authz_cross_tenant.py` — 7 кросс-тенантных тестов на реальных
+  RS256-токенах; backend — 321 collected (318 passed + 3 skipped).
+- `TODO_V0.8.md` — S-91 ✅, прогресс 2/5; Design §4.4/§13.4/§16.1,
+  SPEC §3.33, runbook operations §12.
+
 #### S-90 — Edge & Auth Hardening (2026-11-11)
 - `ProxyHeadersMiddleware` + `PROXY_TRUSTED_HOSTS`: API видит реальный IP из
   `X-Forwarded-For` доверенного edge/web; недоверенные источники не могут
@@ -28,7 +43,7 @@
 - `TODO_V0.8.md` — Production Readiness (S-90…S-94): edge/auth hardening,
   object-level authorization, GHCR/Sentry/logrotate/per-process metrics,
   SMTP/offsite-бэкапы/песочница, релиз v0.8.0.
-- `scripts/doc_lint.py` — активный план `TODO_V0.8.md`, прогресс `(1, 5)`;
+- `scripts/doc_lint.py` — активный план `TODO_V0.8.md`, прогресс `(2, 5)`;
   `backend/tests/test_doc_lint.py` — ожидания v0.8.0.
 
 ## [0.7.1] - 2026-11-10

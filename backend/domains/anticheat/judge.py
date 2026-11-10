@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.errors import AppError
 from core.levels import Level
 from domains.anticheat.models import JudgeSession
+from domains.auth.models import UserRole
 from domains.profile.models import UserProfile
 from llm.gateway import LLMCallContext, llm_generate
 from llm.prompts.builder import build_messages
@@ -80,6 +81,13 @@ async def list_sessions(
     session: AsyncSession, teacher, *, user_id: int | None = None, limit: int = 50
 ) -> list[JudgeSession]:
     stmt = select(JudgeSession).order_by(JudgeSession.id.desc()).limit(limit)
+    # S-91: teacher — только сессии учеников своих классов; auditor — scope.
+    if teacher.role is UserRole.TEACHER:
+        from core.authz import teacher_student_ids
+
+        stmt = stmt.where(
+            JudgeSession.user_id.in_(teacher_student_ids(teacher.id))
+        )
     if user_id is not None:
         stmt = stmt.where(JudgeSession.user_id == user_id)
     return list((await session.execute(stmt)).scalars().all())
@@ -91,6 +99,9 @@ async def review_session(
     judge_session = await session.get(JudgeSession, session_id)
     if judge_session is None:
         raise AppError("session_not_found", "Judge-сессия не найдена", 404)
+    from core.authz import ensure_can_access_student_data
+
+    await ensure_can_access_student_data(teacher, judge_session.user_id, session)
     judge_session.teacher_verdict = verdict
     judge_session.reviewed_by = teacher.id
     from datetime import UTC, datetime

@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from core.authz import ensure_can_access_student_data
 from core.base import CamelModel
 from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
@@ -43,4 +44,5 @@ async def my_progress(user: CurrentUser, session: DbSession) -> ProgressOut:
 async def user_progress(
     user_id: int, _guard: TeacherOrAdmin, session: DbSession
 ) -> ProgressOut:
+    await ensure_can_access_student_data(_guard, user_id, session)
     return ProgressOut(**await svc.get_progress(session, user_id))

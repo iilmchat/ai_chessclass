@@ -8,6 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
 
+from core.authz import ensure_can_access_student_data
 from domains.audit import service as audit_svc
 from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
@@ -74,7 +75,7 @@ async def get_students(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
 ) -> PageOut:
-    rows, total = await svc.list_students(session, page, page_size)
+    rows, total = await svc.list_students(session, _guard, page, page_size)
     items = [_profile_out(user, profile) for user, profile in rows]
     return PageOut(items=items, total=total, page=page, page_size=page_size)
 
@@ -83,6 +84,7 @@ async def get_students(
 async def get_profile(
     user_id: int, session: DbSession, _guard: TeacherOrAdmin
 ) -> ProfileOut:
+    await ensure_can_access_student_data(_guard, user_id, session)
     user, profile = await svc.get_profile_view(session, user_id)
     return _profile_out(user, profile)
 

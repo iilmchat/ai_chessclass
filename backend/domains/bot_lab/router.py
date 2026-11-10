@@ -285,11 +285,11 @@ async def bot_matches(
 
     from domains.bot_lab.models import BotMatch
 
-    await svc.get_bot(session, user, bot_id)
+    bot = await svc.get_bot(session, user, bot_id)
     rows = (
         await session.execute(
             select(BotMatch)
-            .where(BotMatch.version_id == bot_id, BotMatch.user_id == user.id)
+            .where(BotMatch.version_id == bot_id, BotMatch.user_id == bot.user_id)
             .order_by(BotMatch.id.desc())
             .limit(20)
         )
@@ -326,12 +326,12 @@ async def match_events(
     from domains.bot_lab.models import BotMatch
     from domains.bot_lab.replay import match_progress_payload
 
-    await svc.get_bot(session, user, bot_id)
+    bot = await svc.get_bot(session, user, bot_id)
     match = await session.get(BotMatch, match_id)
     if (
         match is None
         or match.version_id != bot_id
-        or match.user_id != user.id
+        or match.user_id != bot.user_id
     ):
         raise AppError("match_not_found", "Матч не найден", 404)
 

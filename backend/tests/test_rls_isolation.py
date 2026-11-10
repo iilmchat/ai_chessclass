@@ -237,15 +237,27 @@ async def test_http_request_uses_jwt_tenant_context(
 ):
     """Middleware прокидывает role/sub JWT в RLS-контекст HTTP-запроса."""
     await _add_tenant_rows(tenants["student_a"], "http")
+    await _add_tenant_rows(tenants["student_b"], "http")
 
     client = await make_client()
     _client, access, _uid = await login(client, tenants["email_b"])
+    # S-91: чужой ученик — 403 до чтения данных.
     response = await client.get(
         f"{API}/admin/anticheat/students/{tenants['student_a']}/card",
         headers={"Authorization": f"Bearer {access}"},
     )
+    assert response.status_code == 403, response.text
+
+    # Свой ученик — 200; RLS-контекст teacher_b видит его флаги.
+    response = await client.get(
+        f"{API}/admin/anticheat/students/{tenants['student_b']}/card",
+        headers={"Authorization": f"Bearer {access}"},
+    )
     assert response.status_code == 200, response.text
-    assert response.json()["flags"] == []
+    assert any(
+        int(flag["userId"]) == tenants["student_b"]
+        for flag in response.json()["flags"]
+    )
 
     response = await admin_client.get(
         f"{API}/admin/anticheat/students/{tenants['student_a']}/card"

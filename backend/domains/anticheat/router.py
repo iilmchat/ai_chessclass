@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import Field
 
+from core.authz import ensure_can_access_student_data, teacher_student_ids
 from core.base import CamelModel
 from domains.anticheat.models import AnticheatFlag
 from domains.audit import service as audit_svc
@@ -46,6 +47,9 @@ async def list_flags(
     from domains.anticheat.models import AnticheatFlag
 
     stmt = select(AnticheatFlag).order_by(AnticheatFlag.id.desc()).limit(limit)
+    # S-91: teacher — только флаги учеников своих классов; auditor — scope.
+    if _guard.role is UserRole.TEACHER:
+        stmt = stmt.where(AnticheatFlag.user_id.in_(teacher_student_ids(_guard.id)))
     if status:
         stmt = stmt.where(AnticheatFlag.status == status)
     rows = (await session.execute(stmt)).scalars().all()
@@ -82,6 +86,7 @@ async def review_flag(
         from core.errors import AppError
 
         raise AppError("flag_not_found", "Флаг не найден", 404)
+    await ensure_can_access_student_data(reviewer, flag.user_id, session)
     flag.status = FlagStatus(body.status)
     flag.reviewed_by = reviewer.id
     flag.reviewed_at = datetime.now(UTC)
@@ -225,6 +230,9 @@ async def student_card(
         from core.errors import AppError
 
         raise AppError("user_not_found", "Ученик не найден", 404)
+    await ensure_can_access_student_data(
+        _guard, user_id, session, auditor_scope="flags"
+    )
     flags = (
         await session.execute(
             select(AnticheatFlag)

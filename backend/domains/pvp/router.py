@@ -8,7 +8,9 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import Field
 
+from core.authz import ensure_can_access_pvp_room
 from core.base import CamelModel
+from core.errors import AppError
 from core.ratelimit import enforce_rate_limit
 from domains.audit import service as audit_svc
 from domains.auth.deps import CurrentUser, DbSession, require_role
@@ -260,9 +262,11 @@ async def my_room(user: CurrentUser, session: DbSession) -> RoomOut:
 
 @router.get("/rooms/{room_id}", response_model=RoomOut)
 async def get_room(
-    room_id: int, _user: CurrentUser, session: DbSession
+    room_id: int, user: CurrentUser, session: DbSession
 ) -> RoomOut:
-    return _out(await svc.get_room(session, room_id))
+    room = await svc.get_room(session, room_id)
+    await ensure_can_access_pvp_room(user, room, session)
+    return _out(room)
 
 
 @router.post("/rooms/{room_id}/start", response_model=RoomOut)
@@ -316,14 +320,13 @@ async def cancel_room(
 @router.get("/rooms/{room_id}/events")
 async def room_events(
     room_id: int,
-    _user: CurrentUser,
+    user: CurrentUser,
     session: DbSession,
     request: Request,
 ) -> StreamingResponse:
     room = await svc.get_room(session, room_id)
+    await ensure_can_access_pvp_room(user, room, session)
     if room.tournament_id is None:
-        from core.errors import AppError
-
         raise AppError("pvp_not_started", "Матч ещё не начался", 409)
     channel = f"tournaments:{room.tournament_id}"
 
@@ -366,9 +369,11 @@ async def room_events(
 async def room_replay(
     room_id: int,
     match_id: int,
-    _user: CurrentUser,
+    user: CurrentUser,
     session: DbSession,
 ) -> PvpReplayOut:
+    room = await svc.get_room(session, room_id)
+    await ensure_can_access_pvp_room(user, room, session)
     match, moves = await svc.get_replay(session, room_id, match_id)
     return PvpReplayOut(
         match=PvpMatchOut(
@@ -432,9 +437,11 @@ async def add_complaint(
 
 @admin_router.get("/complaints", response_model=list[ComplaintOut])
 async def list_complaints(
-    _guard: AdminOrTeacher, session: DbSession
+    guard: AdminOrTeacher, session: DbSession
 ) -> list[ComplaintOut]:
-    return [_complaint_out(row) for row in await svc.list_complaints(session)]
+    return [
+        _complaint_out(row) for row in await svc.list_complaints(session, guard)
+    ]
 
 
 @admin_router.patch("/complaints/{complaint_id}", response_model=ComplaintOut)

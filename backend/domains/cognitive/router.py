@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from core.authz import ensure_can_access_student_data
 from core.base import CamelModel
 from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
@@ -59,6 +60,7 @@ async def legend(session: DbSession, _user: CurrentUser) -> LegendOut:
 async def user_skills(
     user_id: int, _guard: TeacherOrAdmin, session: DbSession
 ) -> SkillSnapshotOut:
+    await ensure_can_access_student_data(_guard, user_id, session)
     skills = await svc.scores_snapshot(session, user_id)
     recommendations = await svc.recommendations(session, user_id)
     return SkillSnapshotOut(
@@ -72,6 +74,7 @@ async def user_skills(
 async def recalc_user(
     user_id: int, _guard: TeacherOrAdmin, session: DbSession
 ) -> RecalcOut:
+    await ensure_can_access_student_data(_guard, user_id, session)
     updated = await svc.recalc_user_scores(session, user_id)
     await session.commit()
     return RecalcOut(userId=str(user_id), updatedRows=updated)

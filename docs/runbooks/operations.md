@@ -757,3 +757,47 @@ curl -s 'http://127.0.0.1:9092/api/v1/query?query=chessclass_retention_archive_a
   `JWT_ALGORITHM=RS256`; после ротации ключей (§9) старые HS256-токены
   перестают приниматься. Startup-warning `JWT_LEGACY_HS256=true` — сигнал
   завершить миграцию.
+
+## 12. Разбор 403 / объектная авторизация (S-91)
+
+`{id}`-эндпоинты проверяют владение объектом (`backend/core/authz.py`):
+**404** — объекта нет, **403** — объект существует, но принадлежит другому
+ученику/учителю. Это не сбой RBAC-роли: admin/auditor-scope может видеть
+объект, а teacher — только учеников своих классов.
+
+Порядок разбора:
+
+1. **Кто запрашивает.** `sub`/`role` access-JWT; для teacher — его `user_id`,
+   для auditor — `auditor_scope` из `user_profiles.prefs`.
+2. **Владение объектом.**
+   - PDF: `reports_pdfs.student_id`/`requested_by`;
+   - бот/партия/сдача: `user_id` владельца;
+   - класс/ученик: `classes.teacher_id` + `class_members`;
+   - PvP: `pvp_rooms.host_user_id`/`guest_user_id`.
+3. **Класс ученика.** Если teacher должен видеть ученика, но не видит —
+   проверить членство (добавить в класс, а не ослаблять authz):
+
+   ```bash
+   docker compose --env-file .env -f docker-compose.prod.yml exec db \
+     psql -U chess -d chessclass -c \
+     "SELECT c.id, c.name, c.teacher_id FROM classes c \
+      JOIN class_members m ON m.class_id = c.id \
+      WHERE m.user_id = <student_id>;"
+   ```
+
+4. **Auditor scope.** Отсутствующий/`false` scope — fail-closed 403.
+   Проверить/выдать admin'ом:
+
+   ```bash
+   curl -s -X PATCH https://<host>/api/v1/admin/users/<auditor_id>/auditor-scope \
+     -H "Authorization: Bearer <admin-jwt>" -H "Content-Type: application/json" \
+     -d '{"scopes":{"audit":true,"reports":true,"flags":true}}'
+   ```
+
+5. **Аудит учителя.** Teacher видит только `actor_id == self`; не искать
+   чужие действия через `actorId` — фильтр принудительно сужается. Полный
+   журнал — admin или auditor scope `audit`.
+6. **Не обходить 403** правкой кода/выдачей admin. Если доступ нужен
+   легитимно: добавить ученика в класс, выдать auditor scope, либо
+   зафиксировать инцидент. 403 на чужой объект — ожидаемое поведение BOLA-
+   защиты; 5xx/500 при этом — баг, эскалировать.

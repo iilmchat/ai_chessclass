@@ -262,7 +262,7 @@ async def list_class_maps(
             class_name=row.class_name,
             course_title=row.course_title,
         )
-        for row in await svc.list_class_maps(session)
+        for row in await svc.list_class_maps(session, _guard)
     ]
 
 
