@@ -8,10 +8,12 @@ from arq.connections import RedisSettings
 
 from core.config import settings
 from core.db import db_context
+from core.error_tracking import init_sentry
 from core.jobs import track_job
 from core.tracing import setup_tracing
 
 logger = logging.getLogger(__name__)
+init_sentry("chessclass-worker")
 
 
 async def startup(ctx: dict) -> None:  # noqa: ARG001 — сигнатура arq

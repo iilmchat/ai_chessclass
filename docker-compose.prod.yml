@@ -1,11 +1,20 @@
 # ChessClass — prod-стек (S-30). Справочник: Design.md §15.1.
-# Запуск: cp .env.prod.example .env && docker compose -f docker-compose.prod.yml up -d --build
+# S-92: образы тянутся из GHCR, локальной сборки в prod нет:
+#   docker compose --env-file .env -f docker-compose.prod.yml pull
+#   docker compose --env-file .env -f docker-compose.prod.yml up -d
 # Миграции выполняются сервисом migrate до старта API/worker.
 # Образы версионированы через IMAGE_TAG (default 0.7.1); при релизе обновлять
 # вместе с pyproject.toml/package.json.
 # TLS/edge-nginx и бэкапы по расписанию — S-38.
 
 name: chessclass-prod
+
+# S-92: json-file rotation для api/worker (10 MB × 5 файлов).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 x-backend-env: &backend-env
   APP_ENV: prod
@@ -26,6 +35,10 @@ x-backend-env: &backend-env
   OTEL_ENABLED: ${OTEL_ENABLED:-false}
   OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-chessclass-api}
   OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  # S-92: Sentry опционален; пустой DSN выключает error-tracking.
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-prod}
+  SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
 
 x-env-file: &env-file
   - path: ${ENV_FILE:-.env}
@@ -64,9 +77,8 @@ services:
     restart: unless-stopped
 
   migrate:
-    build:
-      context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
+    # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-migrate
     command: alembic upgrade head
     env_file: *env-file
@@ -78,9 +90,8 @@ services:
     restart: "no"
 
   api:
-    build:
-      context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
+    # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-api
     command:
       ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020",
@@ -89,6 +100,8 @@ services:
     environment:
       <<: *backend-env
       APP_ROLE: api
+      # S-92: все uvicorn-воркеры пишут HTTP-метрики в общий каталог.
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom_multiproc
     ports:
       - "${API_BIND:-127.0.0.1}:${API_PORT:-8020}:8020"
     volumes:
@@ -111,13 +124,13 @@ services:
       timeout: 5s
       start_period: 20s
       retries: 10
+    logging: *default-logging
     networks: [ccnet]
     restart: unless-stopped
 
   worker:
-    build:
-      context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
+    # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -135,13 +148,13 @@ services:
       migrate:
         condition: service_completed_successfully
     stop_grace_period: 30s
+    logging: *default-logging
     networks: [ccnet]
     restart: unless-stopped
 
   worker-match-random:
-    build:
-      context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
+    # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker-match-random
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -158,13 +171,13 @@ services:
       migrate:
         condition: service_completed_successfully
     stop_grace_period: 30s
+    logging: *default-logging
     networks: [ccnet]
     restart: unless-stopped
 
   worker-match-greedy:
-    build:
-      context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
+    # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker-match-greedy
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -181,13 +194,13 @@ services:
       migrate:
         condition: service_completed_successfully
     stop_grace_period: 30s
+    logging: *default-logging
     networks: [ccnet]
     restart: unless-stopped
 
   worker-match-minimax:
-    build:
-      context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
+    # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker-match-minimax
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -204,13 +217,13 @@ services:
       migrate:
         condition: service_completed_successfully
     stop_grace_period: 30s
+    logging: *default-logging
     networks: [ccnet]
     restart: unless-stopped
 
   worker-match-sf:
-    build:
-      context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
+    # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker-match-sf
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -227,14 +240,13 @@ services:
       migrate:
         condition: service_completed_successfully
     stop_grace_period: 30s
+    logging: *default-logging
     networks: [ccnet]
     restart: unless-stopped
 
   web:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    image: chessclass/frontend:${IMAGE_TAG:-0.7.1}
+    # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
+    image: ghcr.io/iilmchat/chessclass-frontend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-web
     ports:
       - "${WEB_PORT:-3200}:80"
@@ -428,9 +440,8 @@ services:
 
   # Ручные операции: docker compose -f docker-compose.prod.yml run --rm seed
   seed:
-    build:
-      context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
+    # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
     profiles: ["tools"]
     container_name: chessclass-prod-seed
     command: python -m db.seeds

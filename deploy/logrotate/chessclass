@@ -1,0 +1,14 @@
+# S-92: ротация логов приложения вне Docker (uvicorn/arq > файл).
+# Docker-контейнеры api/worker уже ограничены json-file 10m × 5.
+# Установка: cp deploy/logrotate/chessclass /etc/logrotate.d/chessclass
+# Проверка: logrotate -d /etc/logrotate.d/chessclass
+/var/log/chessclass/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su root root
+}

@@ -10,6 +10,9 @@ RUN npm ci
 COPY . .
 # S-58: стадия в бренде (prod по умолчанию; staging-образ передаёт APP_STAGE=staging).
 ARG APP_STAGE=prod
+# S-92: DSN Sentry — build-time, пусто → error-tracking выключен.
+ARG VITE_SENTRY_DSN=""
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 RUN npm run build
 
 FROM nginx:1.27-alpine

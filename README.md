@@ -9,6 +9,7 @@
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
 [![load](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml/badge.svg?event=schedule)](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml)
+[![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fiilmchat-2496ED?logo=github)](https://github.com/iilmchat/ai_chessclass/pkgs/container/chessclass-backend)
 — backend: lint (ruff) → typecheck (mypy) → alembic → seeds → pytest →
 **pip-audit** → doc-lint; frontend: Vitest → tsc/build; e2e: Playwright
 journey + **axe-core** → **backup→restore smoke**; ворота: **gitleaks**,
@@ -103,8 +104,8 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
   (S-90 ✅: реальный IP за прокси, per-account lockout, edge rate-limit 429,
   RS256/JWKS и `JWT_LEGACY_HS256=false`), object-level authorization
   (S-91 ✅: BOLA-хелперы, 403 на чужой объект, кросс-тенантные тесты),
-  GHCR/Sentry/logrotate (S-92), SMTP/offsite-бэкапы/песочница (S-93), релиз
-  v0.8.0 (S-94).
+  GHCR/Sentry/logrotate/multiprocess metrics (S-92 ✅), SMTP/offsite-бэкапы/
+  песочница (S-93), релиз v0.8.0 (S-94).
 
 ---
 
@@ -162,13 +163,13 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Версия | **v0.7.1** (2026-11-10, релиз) |
 | Спринты | **58 закрыто** (S-30…S-89), этапы E-11…E-24 ✅; v0.7.1: S-86…S-89 ✅; S-81 ⏸️ (нет боевых ключей LRS/TTS), S-84 ⏸️ (нет физической станции) |
 | Юридический блокер | ✅ снят: все 16 вопросов `docs/legal-review-v0.7.md` закрыты внешними договорённостями (решение юриста 2026-11-08) |
-| Тесты backend | **321 passed** (число собранных тестов; факт — 318 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87; +2 cert/retention ops/S-88; +4 edge/auth hardening/S-90; +7 object authz/S-91) |
+| Тесты backend | **323 passed** (число собранных тестов; факт — 320 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87; +2 cert/retention ops/S-88; +4 edge/auth hardening/S-90; +7 object authz/S-91; +2 error tracking/S-92) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **16 passed** (Playwright: journey 7 + axe 2 + PvP 1 + RAG/review/ops/telegram/consent/chess-a11y 6) |
 | Миграции | Alembic head **0035_s83_email_outbox** (35) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
-| Следующий этап | v0.8.0 Production Readiness: S-90 edge/auth ✅, S-91 object authz ✅, далее S-92 CD/observability ([TODO_V0.8.md](TODO_V0.8.md)) |
+| Следующий этап | v0.8.0 Production Readiness: S-90 edge/auth ✅, S-91 object authz ✅, S-92 CD/observability ✅, далее S-93 SMTP/backups/sandbox ([TODO_V0.8.md](TODO_V0.8.md)) |
 
 ---
 
@@ -193,6 +194,8 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [docs/sprint-reports/S-89-2026-11-10.md](docs/sprint-reports/S-89-2026-11-10.md) — отчёт S-89
 - [docs/sprint-reports/S-90-2026-11-11.md](docs/sprint-reports/S-90-2026-11-11.md) — отчёт S-90
 - [docs/sprint-reports/S-91-2026-11-11.md](docs/sprint-reports/S-91-2026-11-11.md) — отчёт S-91
+- [docs/sprint-reports/S-92-2026-11-11.md](docs/sprint-reports/S-92-2026-11-11.md) — отчёт S-92
+- [deploy/logrotate/chessclass](deploy/logrotate/chessclass) — ротация файловых логов
 - [docs/release-notes-v0.7.1.md](docs/release-notes-v0.7.1.md) — release notes v0.7.1
 - [docs/release-notes-v0.7.0.md](docs/release-notes-v0.7.0.md) — release notes v0.7.0
 - [docs/release-notes-v0.6.0.md](docs/release-notes-v0.6.0.md) — release notes v0.6.0

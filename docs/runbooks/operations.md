@@ -801,3 +801,110 @@ curl -s 'http://127.0.0.1:9092/api/v1/query?query=chessclass_retention_archive_a
    легитимно: добавить ученика в класс, выдать auditor scope, либо
    зафиксировать инцидент. 403 на чужой объект — ожидаемое поведение BOLA-
    защиты; 5xx/500 при этом — баг, эскалировать.
+
+## 13. Деплой из GHCR и rollback (S-92)
+
+Prod тянет готовые образы `ghcr.io/iilmchat/chessclass-backend` и
+`ghcr.io/iilmchat/chessclass-frontend`; локальной сборки в prod-compose нет.
+Публикация — job `publish` в `.github/workflows/ci.yml` после зелёных
+backend/frontend/e2e/secrets; теги — `<sha>` и `<ref>` (`main` или `vX.Y.Z`).
+
+1. **Подготовка сервера.** Для приватного пакета — вход с токеном
+   `read:packages` (не логировать токен):
+
+   ```bash
+   echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
+   ```
+
+2. **Деплой версии.** `IMAGE_TAG` — релизный тег (`v0.8.0`) или sha:
+
+   ```bash
+   cd /opt/chessclass
+   git fetch --tags
+   IMAGE_TAG=v0.8.0 docker compose --env-file .env -f docker-compose.prod.yml pull
+   IMAGE_TAG=v0.8.0 docker compose --env-file .env -f docker-compose.prod.yml up -d
+   docker compose --env-file .env -f docker-compose.prod.yml ps
+   curl -fsS http://127.0.0.1:8020/readyz
+   ```
+
+3. **Rollback** — смена `IMAGE_TAG` на предыдущий опубликованный тег и
+   повторный `pull`/`up -d`:
+
+   ```bash
+   IMAGE_TAG=v0.7.1 docker compose --env-file .env -f docker-compose.prod.yml pull
+   IMAGE_TAG=v0.7.1 docker compose --env-file .env -f docker-compose.prod.yml up -d
+   ```
+
+   Миграции forward-only: если новая версия уже применила несовместимую
+   миграцию, откат образа без отката БД может не подняться. Перед релизом
+   проверять `alembic upgrade head` на копии; откат схемы — только по
+   отдельному плану/бэкапу.
+
+4. **Проверка после деплоя:** `/healthz`, `/readyz`, `/metrics`,
+   `scripts/observability-selftest.ps1 -Stack` (или smoke), e2e на staging.
+   Образы неизменяемы: не пересобирать тег на сервере.
+
+## 14. Диагностика ошибок через Sentry (S-92)
+
+- Включается только при непустом `SENTRY_DSN`; `SENTRY_ENVIRONMENT`
+  (`prod`/`staging`), `SENTRY_TRACES_SAMPLE_RATE=0.1`. Пусто — SDK не
+  инициализируется, приложение работает как раньше.
+- Frontend: `VITE_SENTRY_DSN` передаётся build-arg при публикации
+  (`publish` workflow); без него Sentry в SPA выключен.
+- **Trace-id:** API пишет `trace_id` в JSON-логи; Sentry хранит его в
+  `contexts.trace.trace_id`. В Search — `trace:<32-hex>` или фильтр по
+  `environment:prod`. Сопоставлять с Tempo/Grafana по тому же id.
+- **PII:** `send_default_pii=False`, тела запросов не отправляются
+  (`max_request_body_size="never"`), DSN не логируется. Email/токены всё
+  равно не вставлять в `extra`/`tags`; при подозрении на утечку — удалить
+  событие и перевыпустить затронутые секреты.
+- DSN хранится только в env/секретах GitHub; в `.env.example` — пустой
+  плейсхолдер. Проверка старта с фиктивным DSN — `tests/test_error_tracking.py`.
+
+## 15. Ротация логов (S-92)
+
+- `api`, `worker` и `worker-match-*` в prod-compose используют Docker
+  `json-file` с `max-size=10m`, `max-file=5` (≈50 MB на контейнер). Проверка:
+
+  ```bash
+  docker inspect --format '{{json .HostConfig.LogConfig}}' chessclass-prod-api
+  docker compose --env-file .env -f docker-compose.prod.yml logs --tail=200 api
+  ```
+
+- Если uvicorn/arq пишут в файл вне Docker (нештатный запуск), установить
+  `deploy/logrotate/chessclass` в `/etc/logrotate.d/chessclass`:
+
+  ```bash
+  sudo cp deploy/logrotate/chessclass /etc/logrotate.d/chessclass
+  sudo logrotate -d /etc/logrotate.d/chessclass   # dry-run
+  ```
+
+  Политика: daily, 14 файлов, gzip, `copytruncate`. Логи Alertmanager —
+  отдельно, TTL 14 дней (§10.10).
+- Диск: `ChessClassObservabilityDiskFull` (<10% на `/var/tempo`) не покрывает
+  раздел с Docker-логами; следить за `docker system df` и свободным местом
+  хоста. Не делать `docker system prune -a` без подтверждения (KI-001).
+
+## 16. Метрики при нескольких uvicorn-воркерах (S-92)
+
+- В prod `api` задан `PROMETHEUS_MULTIPROC_DIR=/tmp/prom_multiproc`;
+  `core/http_metrics.py` использует `prometheus_client.multiprocess`: каждый
+  воркер пишет свои серии, `/metrics` собирает `MultiProcessCollector`.
+  Без этой переменной (dev/CI) работает обычный process-local registry.
+- Проверка агрегации:
+
+  ```powershell
+  .\scripts\multiprocess-metrics-smoke.ps1
+  ```
+
+  Ожидаемо: 2 uvicorn-воркера, `healthz`-запросы видны в агрегированном
+  `/metrics` (>= отправленных).
+- Каталог — временный (`/tmp`): при рестарте контейнера счётчики начинаются
+  с нуля; Prometheus `rate`/`increase` корректно переживает reset. Не
+  монтировать один и тот же каталог между разными контейнерами.
+- Если `/metrics` отдаёт 500 — проверить, что каталог существует и writable
+  для `api`, версия `prometheus-client` совпадает с lock; `mark_process_dead`
+  вызывается в lifespan при остановке воркера.
+- Прочие gauges (`db_up`, очереди, outbox/retention) остаются per-process,
+  но отражают общее состояние БД; для p95/error-rate агрегируются именно
+  HTTP RED-метрики.

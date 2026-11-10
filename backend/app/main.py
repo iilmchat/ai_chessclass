@@ -12,8 +12,9 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from app.routers import healthz, readyz
 from core.config import settings
 from core.db import ALLOWED_DB_ROLES, db_context, engine
+from core.error_tracking import init_sentry
 from core.errors import register_exception_handlers
-from core.http_metrics import observe_http_request
+from core.http_metrics import mark_process_dead, observe_http_request
 from core.logging import new_request_id, request_id_var, setup_logging
 from core.security import decode_token, jwks
 from core.tracing import (
@@ -53,6 +54,7 @@ from llm.router import router as llm_admin_router
 from rag.router import router as rag_admin_router
 
 logger = logging.getLogger(__name__)
+init_sentry("chessclass-api")
 
 
 @asynccontextmanager
@@ -105,6 +107,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await close_llm_providers()
     await app.state.redis.aclose()
     await engine.dispose()
+    # S-92: убрать multiprocess-файлы завершившегося uvicorn-воркера.
+    mark_process_dead()
 
 
 app = FastAPI(

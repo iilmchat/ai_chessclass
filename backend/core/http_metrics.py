@@ -1,12 +1,23 @@
-"""S-77: process-local HTTP RED-метрики для Prometheus/Grafana.
+"""S-77/S-92: HTTP RED-метрики для Prometheus/Grafana.
 
-Гистограмма latency + счётчики status позволяют строить p95 и error-rate в
-Grafana без отдельного SDK. Метрики process-local (как и `/metrics`), поэтому
-при нескольких uvicorn-процессах Prometheus должен скрейпить каждый инстанс.
+S-92: при `PROMETHEUS_MULTIPROC_DIR` используется multiprocess-режим
+prometheus_client: каждый uvicorn-воркер пишет свои счётчики в общий каталог,
+а `/metrics` собирает их через `MultiProcessCollector`. Это устраняет потерю
+3/4 трафика при `--workers 4`. Без env-переменной работает обычный
+process-local registry (dev/CI).
 """
 
-import threading
-from collections import defaultdict
+import os
+from pathlib import Path
+
+from prometheus_client import (
+    REGISTRY,
+    CollectorRegistry,
+    Counter,
+    Histogram,
+    generate_latest,
+    multiprocess,
+)
 
 #: le-бакеты в секундах: 5ms … 10s.
 BUCKETS: tuple[float, ...] = (
@@ -23,80 +34,52 @@ BUCKETS: tuple[float, ...] = (
     10.0,
 )
 
-_lock = threading.Lock()
-_requests: dict[tuple[str, str, str], int] = defaultdict(int)
-_histogram: dict[tuple[str, str], list[int]] = defaultdict(
-    lambda: [0] * (len(BUCKETS) + 1)
+_MULTIPROC = bool(os.environ.get("PROMETHEUS_MULTIPROC_DIR", "").strip())
+if _MULTIPROC:
+    Path(os.environ["PROMETHEUS_MULTIPROC_DIR"]).mkdir(parents=True, exist_ok=True)
+    _render_registry = CollectorRegistry()
+    multiprocess.MultiProcessCollector(_render_registry)
+else:
+    _render_registry = REGISTRY
+
+# В multiprocess-режиме значения пишутся в файлы; локальные объекты нужны
+# только для API инкремента. В single-process они же отдают /metrics.
+_requests = Counter(
+    "chessclass_http_requests",
+    "HTTP requests by status",
+    ["method", "route", "status"],
 )
-_duration_sum: dict[tuple[str, str], float] = defaultdict(float)
-_duration_count: dict[tuple[str, str], int] = defaultdict(int)
+_duration = Histogram(
+    "chessclass_http_request_duration_seconds",
+    "HTTP latency",
+    ["method", "route"],
+    buckets=BUCKETS,
+)
 
 
 def observe_http_request(
     method: str, route: str, status: int, duration_s: float
 ) -> None:
     """Учесть один HTTP-запрос (route — шаблон/путь, без query)."""
-    key = (method.upper(), route)
-    with _lock:
-        _requests[(key[0], key[1], str(status))] += 1
-        bucket_values = _histogram[key]
-        for index, limit in enumerate(BUCKETS):
-            if duration_s <= limit:
-                bucket_values[index] += 1
-        bucket_values[-1] += 1  # +Inf
-        _duration_sum[key] += duration_s
-        _duration_count[key] += 1
-
-
-def _escape(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+    labels = {"method": method.upper(), "route": route}
+    _requests.labels(**labels, status=str(status)).inc()
+    _duration.labels(**labels).observe(duration_s)
 
 
 def render_http_metrics() -> str:
-    """Prometheus text exposition для HTTP-метрик."""
-    lines: list[str] = [
-        "# HELP chessclass_http_requests_total HTTP requests by status",
-        "# TYPE chessclass_http_requests_total counter",
-    ]
-    with _lock:
-        for (method, route, status), count in sorted(_requests.items()):
-            lines.append(
-                "chessclass_http_requests_total"
-                f'{{method="{_escape(method)}",route="{_escape(route)}",'
-                f'status="{status}"}} {count}'
-            )
-        lines.extend(
-            [
-                "# HELP chessclass_http_request_duration_seconds HTTP latency",
-                "# TYPE chessclass_http_request_duration_seconds histogram",
-            ]
-        )
-        for (method, route), buckets in sorted(_histogram.items()):
-            labels = f'method="{_escape(method)}",route="{_escape(route)}"'
-            for index, limit in enumerate(BUCKETS):
-                lines.append(
-                    "chessclass_http_request_duration_seconds_bucket"
-                    f'{{{labels},le="{limit}"}} {buckets[index]}'
-                )
-            lines.append(
-                "chessclass_http_request_duration_seconds_bucket"
-                f'{{{labels},le="+Inf"}} {buckets[-1]}'
-            )
-            lines.append(
-                "chessclass_http_request_duration_seconds_sum"
-                f'{{{labels}}} {_duration_sum[(method, route)]:.6f}'
-            )
-            lines.append(
-                "chessclass_http_request_duration_seconds_count"
-                f'{{{labels}}} {_duration_count[(method, route)]}'
-            )
-    return "\n".join(lines) + "\n"
+    """Prometheus text exposition (multiprocess-агрегат при включении)."""
+    return generate_latest(_render_registry).decode("utf-8")
+
+
+def mark_process_dead() -> None:
+    """Убрать файлы завершившегося воркера из multiprocess-каталога."""
+    if _MULTIPROC:
+        multiprocess.mark_process_dead(os.getpid())
 
 
 def reset_http_metrics() -> None:
-    """Для тестов: очистить process-local счётчики."""
-    with _lock:
-        _requests.clear()
-        _histogram.clear()
-        _duration_sum.clear()
-        _duration_count.clear()
+    """Совместимость тестов: счётчики prometheus_client не сбрасываются.
+
+    В тестах проверяется наличие серий, а не точные значения; между тестами
+    registry живёт в процессе и это ожидаемо.
+    """
