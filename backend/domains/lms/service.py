@@ -499,17 +499,23 @@ class ClassMapRow:
         self.course_title = course_title
 
 
-async def list_class_maps(session: AsyncSession) -> list[ClassMapRow]:
-    rows = (
-        await session.execute(
-            select(
-                LmsClassMap.id,
-                LmsClassMap.class_id,
-                LmsClassMap.course_id,
-                LmsClassMap.activity_ref,
-            ).order_by(LmsClassMap.id)
+async def list_class_maps(session: AsyncSession, user=None) -> list[ClassMapRow]:
+    stmt = select(
+        LmsClassMap.id,
+        LmsClassMap.class_id,
+        LmsClassMap.course_id,
+        LmsClassMap.activity_ref,
+    ).order_by(LmsClassMap.id)
+    # S-91: teacher видит маппинги только своих классов; admin — все.
+    if user is not None and user.role is UserRole.TEACHER:
+        from domains.classes.models import Classroom
+
+        stmt = stmt.where(
+            LmsClassMap.class_id.in_(
+                select(Classroom.id).where(Classroom.teacher_id == user.id)
+            )
         )
-    ).all()
+    rows = (await session.execute(stmt)).all()
     course_ids = {row[2] for row in rows}
     titles: dict[int, str] = {}
     if course_ids:

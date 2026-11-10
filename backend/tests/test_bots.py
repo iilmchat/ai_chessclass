@@ -111,11 +111,11 @@ async def test_bot_privacy(admin_client, make_client, unique_email):
     headers = {"Authorization": f"Bearer {access}"}
     bot_id = await _create_bot(client, headers)
 
-    # чужой студент → 404
+    # S-91: чужой существующий бот → 403 (BOLA)
     client_b = await make_client()
     await register_verified(client_b, f"b-{unique_email}")
     _c, access_b, _uid = await login(client_b, f"b-{unique_email}")
     response = await client_b.get(
         f"{API}/bots/{bot_id}", headers={"Authorization": f"Bearer {access_b}"}
     )
-    assert response.status_code == 404
+    assert response.status_code == 403

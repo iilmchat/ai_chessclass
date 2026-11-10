@@ -933,6 +933,37 @@ interface ConsentRequestOut extends ConsentStatusOut {
   `JWT_ALGORITHM=RS256` + `JWT_KID`/ключи. Legacy HS256 — только переходный
   режим с warning в логах.
 
+### 3.33. Object-level authorization: `{id}`-эндпоинты (S-91)
+
+Единый слой — `backend/core/authz.py`. Правило: **404** — объекта нет,
+**403** — объект есть, но он чужой. Teacher ограничен учениками своих
+классов (`classes`/`class_members`); auditor — только явным scope
+(`user_profiles.prefs.auditor_scope`), отсутствие scope = 403.
+
+| Эндпоинт | Кто имеет доступ | Проверка |
+|---|---|---|
+| `POST /reports/pdf/{student_id}` | teacher/admin | teacher — ученик своего класса |
+| `GET /reports/pdf/{report_id}` | student-владелец, teacher (запросивший/свой класс), admin, auditor scope `reports` | `report.student_id`/`requested_by` |
+| `GET /admin/audit/logs`, `/export.csv` | teacher — только свои действия; admin — всё; auditor scope `audit` | `actor_id == user.id` для teacher |
+| `GET /bots/{bot_id}`, `/{bot_id}/matches`, replay/events | владелец, admin, teacher ученика-владельца | `bot.user_id` |
+| `GET /chess/games/{game_id}` (+ blunders/explain/events) | владелец, admin, teacher ученика-владельца | `game.user_id` |
+| `GET /py/submissions/{submission_id}` | владелец, admin, teacher ученика-владельца | `submission.user_id` |
+| `GET /classes/{class_id}` | участник класса, manager, admin | `class_members` / `class.teacher_id` |
+| `GET /classes/{class_id}/dashboard` | manager (teacher-owner), admin | `class.teacher_id` |
+| `GET/POST /pvp/rooms/{room_id}` (+ events/replay) | участник комнаты, admin, teacher участника из своего класса | `host_user_id`/`guest_user_id` |
+| `PATCH /admin/pvp/complaints/{complaint_id}` | admin, teacher участника из своего класса | комната жалобы |
+| `GET /profile/{user_id}`, `/progress/{user_id}`, `/skills/{user_id}` | сам ученик, admin, teacher своего класса | `class_members` |
+| `GET /admin/anticheat/students/{user_id}/card` | teacher своего класса, admin, auditor scope `flags` | `class_members` + scope |
+| `POST /admin/anticheat/flags/{flag_id}/review`, `/judge/{session_id}/verdict` | teacher своего класса, admin | `flag.user_id`/`session.user_id` |
+| `GET /admin/anticheat/flags`, `/judge` | teacher — свои ученики; admin — всё; auditor scope `flags` | фильтр по классам |
+| `POST /review/cards/{card_id}/answer` | только владелец карточки | `card.user_id` |
+| `DELETE /lms/courses/{course_id}`, `/class-map/{map_id}` | admin | RBAC |
+| `GET /studies/{study_id}` | опубликованный этюд — все авторизованные | `status=PUBLISHED` |
+
+Списки, не содержащие `{id}`, фильтруются тем же правилом:
+`GET /profile/students`, `GET /admin/audit/logs`, `GET /admin/anticheat/flags`,
+`GET /admin/anticheat/judge`, `GET /admin/pvp/complaints`.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент

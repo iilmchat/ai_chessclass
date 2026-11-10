@@ -352,18 +352,22 @@ ai_chessclass/
 
 | Действие | student | teacher | admin | auditor |
 |---|---|---|---|---|
-| Решать задания, боты, анализ | ✅ | ✅ | ✅ | — |
+| Решать задания, боты, анализ | ✅ свои | ✅ | ✅ | — |
 | Дашборд себя | ✅ | ✅ | ✅ | — |
-| Дашборд любого ученика | — | ✅ | ✅ | — |
-| PDF родителям (генерация) | — | ✅ | ✅ | — |
-| PDF (просмотр) | — | ✅ | ✅ | ✅ |
-| Флаги античита (просмотр) | — | ✅ | ✅ | ✅ |
-| Флаги/вердикты (изменение) | — | ✅ | ✅ | — |
-| Журнал аудита (просмотр/CSV) | — | ✅ | ✅ | ✅ |
+| Дашборд ученика | — | ✅ только свой класс | ✅ | — |
+| PDF родителям (генерация) | — | ✅ только свой класс | ✅ | — |
+| PDF (просмотр) | ✅ свой | ✅ запрошенный/свой класс | ✅ | ✅ scope `reports` |
+| Флаги античита (просмотр) | — | ✅ только свой класс | ✅ | ✅ scope `flags` |
+| Флаги/вердикты (изменение) | — | ✅ только свой класс | ✅ | — |
+| Журнал аудита (просмотр/CSV) | — | ✅ только свои действия | ✅ | ✅ scope `audit` |
+| Боты/партии/сдачи/PvP | ✅ свои | ✅ своего класса | ✅ | — |
 | Назначать задания/эталоны (админка) | — | — | ✅ | — |
 | Управление моделями/бюджетами | — | — | ✅ | — |
 
-Детализация прав — в `docs/SPEC.md` (пермишен-модель), здесь — намерения.
+S-91: проверки объектные (`core/authz.py`): чужой существующий объект —
+403, отсутствующий — 404; teacher ограничен `class_members`, auditor —
+явным scope (fail-closed). Детализация прав и таблица эндпоинтов — в
+`docs/SPEC.md` §3.33.
 
 ## 5. Модуль Python (python_teacher)
 
@@ -1123,6 +1127,11 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
   API доверяет им только от `PROXY_TRUSTED_HOSTS` (IP/CIDR edge, не `*` без
   необходимости) и обновляет `request.client.host` до роутинга. Иначе
   rate-limit/lockout видели бы IP прокси, а не клиента.
+- S-91: object-level authorization — единый слой `core/authz.py` для
+  `{id}`-эндпоинтов (report/bot/game/submission/PvP/student data). Teacher
+  видит только объекты учеников своих классов; auditor — только по явному
+  scope; чужой объект → 403, отсутствующий → 404. Списки (`profile/students`,
+  audit, flags, complaints) фильтруются тем же правилом.
 - Секреты только в `.env` (шаблон `.env.example`), в документах — имена
   переменных, не значения.
 - Инъекции: prompts — фиксированная структура trusted/untrusted, санитизация
@@ -1412,6 +1421,14 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `JWT_LEGACY_HS256=false` по умолчанию, prod/staging — RS256/JWKS.
   Тесты: `test_edge_auth_s90.py`, `scripts/edge-ratelimit-smoke.ps1`;
   backend — 314 collected (311 passed + 3 skipped).
+- S-91 (v0.8.0): object-level authorization (BOLA) — `core/authz.py`:
+  `ensure_can_access_student_data/report/bot/game/submission/pvp_room`;
+  teacher → только `class_members` своих классов, auditor → явный scope
+  (fail-closed), чужой объект → 403 / отсутствующий → 404. Покрыты PDF,
+  audit (teacher — только свои действия), боты, шахматные партии, сдачи,
+  профиль/прогресс/навыки, PvP-комнаты/жалобы, флаги/вердикты античита.
+  Кросс-тенантные тесты — `test_authz_cross_tenant.py` (RS256), backend —
+  321 collected (318 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

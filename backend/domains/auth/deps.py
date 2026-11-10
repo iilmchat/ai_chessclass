@@ -59,10 +59,11 @@ def require_role(
 
 
 def require_scope(scope: str) -> Callable[..., Awaitable[User]]:
-    """RBAC + auditor scope (S-47).
+    """RBAC + auditor scope (S-47/S-91).
 
-    teacher/admin проходят всегда; auditor проверяется по
-    `user_profiles.prefs["auditor_scope"]` (отсутствует → разрешено).
+    teacher/admin проходят всегда; auditor допускается только при явном
+    `user_profiles.prefs["auditor_scope"][scope] is True`. Отсутствующий или
+    false scope — 403 (fail-closed).
     """
 
     async def checker(user: CurrentUser, session: DbSession) -> User:
@@ -74,7 +75,7 @@ def require_scope(scope: str) -> Callable[..., Awaitable[User]]:
 
         profile = await session.get(UserProfile, user.id)
         scopes = (profile.prefs or {}).get("auditor_scope", {}) if profile else {}
-        if scopes.get(scope) is False:
+        if scopes.get(scope) is not True:
             raise AppError(
                 "auth_forbidden", f"Нет scope auditor: {scope}", 403
             )

@@ -6,9 +6,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 
+from core.authz import ensure_can_access_report, ensure_can_access_student_data
 from core.errors import AppError
 from domains.audit import service as audit_svc
-from domains.auth.deps import DbSession, require_role, require_scope
+from domains.auth.deps import CurrentUser, DbSession, require_role
 from domains.auth.models import User, UserRole
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -20,7 +21,6 @@ def _teacher() -> User:
 
 
 TeacherOrAdmin = Annotated[User, Depends(require_role(UserRole.TEACHER, UserRole.ADMIN))]
-AuditorOrTeacher = Annotated[User, Depends(require_scope("reports"))]
 
 
 @router.post("/pdf/{student_id}", status_code=201)
@@ -32,6 +32,7 @@ async def generate_pdf(
 ) -> dict:
     from domains.reports import pdf as pdf_svc
 
+    await ensure_can_access_student_data(requester, student_id, session)
     result = await pdf_svc.generate_for_student(session, requester, student_id)
     await audit_svc.record(
         session,
@@ -48,21 +49,17 @@ async def generate_pdf(
 @router.get("/pdf/{report_id}")
 async def download_pdf(
     report_id: int,
-    _guard: AuditorOrTeacher,
+    user: CurrentUser,
     session: DbSession,
     request: Request,
 ) -> Response:
-    from domains.reports.models import ReportPdf
-
-    record = await session.get(ReportPdf, report_id)
-    if record is None:
-        raise AppError("report_not_found", "Отчёт не найден", 404)
+    record = await ensure_can_access_report(user, report_id, session)
     path = Path(record.path)
     if not path.is_file():
         raise AppError("report_file_missing", "Файл отчёта не найден на диске", 404)
     await audit_svc.record(
         session,
-        _guard,
+        user,
         "reports.pdf.download",
         target_type="report",
         target_id=report_id,

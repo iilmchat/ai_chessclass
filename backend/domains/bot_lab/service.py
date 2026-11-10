@@ -5,6 +5,7 @@ import logging
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.authz import ensure_can_access_bot
 from core.config import settings
 from core.errors import AppError
 from domains.bot_lab.models import BotVersion
@@ -23,10 +24,8 @@ async def list_bots(session: AsyncSession, user) -> list[BotVersion]:
 
 
 async def get_bot(session: AsyncSession, user, bot_id: int) -> BotVersion:
-    bot = await session.get(BotVersion, bot_id)
-    if bot is None or bot.user_id != user.id:
-        raise AppError("bot_not_found", "Бот не найден", 404)
-    return bot
+    # S-91: owner/admin/teacher своего ученика; чужой существующий — 403.
+    return await ensure_can_access_bot(user, bot_id, session)
 
 
 async def create_bot(

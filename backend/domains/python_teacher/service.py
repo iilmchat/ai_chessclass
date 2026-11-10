@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
+from core.authz import ensure_can_access_submission
 from core.config import settings
 from core.errors import AppError
 from core.levels import Level
@@ -172,12 +173,8 @@ def _verdict_from_grade(grade) -> Verdict:  # noqa: ANN001 — GradeResult
 async def get_submission(
     session: AsyncSession, submission_id: int, user: User
 ) -> PySubmission:
-    submission = await session.get(PySubmission, submission_id)
-    if submission is None:
-        raise AppError("submission_not_found", "Сдача не найдена", 404)
-    if submission.user_id != user.id and user.role not in (UserRole.TEACHER, UserRole.ADMIN):
-        raise AppError("auth_forbidden", "Можно смотреть только свои сдачи", 403)
-    return submission
+    # S-91: teacher — только сдачи учеников своих классов, не любые.
+    return await ensure_can_access_submission(user, submission_id, session)
 
 
 async def _user_level(session: AsyncSession, user: User) -> Level:

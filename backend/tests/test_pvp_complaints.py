@@ -124,11 +124,25 @@ async def test_teacher_can_review(make_client, unique_email):
     teacher_email = f"cd-{unique_email}"
     await make_direct_user(teacher_email, role=UserRole.TEACHER)
     _c, teacher_access, _tuid = await login(client, teacher_email)
+    teacher_headers = {"Authorization": f"Bearer {teacher_access}"}
+
+    # S-91: teacher ревьюит жалобу только участника своего класса.
+    response = await client.post(
+        f"{API}/classes", json={"name": "PVP complaints"}, headers=teacher_headers
+    )
+    assert response.status_code == 201
+    class_id = int(response.json()["id"])
+    response = await client.post(
+        f"{API}/classes/{class_id}/members",
+        json={"email": f"t-{unique_email}"},
+        headers=teacher_headers,
+    )
+    assert response.status_code == 201
 
     response = await client.patch(
         f"{API}/admin/pvp/complaints/{complaint_id}",
         json={"status": "reviewed", "note": "проверено"},
-        headers={"Authorization": f"Bearer {teacher_access}"},
+        headers=teacher_headers,
     )
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "reviewed"

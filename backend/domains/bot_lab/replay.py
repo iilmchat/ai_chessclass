@@ -5,6 +5,7 @@ import json
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.authz import ensure_can_access_bot
 from core.errors import AppError
 from domains.bot_lab.models import BotMatch, BotMatchMove
 
@@ -13,11 +14,12 @@ async def get_replay(
     session: AsyncSession, user, bot_id: int, match_id: int
 ) -> dict:
     """Полный реплей: метаданные матча + ходы по порядку."""
+    bot = await ensure_can_access_bot(user, bot_id, session)
     match = await session.get(BotMatch, match_id)
     if (
         match is None
         or match.version_id != bot_id
-        or match.user_id != user.id
+        or match.user_id != bot.user_id
     ):
         raise AppError("match_not_found", "Матч не найден", 404)
     moves = (

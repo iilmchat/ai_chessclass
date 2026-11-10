@@ -80,7 +80,7 @@ async def test_upload_pending_and_privacy(admin_client, make_client, unique_emai
     response = await client_b.get(
         f"{API}/chess/games/{game_id}", headers={"Authorization": f"Bearer {access_b}"}
     )
-    assert response.status_code == 404
+    assert response.status_code == 403
 
 
 async def test_blunder_emits_skill_event(

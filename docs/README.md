@@ -38,6 +38,7 @@
 | `docs/sprint-reports/S-88-2026-11-10.md` | docs/ | ✅ S-88 | Certificate rotation & retention ops (cert-check, gauges, runbook) |
 | `docs/sprint-reports/S-89-2026-11-10.md` | docs/ | ✅ S-89 | Релиз v0.7.1 (версии, legal closure, тег) |
 | `docs/sprint-reports/S-90-2026-11-11.md` | docs/ | ✅ S-90 | Edge/auth hardening (proxy IP, lockout, rate-limit, RS256) |
+| `docs/sprint-reports/S-91-2026-11-11.md` | docs/ | ✅ S-91 | Object-level authorization (BOLA fix, cross-tenant tests) |
 
 ## Исходные проекты (первоисточники контента)
 

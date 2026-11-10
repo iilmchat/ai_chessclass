@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.authz import ensure_can_access_game
 from core.config import settings
 from core.errors import AppError
 from core.levels import LEVEL_TO_CHESS, Level, resolve_level
@@ -265,9 +266,8 @@ async def upload_game(session: AsyncSession, user, pgn: str) -> dict:
 
 
 async def get_analysis_for_user(session: AsyncSession, user, game_id: int) -> ChessAnalysis:
-    game = await session.get(ChessGame, game_id)
-    if game is None or game.user_id != user.id:
-        raise AppError("game_not_found", "Партия не найдена", 404)
+    # S-91: owner/admin/teacher ученика; чужой существующий game → 403.
+    await ensure_can_access_game(user, game_id, session)
     analysis = (
         await session.execute(
             select(ChessAnalysis).where(ChessAnalysis.game_id == game_id)

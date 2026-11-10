@@ -59,6 +59,19 @@ async def test_rbac_profile_endpoints(make_client, unique_email):
     _client, teacher_access, _ = await login(client, teacher_email)
     teacher_headers = await _bearer_headers(teacher_access)
 
+    # S-91: teacher видит учеников только своих классов.
+    response = await client.post(
+        f"{API}/classes", json={"name": "Профиль-класс"}, headers=teacher_headers
+    )
+    assert response.status_code == 201
+    class_id = int(response.json()["id"])
+    response = await client.post(
+        f"{API}/classes/{class_id}/members",
+        json={"email": unique_email},
+        headers=teacher_headers,
+    )
+    assert response.status_code == 201
+
     response = await client.get(f"{API}/profile/students", headers=teacher_headers)
     assert response.status_code == 200
     page = response.json()
@@ -109,6 +122,18 @@ async def test_students_pagination(make_client, unique_email):
     await make_direct_user(teacher_email, UserRole.TEACHER)
     _client, teacher_access, _ = await login(client, teacher_email)
     headers = await _bearer_headers(teacher_access)
+
+    response = await client.post(
+        f"{API}/classes", json={"name": "Пагинация-класс"}, headers=headers
+    )
+    assert response.status_code == 201
+    class_id = int(response.json()["id"])
+    response = await client.post(
+        f"{API}/classes/{class_id}/members",
+        json={"email": unique_email},
+        headers=headers,
+    )
+    assert response.status_code == 201
 
     response = await client.get(
         f"{API}/profile/students", params={"page": 1, "pageSize": 1}, headers=headers

@@ -85,9 +85,21 @@ async def test_teacher_sees_student_slice(admin_client, make_client, unique_emai
 
     await make_direct_user(f"t-{unique_email}", role=UserRole.TEACHER)
     _c, teacher_access, _uid = await login(client, f"t-{unique_email}")
+    teacher_headers = {"Authorization": f"Bearer {teacher_access}"}
+    # S-91: teacher видит навыки только учеников своих классов.
+    response = await client.post(
+        f"{API}/classes", json={"name": "Skills"}, headers=teacher_headers
+    )
+    assert response.status_code == 201
+    class_id = int(response.json()["id"])
+    response = await client.post(
+        f"{API}/classes/{class_id}/members",
+        json={"email": unique_email},
+        headers=teacher_headers,
+    )
+    assert response.status_code == 201
     response = await client.get(
-        f"{API}/skills/{student_id}",
-        headers={"Authorization": f"Bearer {teacher_access}"},
+        f"{API}/skills/{student_id}", headers=teacher_headers
     )
     assert response.status_code == 200
     assert response.json()["userId"] == str(student_id)

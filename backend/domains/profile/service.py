@@ -5,6 +5,7 @@ import logging
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.authz import teacher_student_ids
 from core.errors import AppError
 from core.levels import Level
 from domains.auth.models import User, UserRole
@@ -68,18 +69,21 @@ async def set_user_level(session: AsyncSession, user_id: int, level: Level) -> U
 
 
 async def list_students(
-    session: AsyncSession, page: int, page_size: int
+    session: AsyncSession, viewer: User, page: int, page_size: int
 ) -> tuple[list[tuple[User, UserProfile]], int]:
-    """Все ученики платформы (v0.1: малая школа, Design §4.1)."""
+    """S-91: admin — все ученики; teacher — только ученики своих классов."""
+    filters = [User.role == UserRole.STUDENT]
+    if viewer.role is UserRole.TEACHER:
+        filters.append(User.id.in_(teacher_student_ids(viewer.id)))
     total = (
         await session.execute(
-            select(func.count()).select_from(User).where(User.role == UserRole.STUDENT)
+            select(func.count()).select_from(User).where(*filters)
         )
     ).scalar_one()
     stmt = (
         select(User, UserProfile)
         .outerjoin(UserProfile, UserProfile.user_id == User.id)
-        .where(User.role == UserRole.STUDENT)
+        .where(*filters)
         .order_by(User.id)
         .offset((page - 1) * page_size)
         .limit(page_size)
