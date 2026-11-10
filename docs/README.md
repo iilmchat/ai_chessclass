@@ -33,6 +33,7 @@
 | `docs/sprint-reports/S-85-2026-11-07.md` | docs/ | ✅ S-85 | Отчёт релиза v0.7.0 (прогоны, тег, риски) |
 | `docs/sprint-reports/S-86-2026-11-08.md` | docs/ | ✅ S-86 | Email outbox hardening (SKIP LOCKED, retention) |
 | `docs/sprint-reports/S-87-2026-11-08.md` | docs/ | ✅ S-87 | Observability hardening (маскировка, email, disk alert) |
+| `docs/sprint-reports/S-88-2026-11-10.md` | docs/ | ✅ S-88 | Certificate rotation & retention ops (cert-check, gauges, runbook) |
 
 ## Исходные проекты (первоисточники контента)
 

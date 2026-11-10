@@ -1,7 +1,7 @@
 # TODO_V0.7.1.md — План v0.7.1 «Tech Debt Cleanup»
 
-**Статус:** 🔶 В работе (S-86 ✅, S-87 ✅; S-88…S-89 впереди)
-**Сводно:** 4 спринта · **Прогресс: 2/4**
+**Статус:** 🔶 В работе (S-86 ✅, S-87 ✅, S-88 ✅; S-89 впереди)
+**Сводно:** 4 спринта · **Прогресс: 3/4**
 **Цель:** Закрыть техдолг, накопленный в v0.7.0: надёжность email outbox при параллельных воркерах, retention писем, маскировка секретов в логах observability, ротация внутренних сертификатов и релиз v0.7.1.
 
 ## Спринт S-86 (P0): Email Outbox Hardening
@@ -41,13 +41,22 @@
 
 ## Спринт S-88 (P1): Certificate Rotation & Retention Ops
 **Ветка:** `feat/s-88-cert-rotation`
-**Статус:** черновик (текст плана уточняется)
+**Статус:** ✅ Завершён (2026-11-10)
 
 **Задачи:**
-- [ ] Ротация внутренних сертификатов Tempo/collector с проверкой срока и `-Force`.
-- [ ] Мониторинг parked/failed `email_outbox` и целостности gzip-архива.
-- [ ] Runbook: ротация без простоя, откат.
-- [ ] Отчёт: `docs/sprint-reports/S-88-YYYY-MM-DD.md`.
+- [x] Скрипт `check-cert-expiry.ps1`: пороги 30/7 дней, exit 0/1/2, Telegram, soft-check в CI.
+- [x] Ротация внутренних сертификатов Tempo/collector с проверкой срока и `-Force`.
+- [x] Мониторинг parked/failed `email_outbox`, `failed_jobs` и возраста gzip-архива retention.
+- [x] Runbook: ротация без простоя, откат; §10.13 — stuck/stale.
+- [x] Отчёт: `docs/sprint-reports/S-88-2026-11-10.md`.
+
+**DoD:**
+- [x] `check-cert-expiry.ps1` блокирует critical и алертит в Telegram.
+- [x] Gauges `chessclass_email_outbox_{pending_total,oldest_pending_age_seconds}` и
+  `chessclass_retention_archive_age_seconds` в `/metrics`; алерты
+  `ChessClassEmailOutboxStuck`/`ChessClassRetentionArchiveStale`.
+- [x] Runbook §7.1: ротация, mTLS-проверка, окно ≈30 с, откат из копии.
+- [x] Отчёт S-88.
 
 ---
 

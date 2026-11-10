@@ -42,7 +42,7 @@
 | voice | `GET /voice/status`, `POST /voice/speak` | — | ✅ S-44 | ElevenLabs TTS, кэш/квота; 503 без ключа — UI остаётся текстовым (SPEC §3.15) |
 | tournaments | `GET /tournaments`, `GET /tournaments/{id}`; admin: `POST /admin/tournaments`, `GET /admin/tournaments/{id}/export.csv` | — | ✅ S-45 | bracket/round-robin без LLM, лидерборд, CSV (SPEC §3.16) |
 | export | `GET /admin/export/skills.csv`, `GET /admin/export/xapi` | — | ✅ S-45 | LMS: CSV навыков + xAPI statements (SPEC §3.16) |
-| observability | `GET /metrics`; admin: `GET /admin/observability/summary|alerts|costs|costs.csv|retention/status`, `POST /admin/observability/retention/run` | — | ✅ S-46 | метрики, стоимость, retention/архив (SPEC §3.17) |
+| observability | `GET /metrics`; admin: `GET /admin/observability/summary|alerts|costs|costs.csv|retention/status`, `POST /admin/observability/retention/run` | — | ✅ S-46/S-88 | метрики, стоимость, retention/архив (SPEC §3.17); S-88 — gauges outbox/archive |
 | auth-hardening | `GET /auth/jwks`, `GET /.well-known/jwks.json`; admin: `PATCH /admin/users/{id}/role`, `PATCH /admin/users/{id}/auditor-scope`, `POST /admin/users/{id}/anonymize` | — | ✅ S-47 | RS256/JWKS, auditor scope, PII-анонимизация (SPEC §3.18) |
 | tournaments-v2 | `POST /admin/tournaments` (202/queued), `GET /tournaments/{id}/events` (SSE), `POST /admin/tournaments/{id}/cancel`, `GET /tournaments/{id}/matches/{mid}/replay` | — | ✅ S-48 | async arq, replay, cancel/recovery, SF-античит (SPEC §3.19) |
 | lms | admin: `GET /admin/lms/status`, `POST /admin/lms/sync`, `GET /admin/lms/deliveries`, `GET /admin/lms/deliveries.csv` | — | ✅ S-49 | xAPI LRS, retry/идемпотентность, журнал (SPEC §3.20) |
@@ -597,7 +597,10 @@ interface TournamentDetailOut extends TournamentOut {
 - `/metrics`: DB/Redis, глубины очередей, active-матчи, LLM/voice cost/tokens,
   свободный диск, DLQ `chessclass_failed_jobs`; S-77 — HTTP RED
   `chessclass_http_requests_total{method,route,status}` и
-  `chessclass_http_request_duration_seconds_{bucket,sum,count}` для p95.
+  `chessclass_http_request_duration_seconds_{bucket,sum,count}` для p95;
+  S-88 — `chessclass_email_outbox_pending_total` (pending + parked failed),
+  `chessclass_email_outbox_oldest_pending_age_seconds` и
+  `chessclass_retention_archive_age_seconds` (0 — архивов ещё нет).
   `METRICS_TOKEN` защищает endpoint; в prod — только внутренний scrape.
 - Observability-профиль S-77: OTel Collector `:4317`/`:4318` → Tempo
   (traces) и Prometheus `:8889`; Grafana dashboard uid

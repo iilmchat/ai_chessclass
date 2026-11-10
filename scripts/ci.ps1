@@ -9,6 +9,15 @@ param(
 $ErrorActionPreference = "Stop"
 $compose = "docker-compose.dev.yml"
 
+# S-88: soft-check сертификатов. Warning (exit 1) не блокирует CI, critical
+# (exit 2) — блокирует. Telegram из CI не отправляем: алертит ежедневный cron.
+Write-Host "[ci] certificate expiry (soft-check)..."
+& (Join-Path $PSScriptRoot "check-cert-expiry.ps1") -NoTelegram
+if ($LASTEXITCODE -eq 2) { throw "certificate check: critical" }
+if ($LASTEXITCODE -eq 1) {
+    Write-Host "[ci] certificate warning — не блокирует" -ForegroundColor Yellow
+}
+
 Write-Host "[ci] config check..."
 docker compose -f $compose config -q
 if (-not $SkipStack) {

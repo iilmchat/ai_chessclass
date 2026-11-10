@@ -9,6 +9,25 @@
 
 ### Добавлено
 
+#### S-88 — Certificate Rotation & Retention Ops (2026-11-10)
+- `scripts/check-cert-expiry.ps1`: проверка `deploy/internal-certs/*.crt`,
+  `deploy/certs/*.pem` и `deploy/nginx/**`; таблица
+  `cert_path days_left status`, пороги 30/7 дней, exit 0/1/2. При
+  warning/critical и заданных `TELEGRAM_BOT_TOKEN` + `TELEGRAM_ALERT_CHAT_ID`
+  отправляет сообщение в Telegram (токен не логируется). В `scripts/ci.ps1` —
+  soft-check: warning не блокирует, critical блокирует.
+- Gauges `/metrics`: `chessclass_email_outbox_pending_total`,
+  `chessclass_email_outbox_oldest_pending_age_seconds`,
+  `chessclass_retention_archive_age_seconds`; алерты
+  `ChessClassEmailOutboxStuck` (oldest > 1 ч) и
+  `ChessClassRetentionArchiveStale` (> 8 дней), всего 8 правил.
+- Runbook `operations.md` §7.1 — ротация внутренних сертификатов без простоя
+  (окно ≈30 с, mTLS-трейс, откат из копии), §10.13 — stuck `email_outbox` /
+  stale retention; selftest проверяет пороги сертификатов и gauges.
+- Тесты: `test_email_outbox_and_retention_metrics`,
+  `test_cert_expiry_script_and_ci_soft_check`; backend — 310 collected
+  (307 passed + 3 skipped), 8 правил.
+
 #### S-87 — Observability Hardening (2026-11-08)
 - Логи Alertmanager проходят через `deploy/observability/prod/redact-logs.awk`:
   `bot<digits>:<token>` → `bot<REDACTED>`, `Authorization: Bearer …` →
@@ -48,11 +67,11 @@
   зафиксировал, что S-86 в него не входит.
 
 ### Изменено
-- `scripts/doc_lint.py` — активный план `TODO_V0.7.1.md`, прогресс 2/4;
+- `scripts/doc_lint.py` — активный план `TODO_V0.7.1.md`, прогресс 3/4;
   `backend/tests/test_doc_lint.py` — ожидания v0.7.1.
 - `scripts/observability-selftest.ps1` — рендер через entrypoint-скрипты,
-  проверка маскировки, SMTP-приёмник и доставка email в runtime, 6 targets /
-  6 правил.
+  проверка маскировки, SMTP-приёмник и доставка email в runtime, пороги
+  `check-cert-expiry.ps1`, gauges S-88, 6 targets / 8 правил.
 - `docs/SPEC.md` (§3.17, DDL `email_outbox`), `Design.md` (ADR-020, §16.1),
   README/docs README — SKIP LOCKED, retention, env.
 

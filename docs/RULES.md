@@ -74,6 +74,7 @@
 | Hash-lock (S-62) | сборка — только из `backend/requirements.lock` (Dockerfile `--require-hashes`); обновление зависимостей: `docker compose … run --rm --no-deps api sh -c "pip install -q pip-tools && pip-compile --generate-hashes --output-file /srv/backend/requirements.lock /srv/backend/pyproject.toml"` → пересборка + `bash backend/scripts/pip_audit.sh` (`PIP_AUDIT_SERVICE=osv` из сетей, где pypi.org заблокирован) |
 | Бэкап / restore | `.\scripts\backup.ps1`; `.\scripts\restore-test.ps1` — sha256, temp DB, проверка users/alembic |
 | Edge TLS | `deploy/nginx/edge.conf` + `deploy/certs`; self-signed — `.\scripts\gen-self-signed-cert.ps1`; smoke — `smoke-prod.ps1 -EdgeBase https://localhost` |
+| Срок сертификатов | `.\scripts\check-cert-expiry.ps1` — exit 0/1/2; в `ci.ps1` warning не блокирует, critical блокирует; Telegram при warning/critical |
 
 ## 7. Шаблон отчёта спринта
 
