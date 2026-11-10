@@ -40,7 +40,13 @@ class Settings(BaseSettings):
     jwt_private_key_path: str = ""
     jwt_public_key_path: str = ""
     jwt_kid: str = "v1"
-    jwt_legacy_hs256: bool = True
+    # S-90: legacy HS256 выключен по умолчанию; включать только на время
+    # миграции HS256→RS256. В prod/staging должен быть false.
+    jwt_legacy_hs256: bool = False
+    # S-90: доверенные reverse-proxy (edge/web) для X-Forwarded-For.
+    # Список IP/CIDR через запятую; "*" доверяет всем (только если API
+    # недоступен напрямую). testclient — для in-process тестов.
+    proxy_trusted_hosts: str = "127.0.0.1,testclient"
     jwt_ttl: str = "15m"
     refresh_ttl: str = "30d"
     refresh_cookie_name: str = "cc_refresh"

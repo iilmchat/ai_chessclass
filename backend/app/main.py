@@ -7,6 +7,7 @@ import redis.asyncio as redis_lib
 import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.routers import healthz, readyz
 from core.config import settings
@@ -66,6 +67,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning(
             "cors: localhost-origins в %s — проверьте CORS_ORIGINS", settings.app_env
         )
+    # S-90: legacy HS256 — только переходный режим. В prod/staging не роняем
+    # старт (совместимость), но предупреждаем явно.
+    if settings.app_env in ("staging", "prod"):
+        if settings.jwt_legacy_hs256:
+            logger.warning(
+                "auth: JWT_LEGACY_HS256=true в %s — отключите legacy HS256",
+                settings.app_env,
+            )
+        if settings.jwt_algorithm.upper() != "RS256":
+            logger.warning(
+                "auth: JWT_ALGORITHM=%s в %s — целевой режим RS256/JWKS",
+                settings.jwt_algorithm,
+                settings.app_env,
+            )
+        if settings.jwt_algorithm.upper() == "RS256" and not (
+            settings.jwt_private_key or settings.jwt_private_key_path
+        ):
+            logger.warning(
+                "auth: RS256 без JWT_PRIVATE_KEY(_PATH) — токены не подпишутся"
+            )
     app.state.redis = redis_lib.from_url(settings.redis_url, decode_responses=True)
     # бутстрап LLM: сверка слагов моделей с провайдером (Design §8.3, R-01);
     # неуспех не роняет старт (S-05 добавит fallback-цепочку cloud→local→echo)
@@ -192,6 +213,13 @@ async def security_headers_middleware(request: Request, call_next) -> Response:
         )
     return response
 
+
+# S-90: реальный IP из X-Forwarded-For доверенного edge/web. Middleware
+# добавляется последним, поэтому выполняется до request_id/tracing/DB-context.
+app.add_middleware(
+    ProxyHeadersMiddleware,
+    trusted_hosts=settings.proxy_trusted_hosts,
+)
 
 register_exception_handlers(app)
 

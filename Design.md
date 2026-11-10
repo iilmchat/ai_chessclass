@@ -1061,6 +1061,11 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 
 - Глобальный: 120 req/min/user (Redis bucket); LLM-маршруты: 10 req/min
   на пользователя и 30/h (кроме teacher) — квоты токенов всё равно ограничивают.
+- S-90: edge-nginx — 10 req/min/IP для `/api/v1/auth/*` (burst 9) и
+  60 req/min/IP для `/api/*` (burst 30), `limit_req_status 429`; реальный IP —
+  из `X-Forwarded-For` доверенного edge (`ProxyHeadersMiddleware`,
+  `PROXY_TRUSTED_HOSTS`). Auth-lockout — per-account: 5 неудач/мин на email →
+  10 мин; IP — мягкий лимит 50 неудач/мин → 1 мин.
 - Матчи ботов: max **5 активных** матчей на пользователя (API → 429
   `match_limit`), per-queue воркеры (random 2, greedy/minimax/SF 1) —
   очереди не голодают друг друга; внутри очереди FIFO (S-37).
@@ -1070,14 +1075,18 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 ### 13.1. Аутентификация и сессии
 
 - Пароли — **Argon2id** (salt/time-cost по config); в логи не попадают.
-- Access JWT — TTL 15 мин, `sub`, `role`, `level`; HS256 по умолчанию,
-  RS256 + `JWKS` (S-47) через `JWT_ALGORITHM`/ключи/`JWT_KID`;
-  переходный legacy HS256.
+- Access JWT — TTL 15 мин, `sub`, `role`, `level`; целевой prod-режим —
+  RS256 + `JWKS` (S-47) через `JWT_ALGORITHM`/ключи/`JWT_KID`; HS256 остаётся
+  dev-режимом. `JWT_LEGACY_HS256=false` по умолчанию; в prod/staging `true`
+  даёт startup-warning и только переходное принятие старых HS256-токенов.
 - Refresh — HttpOnly+Secure+SameSite=Lax cookie, TTL 30 дней, ротация при
   использовании; `refresh_sessions` хранит только hash; logout отзывает.
 - Email-верификация: одноразовый токен 24 ч; письма — SMTP через env
   (в dev — консольный бэкенд).
-- Rate limit auth: 5 неудачных попыток/мин/IP; lockout 10 мин.
+- Rate limit auth (S-90): 5 неудачных попыток/мин на аккаунт (email) →
+  lockout 10 мин; IP — мягкий лимит 50 неудач/мин → пауза 1 мин, чтобы
+  распределённый перебор не положил БД. Edge дополнительно ограничивает
+  auth/API по IP (см. §12.3).
 
 ### 13.2. Изоляция выполнения (критически важное)
 
@@ -1110,6 +1119,10 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 
 - CORS только `localhost:3200`/prod-домен; тело запроса ≤ 1 МБ (PGN ≤ 2 МБ
   отдельно); CSRF-less (JWT-only SPA; cookie — только refresh, SameSite=Lax).
+- S-90: edge/web передают `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Proto`;
+  API доверяет им только от `PROXY_TRUSTED_HOSTS` (IP/CIDR edge, не `*` без
+  необходимости) и обновляет `request.client.host` до роутинга. Иначе
+  rate-limit/lockout видели бы IP прокси, а не клиента.
 - Секреты только в `.env` (шаблон `.env.example`), в документах — имена
   переменных, не значения.
 - Инъекции: prompts — фиксированная структура trusted/untrusted, санитизация
@@ -1223,7 +1236,7 @@ MAX_PLIES=60  BOT_MATCH_BUDGET_S=120  BOT_PERMOVE_TIMEOUT_S=1.0
 # match workers: WORKER_QUEUE=arq:matches:<kind>, WORKER_MAX_JOBS=2/1/1/1 (S-37)
 
 # приложения
-JWT_SECRET=change-me  JWT_ALGORITHM=HS256  JWT_KID=v1  JWT_TTL=15m  REFRESH_TTL=30d  EMBEDDING_DIM=768
+JWT_SECRET=change-me  JWT_ALGORITHM=RS256  JWT_KID=v1  JWT_LEGACY_HS256=false  JWT_TTL=15m  REFRESH_TTL=30d  EMBEDDING_DIM=768  PROXY_TRUSTED_HOSTS=172.16.0.0/12,127.0.0.1
 
 # email (S-75); пусто → dev-console
 SMTP_HOST=  SMTP_PORT=587  SMTP_USER=  SMTP_PASSWORD=  SMTP_FROM=noreply@chessclass.dev
@@ -1392,6 +1405,13 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `docs/legal-review-v0.7.md` закрыты внешними договорённостями (решение
   юриста 2026-11-08), изменений в коде не требуют. Следующий цикл —
   `TODO_V0.8.md` (Production Readiness, S-90…S-94).
+- S-90 (v0.8.0): Edge & Auth Hardening — `ProxyHeadersMiddleware` +
+  `PROXY_TRUSTED_HOSTS` (edge/web передают XFF/X-Real-IP); per-account
+  lockout 5/мин → 10 мин + IP soft-limit 50/мин → 1 мин; edge nginx
+  `auth_rl` 10 r/m (burst 9) и `api_rl` 60 r/m (burst 30), 429;
+  `JWT_LEGACY_HS256=false` по умолчанию, prod/staging — RS256/JWKS.
+  Тесты: `test_edge_auth_s90.py`, `scripts/edge-ratelimit-smoke.ps1`;
+  backend — 314 collected (311 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

@@ -18,6 +18,7 @@ from core.email import (
 )
 from core.errors import AppError
 from core.ratelimit import (
+    clear_account_failures,
     enforce_rate_limit,
     is_locked_out,
     register_auth_failure,
@@ -146,29 +147,29 @@ async def login(
 ) -> AuthOut:
     redis = _redis(request)
     ip = _client_ip(request)
-    if await is_locked_out(redis, ip):
+    email = body.email.strip().lower()
+    if await is_locked_out(redis, email=email, ip=ip):
         raise AppError(
             "auth_locked_out",
-            "Слишком много неудачных попыток входа; подождите 10 минут",
+            "Слишком много неудачных попыток входа; повторите позже",
             429,
         )
     try:
-        user = await svc.authenticate_user(
-            session, body.email.strip().lower(), body.password
-        )
+        user = await svc.authenticate_user(session, email, body.password)
     except AppError as exc:
         if exc.code == "auth_invalid_credentials":
-            await register_auth_failure(redis, ip)
+            await register_auth_failure(redis, email=email, ip=ip)
         await audit_svc.record(
             session,
             None,
             "auth.login.failed",
             source="api",
-            meta={"emailHash": _email_hash(body.email.strip().lower())},
+            meta={"emailHash": _email_hash(email)},
             request=request,
         )
         await session.commit()
         raise
+    await clear_account_failures(redis, email)
     raw = await svc.create_refresh_session(
         session, user, request.headers.get("user-agent")
     )
