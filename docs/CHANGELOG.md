@@ -8,10 +8,27 @@
 ## [Unreleased] — v0.8.0
 
 ### Добавлено
+#### S-90 — Edge & Auth Hardening (2026-11-11)
+- `ProxyHeadersMiddleware` + `PROXY_TRUSTED_HOSTS`: API видит реальный IP из
+  `X-Forwarded-For` доверенного edge/web; недоверенные источники не могут
+  подделать `request.client.host`.
+- Per-account lockout: 5 неудачных логинов/мин на email → `lockout:account:{email}`
+  (10 мин); IP — soft-limit 50/мин → `lockout:ip:{ip}` (1 мин). Пять неудач
+  одного аккаунта не блокируют другие аккаунты с того же IP.
+- edge nginx: `auth_rl` 10 r/m (burst 9), `api_rl` 60 r/m (burst 30),
+  `limit_req_status 429`; `scripts/edge-ratelimit-smoke.ps1` проверяет
+  10×200 и 11-й 429. `X-Forwarded-For`/`X-Real-IP` передаются и для healthz.
+- `JWT_LEGACY_HS256=false` по умолчанию; prod/staging — `JWT_ALGORITHM=RS256`
+  + `JWT_KID`/ключи; startup-warning при legacy/HS256 в prod/staging.
+- Тесты: `test_edge_auth_s90.py` (proxy IP, per-account lockout, edge config),
+  HS256-rejection; backend — 314 collected (311 passed + 3 skipped);
+  runbook operations §11, Design §12.3/§13.1/§13.4, SPEC §3.32 и таблица
+  ошибок.
+- `TODO_V0.8.md` — S-90 ✅, прогресс 1/5.
 - `TODO_V0.8.md` — Production Readiness (S-90…S-94): edge/auth hardening,
   object-level authorization, GHCR/Sentry/logrotate/per-process metrics,
   SMTP/offsite-бэкапы/песочница, релиз v0.8.0.
-- `scripts/doc_lint.py` — активный план `TODO_V0.8.md`, прогресс `(0, 5)`;
+- `scripts/doc_lint.py` — активный план `TODO_V0.8.md`, прогресс `(1, 5)`;
   `backend/tests/test_doc_lint.py` — ожидания v0.8.0.
 
 ## [0.7.1] - 2026-11-10

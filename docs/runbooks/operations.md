@@ -249,7 +249,8 @@ best-effort), бизнес-запросы и почта/алерты не стр
   затем `JWT_ALGORITHM=RS256`, `JWT_PRIVATE_KEY_PATH=/srv/jwt/private.pem`,
   `JWT_PUBLIC_KEY_PATH=/srv/jwt/public.pem`, `JWT_KID=v1`.
   Перезапустить api; JWKS: `/api/v1/auth/jwks`,
-  `/.well-known/jwks.json`. `JWT_LEGACY_HS256=true` — переходный период.
+  `/.well-known/jwks.json`. С S-90 `JWT_LEGACY_HS256=false` по умолчанию;
+  `true` — только переходный период (в prod/staging даёт startup-warning).
 - Ротация: новый `kid`/ключи, оставить старый public key на время TTL
   (15 мин), затем убрать; ключи не коммитить (`.gitignore`).
 - Аудит: `auth.login.success/failed`, `auth.role.change`,
@@ -708,3 +709,51 @@ curl -s 'http://127.0.0.1:9092/api/v1/query?query=chessclass_retention_archive_a
    минут (при наличии строк).
 4. Не удалять старые архивы и volume без разбора: архивы могут содержать PII
    (audit/email_outbox); хранить по политике и не выгружать в общий SIEM.
+
+## 11. Защита от DoS и rate-limit (S-90)
+
+Два независимых слоя:
+
+| Слой | Что ограничивает | Значение |
+|---|---|---|
+| edge nginx | `/api/v1/auth/*` по IP | 10 req/min, burst 9 → 11-й 429 |
+| edge nginx | `/api/*` по IP | 60 req/min, burst 30 |
+| API | неудачные логины на аккаунт (email) | 5/мин → lockout 10 мин |
+| API | неудачные логины с IP (soft) | 50/мин → пауза 1 мин |
+
+- nginx возвращает **429** (`limit_req_status 429`), а не 503. Проверка
+  конфига и семантики без prod-стенда:
+
+  ```powershell
+  .\scripts\edge-ratelimit-smoke.ps1
+  ```
+
+  Ожидаемо: `auth: 10x200, 11th=429`.
+- Логи edge при срабатывании: `docker compose --env-file .env -f
+  docker-compose.prod.yml logs --tail=200 edge` — строка `limiting requests`.
+- **Реальный IP.** Edge передаёт `X-Forwarded-For`/`X-Real-IP`; API доверяет
+  им только от `PROXY_TRUSTED_HOSTS` (IP/CIDR edge; в prod/staging —
+  `172.16.0.0/12,127.0.0.1`). Если задано `*`, API доверяет заголовкам от
+  любого источника — допустимо только при закрытом снаружи порту API.
+  Проверка: в логах/аудите IP клиента, а не `172.x` edge; тест —
+  `tests/test_edge_auth_s90.py`.
+- **Per-account lockout.** Ключи Redis: `lockout:account:{email}` (10 мин),
+  `lockout:ip:{ip}` (1 мин), счётчики `lockout:fail:*`. Разблокировать
+  конкретный аккаунт при ложном срабатывании:
+
+  ```bash
+  docker compose --env-file .env -f docker-compose.prod.yml exec redis \
+    redis-cli DEL "lockout:account:user@example.com"
+  ```
+
+  Не удалять `lockout:*` массово без разбора инцидента: это снимет защиту.
+- **NAT и общий IP.** За школьным NAT все пользователи могут выглядеть одним
+  IP; edge-лимиты 10/60 req/min на IP могут блокировать класс. При массовых
+  429 легитимным пользователям: проверить `limiting requests`, временно
+  увеличить `burst`/`rate` в `deploy/nginx/edge.conf` через репозиторий и
+  пересоздать `edge`; не отключать лимиты полностью. Альтернатива на будущее —
+  лимит по `Authorization`/session на API, а не только по IP.
+- **JWT legacy.** В prod/staging `JWT_LEGACY_HS256=false` и
+  `JWT_ALGORITHM=RS256`; после ротации ключей (§9) старые HS256-токены
+  перестают приниматься. Startup-warning `JWT_LEGACY_HS256=true` — сигнал
+  завершить миграцию.

@@ -621,8 +621,9 @@ interface TournamentDetailOut extends TournamentOut {
 ```
 
 - JWT: `JWT_ALGORITHM=HS256|RS256`; RS256 — `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`
-  или `_PATH`, `JWT_KID`; `JWT_LEGACY_HS256=true` принимает старые HS256
-  токены при переходе. JWKS отдаёт публичный ключ.
+  или `_PATH`, `JWT_KID`. `JWT_LEGACY_HS256=false` по умолчанию (S-90);
+  `true` только на время миграции и с startup-warning в prod/staging.
+  JWKS отдаёт публичный ключ.
 - Audit: `auth.login.success/failed` (failed — emailHash, без PII),
   `auth.role.change`, `auth.auditor_scope.change`, `auth.user.anonymize`.
 - Auditor scope (prefs `auditor_scope`): `flags`, `audit`, `reports`,
@@ -630,8 +631,9 @@ interface TournamentDetailOut extends TournamentOut {
 - PII: `age_group` — только самооценка/teacher; анонимизация меняет
   email/пароль/display_name/age_group, деактивирует и отзывает refresh;
   исходные учебные записи сохраняются для аудита.
-- Security: decode допускает только настроенный alg + legacy HS256; `none`/
-  HS512/подмена подписи → 401; refresh reuse отзывает все сессии.
+- Security: decode допускает только настроенный alg (+ legacy HS256, если
+  явно включён); `none`/HS512/подмена подписи → 401; refresh reuse отзывает
+  все сессии.
 
 ### 3.19. tournaments-v2: async/SSE/replay (S-48)
 
@@ -916,6 +918,21 @@ interface ConsentRequestOut extends ConsentStatusOut {
 - DDL — §6 (`parental_consents`, `email_outbox`); teacher-подтверждение —
   `user_profiles.age_group_confirmed_at/by` (миграция 0034).
 
+### 3.32. Edge & auth hardening: proxy IP, lockout, rate-limit (S-90)
+
+- **Реальный IP:** edge/web передают `X-Forwarded-For`, `X-Real-IP`,
+  `X-Forwarded-Proto`; API включает `ProxyHeadersMiddleware` и доверяет
+  заголовкам только от `PROXY_TRUSTED_HOSTS` (IP/CIDR edge, например
+  `172.16.0.0/12,127.0.0.1`). `request.client.host` = IP клиента.
+- **Auth lockout:** 5 неудачных логинов/мин на email → `lockout:account:{email}`
+  (TTL 10 мин); IP — `lockout:ip:{ip}` после 50 неудач/мин (TTL 1 мин).
+  Успешный вход сбрасывает счётчик аккаунта, но не IP.
+- **Edge:** `auth_rl` 10 r/m (burst 9) для `/api/v1/auth/*`, `api_rl`
+  60 r/m (burst 30) для `/api/*`; `limit_req_status 429` (не 503).
+- **JWT:** `JWT_LEGACY_HS256=false` по умолчанию; prod/staging —
+  `JWT_ALGORITHM=RS256` + `JWT_KID`/ключи. Legacy HS256 — только переходный
+  режим с warning в логах.
+
 ## 9. Engine Stockfish (S-10)
 
 `backend/engine/` (порт app/engine annotator, почти verbatim): свой UCI-клиент
@@ -960,7 +977,7 @@ Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfi
 | `auth_forbidden` | 403 | не хватает роли (S-02, `require_role`) |
 | `auth_email_taken` | 409 | email уже зарегистрирован (S-02) |
 | `rate_limited` | 429 | превышен rate-limit бакета (S-02) |
-| `auth_locked_out` | 429 | 5 неудачных логинов/мин/IP → lockout 10 мин (S-02) |
+| `auth_locked_out` | 429 | 5 неудачных логинов/мин на аккаунт → 10 мин; IP soft-limit 50/мин → 1 мин (S-02/S-90) |
 | `quota_exceeded` | 429 | исчерпан LLM-бюджет дня (Design §5.4) |
 | `sandbox_timeout` | 408 | таймаут кода/хода (ADR-002 и ботовый ADR) |
 | `internal_error` | 500 | необработанное исключение |

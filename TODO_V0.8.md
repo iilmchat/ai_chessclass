@@ -1,14 +1,16 @@
 # TODO_V0.8.md — План v0.8.0 «Production Readiness»
 
-**Статус:** 🔶 В работе (S-90…S-94 впереди)
-**Сводно:** 5 спринтов · **Прогресс: 0/5**
+**Статус:** 🔶 В работе (S-90 ✅; S-91…S-94 впереди)
+**Сводно:** 5 спринтов · **Прогресс: 1/5**
 **Цель:** Закрыть блокеры DevOps-аудита для выхода в production (пилот в школе).
 
 ## S-90: Edge & Auth Hardening (P0)
-- [ ] Реальный IP за прокси: настроить `ProxyHeadersMiddleware` (FastAPI) и передачу `X-Forwarded-For` от edge/nginx.
-- [ ] Заменить глобальный auth-lockout на per-account (per-user) lockout + edge rate-limit (защита от DoS).
-- [ ] Отключить `JWT_LEGACY_HS256=true` (полный переход на RS256/JWKS).
-- **DoD:** Тест на per-account lockout; тест на реальный IP.
+**Статус:** ✅ Завершён (2026-11-11)
+
+- [x] Реальный IP за прокси: настроить `ProxyHeadersMiddleware` (FastAPI) и передачу `X-Forwarded-For` от edge/nginx.
+- [x] Заменить глобальный auth-lockout на per-account (per-user) lockout + edge rate-limit (защита от DoS).
+- [x] Отключить `JWT_LEGACY_HS256=true` (полный переход на RS256/JWKS).
+- **DoD:** ✅ Тест на per-account lockout; тест на реальный IP; edge smoke 11-й = 429.
 
 ## S-91: Object-Level Authorization (P0)
 - [ ] Проверка владения для `/reports/pdf/{id}` и `/audit/logs` (учитель видит только своих учеников, аудитор — только свой scope).

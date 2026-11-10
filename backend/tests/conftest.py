@@ -124,6 +124,8 @@ async def _cleanup():
         for ip in _CLEAN_IPS:
             keys += [f"auth:fail:{ip}", f"auth:lock:{ip}"]
         keys += await redis.keys("rl:*")
+        # S-90: per-account/IP lockout (старые auth:* — для совместимости).
+        keys += await redis.keys("lockout:*")
         keys += await redis.keys("quota:*")
         keys += await redis.keys("voice:*")
         keys += await redis.keys("cb:*")
