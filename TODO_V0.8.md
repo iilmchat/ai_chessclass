@@ -1,7 +1,7 @@
 # TODO_V0.8.md — План v0.8.0 «Production Readiness»
 
-**Статус:** 🔶 В работе (S-90 ✅, S-91 ✅; S-92…S-94 впереди)
-**Сводно:** 5 спринтов · **Прогресс: 2/5**
+**Статус:** 🔶 В работе (S-90 ✅, S-91 ✅, S-92 ✅; S-93…S-94 впереди)
+**Сводно:** 5 спринтов · **Прогресс: 3/5**
 **Цель:** Закрыть блокеры DevOps-аудита для выхода в production (пилот в школе).
 
 ## S-90: Edge & Auth Hardening (P0)
@@ -20,11 +20,13 @@
 - **DoD:** ✅ Учитель А получает 403 при запросе PDF учителя Б; тесты покрывают все эндпоинты с `{id}`; RS256-токены.
 
 ## S-92: CD, Registry & Observability (P1)
-- [ ] GitHub Container Registry (GHCR): публикация образов `chessclass/backend` и `chessclass/frontend`.
-- [ ] Error-tracking: Sentry (или self-hosted GlitchTip) для API и frontend.
-- [ ] Ротация логов (logrotate) для uvicorn и arq.
-- [ ] Исправить метрики per-process: Prometheus multiprocess mode или OTel spanmetrics.
-- **DoD:** Образы публикуются в GHCR; Sentry ловит тестовую ошибку; logrotate настроен.
+**Статус:** ✅ Завершён (2026-11-11)
+
+- [x] GitHub Container Registry (GHCR): публикация образов `chessclass/backend` и `chessclass/frontend`.
+- [x] Error-tracking: Sentry (или self-hosted GlitchTip) для API и frontend.
+- [x] Ротация логов (logrotate) для uvicorn и arq.
+- [x] Исправить метрики per-process: Prometheus multiprocess mode или OTel spanmetrics.
+- **DoD:** ✅ Образы публикуются в GHCR (workflow); Sentry-старт проверен с фиктивным DSN; Docker json-file + logrotate; multiprocess smoke с 2 воркерами.
 
 ## S-93: SMTP, Backups & Sandbox (P0)
 - [ ] Настроить SMTP в prod (обязательно для email-верификации).

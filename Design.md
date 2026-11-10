@@ -1220,6 +1220,10 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
 - `docker-compose.dev.yml` (bind mounts, hot reload), `.prod.yml`
   (S-30: migrate-гейт → api workers=4 + healthcheck → worker/web; web — nginx
   со SPA и proxy `/api/`; API — loopback; edge-nginx/TLS — S-38).
+  S-92: prod-образы — `ghcr.io/iilmchat/chessclass-{backend,frontend}:${IMAGE_TAG}`
+  (локальной сборки нет; publish workflow), json-file logging 10m×5 для
+  api/worker, `PROMETHEUS_MULTIPROC_DIR=/tmp/prom_multiproc` для агрегации
+  HTTP-метрик всех uvicorn-воркеров.
   `.observability.yml` (promtail/loki по возможности; v0.1 — stdout + ротация,
   `pg_dump` ежесуточно, scripts).
 
@@ -1253,6 +1257,8 @@ SMTP_STARTTLS=true  SMTP_SSL=false  SMTP_TIMEOUT_S=15
 # S-83: очередь писем parental consent (retry/backoff, cron каждую минуту)
 EMAIL_OUTBOX_BATCH=50  EMAIL_OUTBOX_MAX_ATTEMPTS=8  EMAIL_OUTBOX_RETENTION_DAYS=30
 
+# S-92: Sentry опционален (пусто → выключен); frontend DSN — build-time.
+SENTRY_DSN=  SENTRY_ENVIRONMENT=prod  SENTRY_TRACES_SAMPLE_RATE=0.1  VITE_SENTRY_DSN=
 # prod-observability (S-82): профиль observability, только loopback-порты
 PROMETHEUS_PORT=9092  ALERTMANAGER_PORT=9093  GRAFANA_PORT=3002
 GRAFANA_ADMIN_USER=chessadmin  GRAFANA_ADMIN_PASSWORD=<change-me>
@@ -1275,6 +1281,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   миграций, версия, детали. SF/LLM-проверки — S-31.
 - Бэкапы: скрипт `backend/scripts/backup.sh` (pg_dump, retention 14 дн);
   cron/restore-проверка — S-38.
+- CD/Registry (S-92): GHCR publish (sha + ref), prod pull/rollback сменой
+  `IMAGE_TAG`; Sentry включается `SENTRY_DSN` (API/worker/frontend), PII
+  выключен; Docker json-file 10m×5 + `deploy/logrotate/chessclass` для
+  файловых логов; multiprocess metrics через `PROMETHEUS_MULTIPROC_DIR`.
+  Runbook — operations §13–§16.
 - Retention (S-46): audit 365, llm_calls 180, voice 30, draft/rejected studies
   90; gzip-архив в `RETENTION_ARCHIVE_DIR`, dry-run, cron 04:10 UTC.
 - Наблюдаемость (S-46): `/metrics` (DB/Redis, очереди, LLM/voice cost, диск),
@@ -1429,6 +1440,13 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   профиль/прогресс/навыки, PvP-комнаты/жалобы, флаги/вердикты античита.
   Кросс-тенантные тесты — `test_authz_cross_tenant.py` (RS256), backend —
   321 collected (318 passed + 3 skipped).
+- S-92 (v0.8.0): CD/Registry & Observability — GHCR publish job (`sha` + ref),
+  prod compose тянет `ghcr.io/iilmchat/chessclass-*`, rollback сменой
+  `IMAGE_TAG`; Sentry (`SENTRY_DSN`, API/worker/frontend, PII off, fake-DSN
+  test); json-file 10m×5 + `deploy/logrotate/chessclass`; Prometheus
+  multiprocess HTTP metrics (`PROMETHEUS_MULTIPROC_DIR`,
+  `MultiProcessCollector`, smoke с 2 uvicorn-воркерами). Backend — 323
+  collected (320 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

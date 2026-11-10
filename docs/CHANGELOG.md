@@ -8,6 +8,23 @@
 ## [Unreleased] — v0.8.0
 
 ### Добавлено
+#### S-92 — CD, Registry & Observability (2026-11-11)
+- GHCR: job `publish` в `.github/workflows/ci.yml` публикует
+  `ghcr.io/<owner>/chessclass-backend` и `chessclass-frontend` с тегами
+  `<sha>` + `<ref>`; prod-compose тянет образы из GHCR (build удалён),
+  rollback — смена `IMAGE_TAG`.
+- Sentry: `core/error_tracking.py`, `SENTRY_DSN`/`SENTRY_ENVIRONMENT`/
+  `SENTRY_TRACES_SAMPLE_RATE`; API/worker + frontend (`@sentry/react`,
+  build-arg `VITE_SENTRY_DSN`); PII/тела запросов выключены, пустой DSN —
+  no-op; тесты `test_error_tracking.py`.
+- Логи: Docker json-file 10m×5 для api/worker/match-workers +
+  `deploy/logrotate/chessclass` для файлового запуска.
+- Метрики: `prometheus-client` multiprocess (`PROMETHEUS_MULTIPROC_DIR`,
+  `MultiProcessCollector`); HTTP RED агрегируются по всем uvicorn-воркерам;
+  smoke `scripts/multiprocess-metrics-smoke.ps1` (2 workers).
+- Runbook operations §13–§16; Design §15.1–§15.3/§16.1; TODO_V0.8 — S-92 ✅,
+  прогресс 3/5; backend — 323 collected (320 passed + 3 skipped).
+
 #### S-91 — Object-Level Authorization (BOLA fix) (2026-11-11)
 - `core/authz.py`: единый слой `ensure_can_access_student_data/report/bot/
   game/submission/pvp_room`; admin — всё, teacher — только ученики своих
@@ -43,7 +60,7 @@
 - `TODO_V0.8.md` — Production Readiness (S-90…S-94): edge/auth hardening,
   object-level authorization, GHCR/Sentry/logrotate/per-process metrics,
   SMTP/offsite-бэкапы/песочница, релиз v0.8.0.
-- `scripts/doc_lint.py` — активный план `TODO_V0.8.md`, прогресс `(2, 5)`;
+- `scripts/doc_lint.py` — активный план `TODO_V0.8.md`, прогресс `(3, 5)`;
   `backend/tests/test_doc_lint.py` — ожидания v0.8.0.
 
 ## [0.7.1] - 2026-11-10

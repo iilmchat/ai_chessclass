@@ -176,6 +176,11 @@ class Settings(BaseSettings):
     email_outbox_max_attempts: int = 8
     #: S-86: sent/failed старше N дней архивируются (gzip) и удаляются
     email_outbox_retention_days: int = 30
+    # --- error tracking / metrics (S-92)
+    #: Sentry DSN; пусто — error-tracking выключен (dev/CI по умолчанию).
+    sentry_dsn: str = ""
+    sentry_environment: str = ""
+    sentry_traces_sample_rate: float = 0.1
     # --- tracing (S-73, ADR-017)
     otel_enabled: bool = False
     otel_service_name: str = "chessclass-api"
