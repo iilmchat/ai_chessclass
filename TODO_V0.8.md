@@ -1,7 +1,7 @@
 # TODO_V0.8.md — План v0.8.0 «Production Readiness»
 
-**Статус:** 🔶 В работе (S-90 ✅, S-91 ✅, S-92 ✅; S-93…S-94 впереди)
-**Сводно:** 5 спринтов · **Прогресс: 3/5**
+**Статус:** 🔶 В работе (S-90…S-93 ✅; S-94 впереди)
+**Сводно:** 5 спринтов · **Прогресс: 4/5**
 **Цель:** Закрыть блокеры DevOps-аудита для выхода в production (пилот в школе).
 
 ## S-90: Edge & Auth Hardening (P0)
@@ -29,10 +29,12 @@
 - **DoD:** ✅ Образы публикуются в GHCR (workflow); Sentry-старт проверен с фиктивным DSN; Docker json-file + logrotate; multiprocess smoke с 2 воркерами.
 
 ## S-93: SMTP, Backups & Sandbox (P0)
-- [ ] Настроить SMTP в prod (обязательно для email-верификации).
-- [ ] Offsite-бэкапы: S3 (или совместимое) + шифрование + алерт + авто-тест restore.
-- [ ] Усилить песочницу: CPU-rlimit, network namespace, non-root user для worker.
-- **DoD:** SMTP работает (письмо доходит); бэкап уходит в S3 и восстанавливается; песочница проходит тест-матрицу атак.
+**Статус:** ✅ Завершён (2026-11-11)
+
+- [x] Настроить SMTP в prod (обязательно для email-верификации).
+- [x] Offsite-бэкапы: S3 (или совместимое) + шифрование + алерт + авто-тест restore.
+- [x] Усилить песочницу: CPU-rlimit, network namespace, non-root user для worker.
+- **DoD:** ✅ SMTP smoke (verification/password-reset) + STARTTLS/SSL tests; бэкап S3Mock→restore (users=15/alembic); sandbox 5+ attack tests; alerts 10 правил.
 
 ## S-94: Release v0.8.0 (Production Ready)
 - [ ] Финальные прогоны, тег `v0.8.0`, release-notes.

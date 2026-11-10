@@ -115,6 +115,9 @@ class Settings(BaseSettings):
     app_role: str = "api"
     # --- песочница (S-07; Design §13.2)
     sandbox_memory_limit_mb: int = 256
+    # S-93: CPU-rlimit дочернего процесса (SIGXCPU) + opt-in network ns.
+    sandbox_cpu_limit_s: int = 1
+    sandbox_network_isolation: bool = False
     sandbox_max_output_chars: int = 65_536  # 64 КБ на stdout/stderr
     sandbox_timeout_s: float = 5.0  # per-run для заданий; боты — bot_permove_timeout_s
     # --- chess_lab (E-04)
@@ -152,6 +155,8 @@ class Settings(BaseSettings):
     studies_retention_days: int = 90
     failed_jobs_retention_days: int = 90
     retention_archive_dir: str = "/srv/archive"
+    # S-93: backup scripts пишут статус в archive-volume; API отдаёт gauges.
+    backup_status_file: str = "/srv/archive/backup-status.json"
     retention_batch_size: int = 10_000
     metrics_token: str = ""
     obs_disk_min_free_gb: float = 5.0

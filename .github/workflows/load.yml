@@ -113,3 +113,29 @@ jobs:
             load-api.log
             load-worker-*.log
           if-no-files-found: ignore
+
+  # S-93: weekly offsite backup + restore-test. Включается только когда заданы
+  # repository variable BACKUP_S3_BUCKET и secrets (см. operations.md §17).
+  # Без них job пропускается — не ломает расписание load.
+  backup-restore-offsite:
+    if: ${{ vars.BACKUP_S3_BUCKET != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install AWS CLI
+        run: pip install awscli
+      - name: Offsite backup + restore test
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_PREFIX: ${{ vars.BACKUP_S3_PREFIX }}
+          BACKUP_S3_ACCESS_KEY: ${{ secrets.BACKUP_S3_ACCESS_KEY }}
+          BACKUP_S3_SECRET_KEY: ${{ secrets.BACKUP_S3_SECRET_KEY }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+          BACKUP_EXPECTED_ALEMBIC: ${{ vars.BACKUP_EXPECTED_ALEMBIC }}
+        run: |
+          pwsh -NoProfile -File scripts/backup-offsite.ps1 \
+            -DatabaseUrl "$BACKUP_DATABASE_URL" -BackupDir backups
+          pwsh -NoProfile -File scripts/backup-restore-test.ps1 \
+            -BackupDir backups -RestorePort 5439

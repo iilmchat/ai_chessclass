@@ -124,7 +124,27 @@ def test_executor_timeout_on_infinite_loop():
     result = run_sync("while True:\n    pass", timeout_s=FAST_TIMEOUT)
     assert result["success"] is False
     assert result["error_type"] == "TimeoutError"
-    assert "лимит времени" in result["error"]
+    assert "лимит" in result["error"]
+
+
+def test_executor_cpu_rlimit_kills_infinite_loop():
+    """S-93: RLIMIT_CPU=1 с убивает процесс по SIGXCPU раньше timeout."""
+    result = run_sync("while True:\n    pass", timeout_s=5.0)
+    assert result["success"] is False
+    assert result["error_type"] == "TimeoutError"
+    assert "CPU" in result["error"]
+
+
+def test_executor_network_import_blocked():
+    result = run_sync("__import__('socket').socket()", timeout_s=FAST_TIMEOUT)
+    assert result["success"] is False
+    assert result["error_type"] == "SecurityError"
+
+
+def test_executor_filesystem_open_blocked():
+    result = run_sync("open('/etc/passwd').read()", timeout_s=FAST_TIMEOUT)
+    assert result["success"] is False
+    assert result["error_type"] == "SecurityError"
 
 
 def test_executor_memory_limit():

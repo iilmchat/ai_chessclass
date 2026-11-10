@@ -275,7 +275,9 @@ def test_selftest_covers_masking_and_second_receiver():
         "chessclass_email_outbox_oldest_pending_age_seconds",
         "chessclass_retention_archive_age_seconds",
         "check-cert-expiry.ps1",
-        "SUCCESS: 8 rules found",
+        "ChessClassBackupFailed",
+        "ChessClassBackupRestoreFailed",
+        "SUCCESS: 10 rules found",
     ):
         assert needle in selftest, needle
     assert "up -d tempo otel-collector node-exporter prometheus alertmanager grafana" in selftest
@@ -324,12 +326,19 @@ def test_alerts_cover_required_signals():
         "ChessClassObservabilityDiskFull",
         "ChessClassEmailOutboxStuck",
         "ChessClassRetentionArchiveStale",
+        "ChessClassBackupFailed",
+        "ChessClassBackupRestoreFailed",
     ):
         assert name in rules, name
-    assert len(rules) == 8
+    assert len(rules) == 10
     for rule in rules.values():
         assert rule["labels"]["severity"] in {"warning", "critical"}
-        assert rule["labels"]["component"] in {"api", "worker", "observability"}
+        assert rule["labels"]["component"] in {
+            "api",
+            "worker",
+            "observability",
+            "backup",
+        }
         assert rule["annotations"]["summary"]
         assert rule["annotations"]["description"]
     # 5xx-rate и p95 считаются по HTTP-метрикам, DLQ — по счётчику failed_jobs.
@@ -346,6 +355,14 @@ def test_alerts_cover_required_signals():
     assert (
         "chessclass_retention_archive_age_seconds > 8 * 24 * 3600"
         in rules["ChessClassRetentionArchiveStale"]["expr"]
+    )
+    assert (
+        "chessclass_backup_last_success_timestamp_seconds"
+        in rules["ChessClassBackupFailed"]["expr"]
+    )
+    assert "25 * 3600" in rules["ChessClassBackupFailed"]["expr"]
+    assert "chessclass_backup_restore_ok == 0" in (
+        rules["ChessClassBackupRestoreFailed"]["expr"]
     )
 
 

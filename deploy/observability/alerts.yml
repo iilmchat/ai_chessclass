@@ -108,6 +108,33 @@ groups:
             retention. Проверьте `/admin/observability/retention/status` и
             логи worker; действия — operations.md §10.13.
 
+      # --- Offsite-бэкапы (S-93) -------------------------------------------
+      - alert: ChessClassBackupFailed
+        expr: |
+          time() - chessclass_backup_last_success_timestamp_seconds > 25 * 3600
+        for: 1h
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: "ChessClass: offsite-бэкап не обновлялся > 25 часов"
+          description: >-
+            `backup-offsite.ps1` не писал успешный статус > 25 ч. Проверьте cron,
+            S3/credentials, `BACKUP_ENCRYPTION_KEY` и логи задачи. Runbook §17.
+
+      - alert: ChessClassBackupRestoreFailed
+        expr: chessclass_backup_restore_ok == 0
+        for: 1h
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: "ChessClass: restore-test offsite-бэкапа упал"
+          description: >-
+            Последний `backup-restore-test.ps1` завершился ошибкой (users=0,
+            alembic mismatch, decrypt/S3 failure). Скачивание и restore нужно
+            повторить вручную; runbook §17.
+
       # --- Наблюдаемость: диск ----------------------------------------------
       # node-exporter (S-87) монтирует volume chessclass_prod_tempo в /var/tempo,
       # поэтому mountpoint в метрике — путь внутри его контейнера.

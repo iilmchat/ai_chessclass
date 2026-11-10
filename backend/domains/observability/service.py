@@ -1,5 +1,6 @@
 """S-46: observability summary, metrics, cost-per-student и alerts."""
 
+import json
 import shutil
 import ssl
 from datetime import UTC, datetime, timedelta
@@ -92,6 +93,26 @@ async def _email_outbox_stats(session: AsyncSession) -> tuple[int, float]:
             oldest = oldest.replace(tzinfo=UTC)
         oldest_age = max(0.0, (datetime.now(UTC) - oldest).total_seconds())
     return pending_total, oldest_age
+
+
+def _backup_status() -> tuple[float, int]:
+    """S-93: (last_success_ts, restore_ok) из статуса backup-скриптов.
+
+    Нет файла/поля restore — restore_ok=1 (не алертим до первого restore-test);
+    backup timestamp=0 (алерт BackupFailed сработает, если успешного бэкапа
+    ещё не было или он старше 25 ч).
+    """
+    path = Path(settings.backup_status_file)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return 0.0, 1
+    try:
+        last = float(data.get("last_success_timestamp") or 0)
+    except (TypeError, ValueError):
+        last = 0.0
+    restore_ok = 0 if data.get("last_restore_ok") is False else 1
+    return max(0.0, last), restore_ok
 
 
 def _retention_archive_age_seconds(now: datetime) -> float:
@@ -385,6 +406,7 @@ async def metrics_text(session: AsyncSession, redis) -> str:
     data = await summary(session, redis)
     outbox_pending, outbox_oldest_age = await _email_outbox_stats(session)
     archive_age = _retention_archive_age_seconds(datetime.now(UTC))
+    backup_last, backup_restore_ok = _backup_status()
     lines = [
         "# HELP chessclass_up ChessClass process up",
         "# TYPE chessclass_up gauge",
@@ -428,6 +450,18 @@ async def metrics_text(session: AsyncSession, redis) -> str:
             "chessclass_retention_archive_age_seconds "
             f"{round(archive_age, 3)}"
         ),
+        (
+            "# HELP chessclass_backup_last_success_timestamp_seconds "
+            "Unix ts of last successful offsite backup"
+        ),
+        "# TYPE chessclass_backup_last_success_timestamp_seconds gauge",
+        (
+            "chessclass_backup_last_success_timestamp_seconds "
+            f"{round(backup_last, 3)}"
+        ),
+        "# HELP chessclass_backup_restore_ok Last restore-test result (1/0)",
+        "# TYPE chessclass_backup_restore_ok gauge",
+        f"chessclass_backup_restore_ok {backup_restore_ok}",
     ]
     for queue, depth in data["queues"].items():
         lines.append(f'chessclass_queue_depth{{queue="{queue}"}} {depth}')

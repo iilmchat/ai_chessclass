@@ -40,6 +40,7 @@
 | `docs/sprint-reports/S-90-2026-11-11.md` | docs/ | ✅ S-90 | Edge/auth hardening (proxy IP, lockout, rate-limit, RS256) |
 | `docs/sprint-reports/S-91-2026-11-11.md` | docs/ | ✅ S-91 | Object-level authorization (BOLA fix, cross-tenant tests) |
 | `docs/sprint-reports/S-92-2026-11-11.md` | docs/ | ✅ S-92 | CD/registry/observability (GHCR, Sentry, logrotate, multiprocess) |
+| `docs/sprint-reports/S-93-2026-11-11.md` | docs/ | ✅ S-93 | SMTP smoke, offsite S3 backups, sandbox hardening |
 
 ## Исходные проекты (первоисточники контента)
 
