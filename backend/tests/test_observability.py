@@ -1,6 +1,10 @@
 """S-46: observability summary, metrics, costs, alerts, retention API."""
 
+import gzip
+import os
+import time
 import uuid
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import sqlalchemy as sa
@@ -9,6 +13,7 @@ from core.config import settings
 from core.db import session_factory
 from core.http_metrics import reset_http_metrics
 from domains.auth.models import User, UserRole
+from domains.notifications.models import EmailOutbox
 from domains.observability.models import FailedJob
 from domains.voice.usage import VoiceUsage
 from llm.models import LLMCall
@@ -111,6 +116,127 @@ async def test_http_metrics_histogram_for_p95(admin_client):
     assert "chessclass_http_requests_total" in response.text
     assert "chessclass_http_request_duration_seconds_bucket" in response.text
     assert "chessclass_http_request_duration_seconds_count" in response.text
+
+
+async def test_email_outbox_and_retention_metrics(admin_client, tmp_path, monkeypatch):
+    """S-88: gauges stuck email_outbox и возраста retention-архива в /metrics."""
+    kind = "test-s88-metrics"
+    now = datetime.now(UTC)
+    async with session_factory() as session:
+        await session.execute(
+            sa.delete(EmailOutbox).where(EmailOutbox.kind == kind)
+        )
+        session.add_all(
+            [
+                # pending: ждёт доставки 2 часа
+                EmailOutbox(
+                    kind=kind,
+                    recipient="parent@example.com",
+                    subject="pending",
+                    body="pending-body",
+                    status="pending",
+                    attempts=0,
+                    next_attempt_at=now - timedelta(hours=2),
+                    created_at=now - timedelta(hours=2),
+                ),
+                # parked failed: исчерпал попытки — входит в pending_total
+                EmailOutbox(
+                    kind=kind,
+                    recipient="parent@example.com",
+                    subject="parked",
+                    body="parked-body",
+                    status="failed",
+                    attempts=settings.email_outbox_max_attempts,
+                    last_error="smtp down",
+                    next_attempt_at=now + timedelta(days=365),
+                    created_at=now - timedelta(days=3),
+                ),
+                # retryable failed: ещё не доставлен — влияет на возраст
+                EmailOutbox(
+                    kind=kind,
+                    recipient="parent@example.com",
+                    subject="retry",
+                    body="retry-body",
+                    status="failed",
+                    attempts=settings.email_outbox_max_attempts - 1,
+                    last_error="temporary",
+                    next_attempt_at=now + timedelta(minutes=5),
+                    created_at=now - timedelta(hours=4),
+                ),
+                # sent: не должен попадать ни в pending_total, ни в возраст
+                EmailOutbox(
+                    kind=kind,
+                    recipient="parent@example.com",
+                    subject="sent",
+                    body="sent-body",
+                    status="sent",
+                    attempts=1,
+                    next_attempt_at=now - timedelta(days=5),
+                    created_at=now - timedelta(days=5),
+                    sent_at=now - timedelta(days=5),
+                ),
+            ]
+        )
+        await session.commit()
+
+    archive_dir = tmp_path / "archive"
+    archive_dir.mkdir()
+    archive = archive_dir / "email_outbox-20260101T000000Z.jsonl.gz"
+    with gzip.open(archive, "wt", encoding="utf-8") as handle:
+        handle.write('{"id": 1}\n')
+    archive_ts = time.time() - 10 * 24 * 3600
+    os.utime(archive, (archive_ts, archive_ts))
+    monkeypatch.setattr(settings, "retention_archive_dir", str(archive_dir))
+
+    try:
+        response = await admin_client.get("/metrics")
+        assert response.status_code == 200, response.text
+        text = response.text
+        for name in (
+            "chessclass_email_outbox_pending_total",
+            "chessclass_email_outbox_oldest_pending_age_seconds",
+            "chessclass_retention_archive_age_seconds",
+            "chessclass_failed_jobs",
+        ):
+            assert name in text, name
+
+        def metric_value(name: str) -> float:
+            line = next(
+                row for row in text.splitlines() if row.startswith(f"{name} ")
+            )
+            return float(line.split()[-1])
+
+        async with session_factory() as session:
+            expected_pending = int(
+                await session.scalar(
+                    sa.select(sa.func.count())
+                    .select_from(EmailOutbox)
+                    .where(
+                        sa.or_(
+                            EmailOutbox.status == "pending",
+                            sa.and_(
+                                EmailOutbox.status == "failed",
+                                EmailOutbox.attempts
+                                >= settings.email_outbox_max_attempts,
+                            ),
+                        )
+                    )
+                )
+                or 0
+            )
+        assert metric_value("chessclass_email_outbox_pending_total") == expected_pending
+        # Самое старое недоставленное письмо — retryable failed (4 часа).
+        assert metric_value(
+            "chessclass_email_outbox_oldest_pending_age_seconds"
+        ) >= 4 * 3600 - 60
+        archive_age = metric_value("chessclass_retention_archive_age_seconds")
+        assert 10 * 86400 - 120 <= archive_age <= 10 * 86400 + 120
+    finally:
+        async with session_factory() as session:
+            await session.execute(
+                sa.delete(EmailOutbox).where(EmailOutbox.kind == kind)
+            )
+            await session.commit()
 
 
 async def test_failed_jobs_list_retry_and_alert(admin_client, monkeypatch):

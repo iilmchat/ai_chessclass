@@ -135,13 +135,98 @@ docker compose -f docker-compose.prod.yml restart edge
 Не удалять чужие контейнеры/volumes (KI-001); работать только с
 `chessclass-*`/`chessclass-prod-*`.
 
-## 7. Плановые проверки
+## 7. Плановые проверки и ротация сертификатов
 
-- Ежедневно: backup task + `restore-test` раз в неделю.
-- Еженедельно: `smoke-prod.ps1`, `GET /admin/matches/metrics`,
+### 7.1. Ротация внутренних сертификатов без простоя (S-88)
+
+Внутренний CA и mTLS-сертификаты (`deploy/internal-certs/`: `ca`, `tempo`,
+`collector`) перевыпускаются `scripts/gen-internal-certs.ps1`. Ротация
+затрагивает только связку collector → Tempo: API, worker, web, edge, Prometheus,
+Alertmanager и Grafana продолжают работать. Короткий простой **≈30 секунд**
+допустим: на это время Tempo/collector недоступны, spans теряются (traces —
+best-effort), бизнес-запросы и почта/алерты не страдают.
+
+1. **Проверить текущий срок и снять копию.** Копия нужна для отката: каталог
+   исключён из git (`.gitignore`), поэтому старые файлы не восстановятся
+   командой `git checkout`.
+
+   ```powershell
+   .\scripts\check-cert-expiry.ps1
+   $stamp = Get-Date -Format "yyyyMMddTHHmmssZ"
+   New-Item -ItemType Directory -Force "backups/internal-certs-$stamp" | Out-Null
+   Copy-Item deploy/internal-certs/* "backups/internal-certs-$stamp/" -Force
+   ```
+
+   `check-cert-expiry.ps1` печатает таблицу `cert_path days_left status`:
+   exit 0 — всё ok, 1 — warning (< 30 дней), 2 — critical (< 7 дней или файл
+   не читается). При warning/critical и заданных `TELEGRAM_BOT_TOKEN` +
+   `TELEGRAM_ALERT_CHAT_ID` скрипт отправляет сообщение в Telegram.
+
+2. **Перевыпустить сертификаты.**
+
+   ```powershell
+   .\scripts\gen-internal-certs.ps1 -Force
+   ```
+
+   Скрипт пересоздаёт CA, `tempo.crt/key` и `collector.crt/key`, SAN
+   `tempo`/`otel-collector`/`localhost`; ключи не коммитить.
+
+3. **Пересоздать Tempo и collector** (не просто restart: они читают файлы при
+   старте, а конфиг mTLS ссылается на смонтированный каталог):
+
+   ```bash
+   docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+     up -d --force-recreate tempo otel-collector
+   docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+     ps tempo otel-collector
+   ```
+
+   Ожидаемо: оба контейнера `running`/`healthy`; в логах нет
+   `x509`/`certificate`/`permission denied`:
+
+   ```bash
+   docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+     logs --tail=100 tempo otel-collector
+   ```
+
+4. **Проверить mTLS-трейс и маршруты алертов.**
+
+   ```powershell
+   .\scripts\observability-selftest.ps1 -Stack
+   .\scripts\check-cert-expiry.ps1
+   ```
+
+   Selftest отправляет тестовый OTLP-трейс через `collector.crt`/`ca.crt`,
+   читает его из Tempo и проверяет маршруты Alertmanager; в конце он
+   останавливает только контейнеры профиля (volumes сохраняются). Точечная
+   проверка маршрутов — §10.6, п. 4 (ожидаемо `telegram-critical,email` для
+   critical и `telegram,email` для warning).
+
+5. **Откат**, если mTLS не поднимается (collector пишет TLS/x509, selftest
+   «mTLS: трейс принимается Tempo» падает):
+
+   ```powershell
+   Copy-Item "backups/internal-certs-$stamp/*" deploy/internal-certs/ -Force
+   ```
+
+   ```bash
+   docker compose --env-file .env -f docker-compose.prod.yml --profile observability \
+     up -d --force-recreate tempo otel-collector
+   ```
+
+   Затем повторить п. 4. `git checkout -- deploy/internal-certs/` применим
+   только если сертификаты были закоммичены в вашей ветке (нештатно): штатно
+   каталог в `.gitignore`, и git его не восстанавливает. Копию из
+   `backups/internal-certs-$stamp/` удалить после 24 часов успешной работы.
+
+### 7.2. Регулярные проверки
+
+- Ежедневно: backup task + `.\scripts\check-cert-expiry.ps1` (warning/critical
+  → Telegram; critical в CI блокирует сборку).
+- Еженедельно: `restore-test`, `smoke-prod.ps1`, `GET /admin/matches/metrics`,
   `GET /admin/llm/health`.
 - Перед релизом: backend CI (ruff/mypy/pytest), frontend build, Playwright
-  e2e (`.\scripts\e2e.ps1 test`), prod smoke.
+  e2e (`.\scripts\e2e.ps1 test`), `check-cert-expiry.ps1`, prod smoke.
 
 ## 8. Retention и наблюдаемость (S-46)
 
@@ -238,7 +323,8 @@ Traces не экспортируются, пока `OTEL_ENABLED` не `true`, �
    (CA, серверный сертификат Tempo, клиентский сертификат collector).
    Каталог не в git; приватные ключи не копировать в чаты и бэкапы
    репозитория. Сертификаты нужны до первого запуска профиля; после
-   перегенерации — перезапустить `tempo` и `otel-collector` (см. §10.3).
+   перегенерации — плановая ротация по §7.1 (пересоздание `tempo`/
+   `otel-collector`, проверка mTLS и откат).
    Контейнеры Tempo и collector работают не от root, но ключи им должны быть
    читаемы; при ошибке `permission denied` на `/etc/obs-certs/*.key` — смотреть
    права каталога и монтирования сертификатов.
@@ -330,7 +416,7 @@ ssh -L 9092:127.0.0.1:9092 -L 9093:127.0.0.1:9093 -L 3002:127.0.0.1:3002 <user>@
 curl -s http://127.0.0.1:9092/-/ready        # Prometheus Server is Ready.
 curl -s http://127.0.0.1:9093/-/ready        # OK
 curl -s http://127.0.0.1:3002/api/health     # {"database":"ok",...}
-curl -s http://127.0.0.1:9092/api/v1/rules   # 6 правил ChessClass*
+curl -s http://127.0.0.1:9092/api/v1/rules   # 8 правил ChessClass*
 curl -s http://127.0.0.1:9093/api/v2/status  # cluster/version/config
 ```
 
@@ -443,6 +529,8 @@ Telegram-чат дежурного получает алерты от Alertmanag
 | `ChessClassDLQGrowth` | `chessclass_failed_jobs > 10` | `/ops` → DLQ; причина падений задач; логи `worker`; разобрать и повторить задачи; не чистить очередь без разбора |
 | `ChessClassDLQGrowthRate` | быстрый рост DLQ | как `DLQGrowth`; проверить конкретный тип задач (analyze/pdf/матчи), свежий деплой/зависимость |
 | `ChessClassObservabilityDiskFull` | на `/var/tempo` < 10% свободно | `df -h` на хосте и `docker system df -v`; размер volume `chessclass_prod_tempo`; освободить место или уменьшить retention Tempo (§10.8, §10.12); не удалять volume без разбора |
+| `ChessClassEmailOutboxStuck` | самое старое недоставленное письмо ждёт > 1 часа | проверить cron `email_outbox_deliver` и логи `worker`; SMTP/egress и `chessclass_email_outbox_pending_total`; разбор и ручной requeue — §10.13 |
+| `ChessClassRetentionArchiveStale` | последний gzip-архив retention старше 8 дней | проверить `chessclass_retention_archive_age_seconds`, `retention/status` и логи `worker`; `/srv/archive` и cron `retention_run`; §10.13 |
 
 Маршруты Alertmanager: critical повторяется каждый час, warning — раз в
 6 часов; `ChessClassApiDown` подавляет остальные алерты `component="api"`,
@@ -486,8 +574,9 @@ email оба уровня дополнительно уходят в email (вт
 - **METRICS_TOKEN** — общий секрет api ↔ Prometheus; менять одновременно в
   `.env`, затем пересоздать `api` и `prometheus`.
 - **Внутренний CA** (`deploy/internal-certs/`) и prod-env исключены из git
-  (проверка — §10.2, п. 3); ротация CA — перегенерация сертификатов и
-  перезапуск `tempo`/`otel-collector`.
+  (проверка — §10.2, п. 3); ротация CA — §7.1 (перевыпуск, пересоздание
+  `tempo`/`otel-collector`, проверка mTLS, откат). Ежедневный контроль срока —
+  `.\scripts\check-cert-expiry.ps1`.
 - Не отключать Alertmanager и не править правила «чтобы убрать шум»: только
   silence с комментарием и TTL, с записью в журнал инцидента
   (`docs/incident-response.md` §4.1).
@@ -552,3 +641,70 @@ read-only, поэтому видит их как mountpoint'ы `/var/tempo`, `/p
 Если алерт не приходит, проверить target `node-exporter` в Prometheus
 (`/targets`, `up`) и что volume смонтирован в контейнер
 (`docker inspect chessclass-prod-node-exporter`).
+
+### 10.13. Stuck email_outbox и stale retention-архив (S-88)
+
+Метрики (S-88) отдаёт `/metrics` api и scrape'ит Prometheus:
+
+| Метрика | Смысл |
+|---|---|
+| `chessclass_email_outbox_pending_total` | pending + `failed`, исчерпавшие `EMAIL_OUTBOX_MAX_ATTEMPTS` (припаркованы и сами не повторятся) |
+| `chessclass_email_outbox_oldest_pending_age_seconds` | возраст самого старого недоставленного письма (pending или retryable failed) |
+| `chessclass_retention_archive_age_seconds` | возраст последнего `*.jsonl.gz` в `RETENTION_ARCHIVE_DIR`; 0 — архивов ещё нет |
+| `chessclass_failed_jobs` | DLQ (существующие алерты `ChessClassDLQGrowth*`) |
+
+Быстрая проверка значений:
+
+```bash
+curl -s 'http://127.0.0.1:9092/api/v1/query?query=chessclass_email_outbox_pending_total'
+curl -s 'http://127.0.0.1:9092/api/v1/query?query=chessclass_email_outbox_oldest_pending_age_seconds'
+curl -s 'http://127.0.0.1:9092/api/v1/query?query=chessclass_retention_archive_age_seconds'
+```
+
+**`ChessClassEmailOutboxStuck` (oldest > 1 ч).**
+
+1. Worker и cron: `docker compose --env-file .env -f docker-compose.prod.yml
+   logs --tail=200 worker` — искать `email_outbox_deliver`, `parked`,
+   `attempt ... failed`. Cron идёт каждую минуту; если строк нет — проверить,
+   что worker запущен и `email_outbox_deliver` есть в его cron-списке.
+2. SMTP/egress: `SMTP_HOST/PORT/USER/PASSWORD`, доступность провайдера и
+   STARTTLS (587; implicit TLS 465 не поддерживается) — §5, §10.6.
+3. Состояние очереди (пользователь/БД из `POSTGRES_USER`/`POSTGRES_DB`; в
+   примере — `chess`/`chessclass`):
+
+   ```bash
+   docker compose --env-file .env -f docker-compose.prod.yml exec db \
+     psql -U chess -d chessclass -c \
+     "SELECT status, count(*), min(created_at), max(attempts) FROM email_outbox GROUP BY status;"
+   ```
+
+   `last_error` конкретной строки — `SELECT id, attempts, last_error FROM
+   email_outbox WHERE status <> 'sent' ORDER BY created_at LIMIT 20;`.
+   Не удаляйте pending-строки: в теле письма одноразовая ссылка согласия.
+4. После устранения причины вернуть конкретную припаркованную строку в
+   очередь (точечно, не массово):
+
+   ```bash
+   docker compose --env-file .env -f docker-compose.prod.yml exec db \
+     psql -U chess -d chessclass -c \
+     "UPDATE email_outbox SET status='pending', attempts=0, next_attempt_at=now() WHERE id=<id>;"
+   ```
+
+   Следующий cron-тик отправит письмо; проверить `status='sent'` и
+   `sent_at`.
+
+**`ChessClassRetentionArchiveStale` (age > 8 дней).**
+
+1. `GET /admin/observability/retention/status` — `rows` по политикам и
+   `lastRun`. Если строк под retention нет, архив не создаётся by design:
+   age растёт, хотя cron работает. Сначала убедиться, что есть данные старше
+   cutoff.
+2. Логи `worker` (`retention_run`), диск и права `RETENTION_ARCHIVE_DIR`
+   (`/srv/archive` в prod, volume `chessclass_archive`): каталог должен быть
+   записываемым для api/worker.
+3. Ручной прогон — §8: сначала `POST /admin/observability/retention/run`
+   с `{"dryRun": true}`, затем без dry-run. После успешного прогона метрика
+   `chessclass_retention_archive_age_seconds` должна упасть до нескольких
+   минут (при наличии строк).
+4. Не удалять старые архивы и volume без разбора: архивы могут содержать PII
+   (audit/email_outbox); хранить по политике и не выгружать в общий SIEM.

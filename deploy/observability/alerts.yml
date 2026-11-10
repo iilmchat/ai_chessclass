@@ -78,6 +78,36 @@ groups:
             trace_id, БД/Redis и LLM-провайдера; эскалируйте как SEV-2 при
             продолжении роста.
 
+      # --- Email outbox / retention (S-88) ---------------------------------
+      - alert: ChessClassEmailOutboxStuck
+        expr: chessclass_email_outbox_oldest_pending_age_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "ChessClass: email_outbox застрял (>1 часа)"
+          description: >-
+            Самое старое недоставленное письмо ждёт больше часа. Проверьте
+            cron `email_outbox_deliver` и логи worker, SMTP/egress и
+            `chessclass_email_outbox_pending_total`; разбор —
+            docs/runbooks/operations.md §10.13. Не удаляйте pending-строки:
+            в теле письма одноразовая ссылка согласия.
+
+      - alert: ChessClassRetentionArchiveStale
+        expr: chessclass_retention_archive_age_seconds > 8 * 24 * 3600
+        for: 1h
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "ChessClass: retention-архив не обновлялся > 8 дней"
+          description: >-
+            Последний gzip-архив retention старше 8 дней: cron `retention_run`
+            не работает, `RETENTION_ARCHIVE_DIR` недоступен или нет строк под
+            retention. Проверьте `/admin/observability/retention/status` и
+            логи worker; действия — operations.md §10.13.
+
       # --- Наблюдаемость: диск ----------------------------------------------
       # node-exporter (S-87) монтирует volume chessclass_prod_tempo в /var/tempo,
       # поэтому mountpoint в метрике — путь внутри его контейнера.

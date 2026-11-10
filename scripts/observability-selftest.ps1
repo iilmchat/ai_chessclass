@@ -1,14 +1,15 @@
-# S-82/S-87: self-test prod-observability (OTel Collector + Tempo + Prometheus +
-# Alertmanager → Telegram/email + node-exporter + Grafana).
+# S-82/S-87/S-88: self-test prod-observability (OTel Collector + Tempo +
+# Prometheus + Alertmanager → Telegram/email + node-exporter + Grafana).
 #
 # Static-проверки всегда: compose-конфиг, правила promtool, рендер конфигов
 # Alertmanager/Prometheus (entrypoint-скриптами) и их валидация
-# (amtool/promtool), маскировка секретов в логах.
+# (amtool/promtool), маскировка секретов в логах, пороги
+# scripts/check-cert-expiry.ps1 (ok/warning/critical).
 # Runtime (-Stack): поднимает профиль observability, проверяет готовность,
 # targets, маршруты Alertmanager, второй receiver (email) через локальный
-# SMTP-приёмник, маскировку bot token в логах, mTLS-приём трейса в Tempo и
-# Grafana, затем останавливает ТОЛЬКО контейнеры профиля (stop, volumes
-# сохраняются).
+# SMTP-приёмник, маскировку bot token в логах, mTLS-приём трейса в Tempo,
+# gauges S-88 в /metrics и Grafana, затем останавливает ТОЛЬКО контейнеры
+# профиля (stop, volumes сохраняются).
 #
 # Секреты не печатаются: для рендера используются фиктивные значения, токен
 # для проверки маскировки собирается из частей (gitleaks не ловит fixture).
@@ -111,9 +112,15 @@ Check "promtool check rules (alerts.yml)" {
     $out = docker run --rm --entrypoint promtool `
         -v "${alerts}:/tmp/alerts.yml:ro" prom/prometheus:v3.1.0 `
         check rules /tmp/alerts.yml 2>&1
-    Assert-True (($out -join "`n") -match "SUCCESS: 6 rules found") ($out -join " ")
-    Assert-True ((Get-Content -Raw -LiteralPath $alerts) -match "ChessClassObservabilityDiskFull") `
-        "нет правила ChessClassObservabilityDiskFull"
+    Assert-True (($out -join "`n") -match "SUCCESS: 8 rules found") ($out -join " ")
+    $content = Get-Content -Raw -LiteralPath $alerts
+    foreach ($name in @(
+        "ChessClassObservabilityDiskFull",
+        "ChessClassEmailOutboxStuck",
+        "ChessClassRetentionArchiveStale"
+    )) {
+        Assert-True ($content -match $name) "нет правила $name"
+    }
 }
 
 # --- 3. Рендер Alertmanager: email выключен (обратная совместимость) ----------
@@ -182,6 +189,22 @@ Check "в prod-конфигах observability нет токен-подобных
             Select-String -Pattern 'bot\d+:[A-Za-z0-9_-]{20,}'
     )
     Assert-True ($hits.Count -eq 0) "найдено: $(($hits | ForEach-Object { $_.Path }) -join ',')"
+}
+
+# --- 5b. Проверка срока сертификатов (S-88) ---------------------------------
+Check "check-cert-expiry: ok/warning/critical exit codes" {
+    $certDir = Join-Path $tmp "cert-expiry"
+    New-Item -ItemType Directory -Force -Path $certDir | Out-Null
+    $generated = docker run --rm -v "${certDir}:/certs" --entrypoint sh alpine/openssl `
+        -c 'for d in 100 10 2; do openssl req -x509 -nodes -newkey rsa:2048 -days "$d" -keyout "/certs/key-$d.pem" -out "/certs/cert-$d.crt" -subj "/CN=selftest-$d" >/dev/null 2>&1 || exit 1; done' 2>&1
+    Assert-True ($LASTEXITCODE -eq 0) "генерация: $($generated -join ' ')"
+    $script = Join-Path $root "scripts/check-cert-expiry.ps1"
+    & $script -Paths @((Join-Path $certDir "cert-100.crt")) -NoTelegram | Out-Null
+    Assert-True ($LASTEXITCODE -eq 0) "ok: exit=$LASTEXITCODE"
+    & $script -Paths @((Join-Path $certDir "cert-10.crt")) -NoTelegram | Out-Null
+    Assert-True ($LASTEXITCODE -eq 1) "warning: exit=$LASTEXITCODE"
+    & $script -Paths @((Join-Path $certDir "cert-2.crt")) -NoTelegram | Out-Null
+    Assert-True ($LASTEXITCODE -eq 2) "critical: exit=$LASTEXITCODE"
 }
 
 # --- 6. Рендер и валидация Prometheus (фиктивный токен) ---------------------
@@ -289,10 +312,42 @@ try {
                 -ForegroundColor DarkYellow
         }
     }
-    Check "правила загружены в Prometheus (6)" {
+    Check "правила загружены в Prometheus (8)" {
         $groups = (Invoke-RestMethod -Uri "$prom/api/v1/rules").data.groups
         $count = ($groups | ForEach-Object { $_.rules.Count } | Measure-Object -Sum).Sum
-        Assert-True ($count -eq 6) "rules=$count"
+        Assert-True ($count -eq 8) "rules=$count"
+    }
+    Check "S-88 gauges email_outbox/retention видны в /metrics" {
+        $metricNames = @(
+            "chessclass_email_outbox_pending_total",
+            "chessclass_email_outbox_oldest_pending_age_seconds",
+            "chessclass_retention_archive_age_seconds"
+        )
+        # Профиль можно проверять без базового стека; gauges отдаёт api.
+        # Если api не запущен — это ответственность smoke базового стека
+        # (покрытие — backend-тест test_email_outbox_and_retention_metrics).
+        $apiTarget = (Invoke-RestMethod -Uri "$prom/api/v1/targets").data.activeTargets |
+            Where-Object { $_.labels.job -eq "chessclass-api" } |
+            Select-Object -First 1
+        if (-not $apiTarget -or $apiTarget.health -ne "up") {
+            Write-Host "    [info] chessclass-api down — gauges проверены backend-тестом" `
+                -ForegroundColor DarkYellow
+            return
+        }
+        $deadline = (Get-Date).AddSeconds(60)
+        do {
+            $missing = @()
+            foreach ($metric in $metricNames) {
+                $query = [uri]::EscapeDataString($metric)
+                $response = Invoke-RestMethod -Uri "$prom/api/v1/query?query=$query"
+                if ($response.data.result.Count -eq 0) {
+                    $missing += $metric
+                }
+            }
+            if ($missing.Count -eq 0) { return }
+            Start-Sleep -Seconds 3
+        } while ((Get-Date) -lt $deadline)
+        throw "нет gauges в Prometheus: $($missing -join ', ')"
     }
     Check "Alertmanager связан с Prometheus" {
         # Service discovery Alertmanager также обновляется по интервалу.

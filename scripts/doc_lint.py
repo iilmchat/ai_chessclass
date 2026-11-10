@@ -67,9 +67,9 @@ README_ALEMBIC_RE = re.compile(
     r"Alembic head \*\*(?P<head>[0-9a-z_]+)\*\* \((?P<count>\d+)\)"
 )
 
-#: Ожидаемый прогресс активного плана v0.7.1: S-86 и S-87 закрыты;
-#: S-88…S-89 впереди.
-EXPECTED_PROGRESS: tuple[int, int] = (2, 4)
+#: Ожидаемый прогресс активного плана v0.7.1: S-86…S-88 закрыты;
+#: S-89 впереди.
+EXPECTED_PROGRESS: tuple[int, int] = (3, 4)
 
 CollectError = str
 
@@ -467,7 +467,7 @@ def _check_todo_progress(root: Path) -> list[str]:
             errors.append(
                 f"F: TODO_V0.7.1.md: прогресс {done}/{total},"
                 f" ожидается {EXPECTED_PROGRESS[0]}/{EXPECTED_PROGRESS[1]}"
-                " (S-87…S-89 впереди)"
+                " (S-89 впереди)"
             )
     return errors
 

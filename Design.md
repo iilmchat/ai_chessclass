@@ -1264,7 +1264,8 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   Prometheus (retention 15 дней, `alerts.yml` → Alertmanager) → Grafana
   (loopback + edge `/grafana/`), Alertmanager → Telegram. mTLS
   collector→Tempo по внутреннему CA (`scripts/gen-internal-certs.ps1`,
-  `deploy/internal-certs/` не в git). Проверка контура —
+  `deploy/internal-certs/` не в git; срок — `check-cert-expiry.ps1`,
+  ротация — `operations.md` §7.1). Проверка контура —
   `scripts/observability-selftest.ps1 [-Stack]`; эксплуатация —
   `docs/runbooks/operations.md` §10, дежурство — `docs/incident-response.md`
   §4.1.
@@ -1375,6 +1376,16 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   правило `ChessClassObservabilityDiskFull` (<10% на `/var/tempo`); selftest
   проверяет рендер с email/без, маскировку и доставку письма в локальный
   SMTP-приёмник. Backend — 308 collected (305 passed + 3 skipped), 6 правил.
+- S-88 (v0.7.1): certificate rotation & retention ops —
+  `scripts/check-cert-expiry.ps1` (внутренние/edge сертификаты, порог 30/7
+  дней, exit 0/1/2, Telegram, soft-check в `ci.ps1`); `metrics_text` отдаёт
+  `chessclass_email_outbox_pending_total`,
+  `chessclass_email_outbox_oldest_pending_age_seconds`,
+  `chessclass_retention_archive_age_seconds`; алерты
+  `ChessClassEmailOutboxStuck` (oldest > 1 ч) и
+  `ChessClassRetentionArchiveStale` (> 8 дней), всего 8 правил; runbook
+  `operations.md` §7.1 (ротация, окно ≈30 с, откат) и §10.13 (stuck/stale).
+  Backend — 310 collected (307 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
@@ -1522,7 +1533,7 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 
 **ADR-021: Prod-observability (профиль `observability`) (S-82)**
 *   **Контекст:** Dev-профиль S-77 поднимался вручную, Tempo хранил трейсы 24 ч без volume, Grafana работала с `admin/admin`, а алерты Prometheus никто не получал: инциденты замечались только при ручном просмотре `/ops`. Для реальной школы нужен дежурный канал и сохраняемые трейсы.
-*   **Решение:** Профиль `observability` в `docker-compose.prod.yml` (не входит в дефолтный `up`): `otel-collector` (OTLP :4317/:4318, внутренний порт) → `tempo` (retention **168h**, volume `chessclass_prod_tempo`, mTLS на OTLP-приёмниках по внутреннему CA) и `prometheus` (retention 15 дней, scrape `/metrics` с `METRICS_TOKEN`, `alerts.yml` → `alertmanager:9093`) → `grafana` (loopback + edge `/grafana/`, обязательный `GRAFANA_ADMIN_PASSWORD`, anonymous off). `alertmanager` доставляет в Telegram (`telegram_configs`, route `critical → telegram-critical` (1 ч), `warning → telegram` (6 ч), inhibit rules). **S-87:** при заданных `SMTP_HOST` + `ALERT_EMAIL_TO` тот же алерт уходит вторым receiver'ом в email (отдельные routes с `continue: true`: `critical → telegram-critical,email`, `warning → telegram,email`), а stdout/stderr Alertmanager проходит через `redact-logs.awk` (`bot<digits>:<token>` → `bot<REDACTED>`, `Authorization: Bearer` → `<REDACTED>`); `node-exporter` монтирует volumes профиля и отдаёт `node_filesystem_*` для алерта `ChessClassObservabilityDiskFull` (<10% на `/var/tempo`). Секреты не живут в конфигах: Alertmanager и Prometheus рендерят `*.tmpl` в `/tmp` (chmod 600) entrypoint'ами, т.к. оба не поддерживают env-expansion. Внутренние сертификаты — `scripts/gen-internal-certs.ps1` → `deploy/internal-certs/` (не в git).
+*   **Решение:** Профиль `observability` в `docker-compose.prod.yml` (не входит в дефолтный `up`): `otel-collector` (OTLP :4317/:4318, внутренний порт) → `tempo` (retention **168h**, volume `chessclass_prod_tempo`, mTLS на OTLP-приёмниках по внутреннему CA) и `prometheus` (retention 15 дней, scrape `/metrics` с `METRICS_TOKEN`, `alerts.yml` → `alertmanager:9093`) → `grafana` (loopback + edge `/grafana/`, обязательный `GRAFANA_ADMIN_PASSWORD`, anonymous off). `alertmanager` доставляет в Telegram (`telegram_configs`, route `critical → telegram-critical` (1 ч), `warning → telegram` (6 ч), inhibit rules). **S-87:** при заданных `SMTP_HOST` + `ALERT_EMAIL_TO` тот же алерт уходит вторым receiver'ом в email (отдельные routes с `continue: true`: `critical → telegram-critical,email`, `warning → telegram,email`), а stdout/stderr Alertmanager проходит через `redact-logs.awk` (`bot<digits>:<token>` → `bot<REDACTED>`, `Authorization: Bearer` → `<REDACTED>`); `node-exporter` монтирует volumes профиля и отдаёт `node_filesystem_*` для алерта `ChessClassObservabilityDiskFull` (<10% на `/var/tempo`). Секреты не живут в конфигах: Alertmanager и Prometheus рендерят `*.tmpl` в `/tmp` (chmod 600) entrypoint'ами, т.к. оба не поддерживают env-expansion. Внутренние сертификаты — `scripts/gen-internal-certs.ps1` → `deploy/internal-certs/` (не в git). **S-88:** срок сертификатов проверяет `scripts/check-cert-expiry.ps1` (30/7 дней, exit 0/1/2, Telegram, soft-check в `ci.ps1`); ротация без простоя — runbook `operations.md` §7.1 (окно ≈30 с collector, откат из копии). Метрики `/metrics` дополнены `chessclass_email_outbox_pending_total`, `chessclass_email_outbox_oldest_pending_age_seconds`, `chessclass_retention_archive_age_seconds`; алерты `ChessClassEmailOutboxStuck` (>1 ч) и `ChessClassRetentionArchiveStale` (>8 дней), всего 8 правил.
 *   **Последствия:** Новые порты только на loopback: Prometheus 9092, Alertmanager 9093, Grafana 3002 (ADR-013 не меняется); volumes `chessclass_prod_tempo/prometheus/alertmanager/grafana`; env `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`, `GRAFANA_ROOT_URL`, `PROMETHEUS_PORT`, `ALERTMANAGER_PORT`, `GRAFANA_PORT`, `TELEGRAM_ALERT_CHAT_ID`, `ALERT_EMAIL_TO`, `ALERT_TELEGRAM_API_URL` (selftest), `OTEL_ENABLED`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `METRICS_TOKEN`; S-87 переиспользует `SMTP_HOST/PORT/USER/PASSWORD/FROM/STARTTLS` из S-75. Ограничения: HTTP API Tempo — plaintext внутри сети (порт не публикуется), mTLS только на OTLP; маскировка логов Alertmanager — узкие шаблоны (URL-encoded/иной формат токена может не совпасть), логи всё равно считать чувствительными с TTL 14 дней; email требует STARTTLS (587), implicit TLS 465 не поддерживается; доставка в Telegram зависит от egress; проверка контура — `scripts/observability-selftest.ps1 [-Stack]`.
 
 ---

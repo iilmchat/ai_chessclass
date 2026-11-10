@@ -5,13 +5,14 @@ import ssl
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import func, select, text
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.http_metrics import render_http_metrics
 from domains.auth.models import User
 from domains.bot_lab.queues import MATCH_QUEUES, active_key
+from domains.notifications.models import EmailOutbox
 from domains.observability.models import FailedJob
 from domains.retention import service as retention
 from domains.telegram.models import TelegramOutbox
@@ -53,6 +54,64 @@ async def _queues(redis) -> tuple[dict[str, int], dict[str, int]]:
         depths[queue] = await safe_len(queue)
         active[kind] = await safe_card(active_key(kind))
     return depths, active
+
+
+async def _email_outbox_stats(session: AsyncSession) -> tuple[int, float]:
+    """S-88: pending + parked failed и возраст самой старой недоставленной строки.
+
+    `pending_total` — то, что ещё ждёт доставки: все pending плюс `failed`,
+    исчерпавшие `EMAIL_OUTBOX_MAX_ATTEMPTS` (такие строки «припаркованы» на год
+    и сами не повторятся). Retryable `failed` (attempts < max) считаются
+    «pending» для возраста: письмо всё ещё не доставлено.
+    """
+    pending_total = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(EmailOutbox)
+            .where(
+                or_(
+                    EmailOutbox.status == "pending",
+                    and_(
+                        EmailOutbox.status == "failed",
+                        EmailOutbox.attempts >= settings.email_outbox_max_attempts,
+                    ),
+                )
+            )
+        )
+        or 0
+    )
+    oldest = await session.scalar(
+        select(func.min(EmailOutbox.created_at)).where(
+            EmailOutbox.status.in_(("pending", "failed")),
+            EmailOutbox.attempts < settings.email_outbox_max_attempts,
+        )
+    )
+    oldest_age = 0.0
+    if oldest is not None:
+        if oldest.tzinfo is None:
+            oldest = oldest.replace(tzinfo=UTC)
+        oldest_age = max(0.0, (datetime.now(UTC) - oldest).total_seconds())
+    return pending_total, oldest_age
+
+
+def _retention_archive_age_seconds(now: datetime) -> float:
+    """S-88: возраст последнего gzip-архива retention; 0 — архивов ещё нет."""
+    directory = Path(settings.retention_archive_dir)
+    try:
+        archives = [
+            item
+            for item in directory.iterdir()
+            if item.is_file() and item.name.endswith(".jsonl.gz")
+        ]
+    except OSError:
+        return 0.0
+    if not archives:
+        return 0.0
+    try:
+        latest = max(item.stat().st_mtime for item in archives)
+    except OSError:
+        return 0.0
+    return max(0.0, now.timestamp() - latest)
 
 
 async def summary(session: AsyncSession, redis) -> dict:
@@ -324,6 +383,8 @@ async def costs(session: AsyncSession, days: int = 30) -> list[dict]:
 
 async def metrics_text(session: AsyncSession, redis) -> str:
     data = await summary(session, redis)
+    outbox_pending, outbox_oldest_age = await _email_outbox_stats(session)
+    archive_age = _retention_archive_age_seconds(datetime.now(UTC))
     lines = [
         "# HELP chessclass_up ChessClass process up",
         "# TYPE chessclass_up gauge",
@@ -352,6 +413,21 @@ async def metrics_text(session: AsyncSession, redis) -> str:
         "# HELP chessclass_failed_jobs Failed arq jobs",
         "# TYPE chessclass_failed_jobs gauge",
         f"chessclass_failed_jobs {data['failedJobs']}",
+        "# HELP chessclass_email_outbox_pending_total Undelivered emails (pending + parked failed)",
+        "# TYPE chessclass_email_outbox_pending_total gauge",
+        f"chessclass_email_outbox_pending_total {outbox_pending}",
+        "# HELP chessclass_email_outbox_oldest_pending_age_seconds Age of oldest undelivered email",
+        "# TYPE chessclass_email_outbox_oldest_pending_age_seconds gauge",
+        (
+            "chessclass_email_outbox_oldest_pending_age_seconds "
+            f"{round(outbox_oldest_age, 3)}"
+        ),
+        "# HELP chessclass_retention_archive_age_seconds Age of latest retention gzip archive",
+        "# TYPE chessclass_retention_archive_age_seconds gauge",
+        (
+            "chessclass_retention_archive_age_seconds "
+            f"{round(archive_age, 3)}"
+        ),
     ]
     for queue, depth in data["queues"].items():
         lines.append(f'chessclass_queue_depth{{queue="{queue}"}} {depth}')

@@ -269,6 +269,13 @@ def test_selftest_covers_masking_and_second_receiver():
         "ChessClassSelftest",
         "bot<REDACTED>",
         "ChessClassObservabilityDiskFull",
+        "ChessClassEmailOutboxStuck",
+        "ChessClassRetentionArchiveStale",
+        "chessclass_email_outbox_pending_total",
+        "chessclass_email_outbox_oldest_pending_age_seconds",
+        "chessclass_retention_archive_age_seconds",
+        "check-cert-expiry.ps1",
+        "SUCCESS: 8 rules found",
     ):
         assert needle in selftest, needle
     assert "up -d tempo otel-collector node-exporter prometheus alertmanager grafana" in selftest
@@ -315,8 +322,11 @@ def test_alerts_cover_required_signals():
         "ChessClassDLQGrowth",
         "ChessClassDLQGrowthRate",
         "ChessClassObservabilityDiskFull",
+        "ChessClassEmailOutboxStuck",
+        "ChessClassRetentionArchiveStale",
     ):
         assert name in rules, name
+    assert len(rules) == 8
     for rule in rules.values():
         assert rule["labels"]["severity"] in {"warning", "critical"}
         assert rule["labels"]["component"] in {"api", "worker", "observability"}
@@ -328,6 +338,15 @@ def test_alerts_cover_required_signals():
     assert "chessclass_failed_jobs > 10" in rules["ChessClassDLQGrowth"]["expr"]
     assert "delta(chessclass_failed_jobs" in rules["ChessClassDLQGrowthRate"]["expr"]
     assert rules["ChessClassApiDown"]["expr"].strip() == 'up{job="chessclass-api"} == 0'
+    # S-88: stuck outbox >1 ч и stale retention-архив >8 дней.
+    assert (
+        "chessclass_email_outbox_oldest_pending_age_seconds > 3600"
+        in rules["ChessClassEmailOutboxStuck"]["expr"]
+    )
+    assert (
+        "chessclass_retention_archive_age_seconds > 8 * 24 * 3600"
+        in rules["ChessClassRetentionArchiveStale"]["expr"]
+    )
 
 
 def test_entrypoints_and_cert_script():
@@ -415,7 +434,45 @@ def test_runbooks_document_alerts_and_duty():
     assert "Маскировка секретов" in operations
     assert "Второй канал" in operations
     assert "ChessClassObservabilityDiskFull" in operations
+    # S-88: ротация без простоя и разбор stuck/stale — §7 и §10.
+    assert "Ротация внутренних сертификатов без простоя" in operations
+    assert "gen-internal-certs.ps1 -Force" in operations
+    assert "ChessClassEmailOutboxStuck" in operations
+    assert "ChessClassRetentionArchiveStale" in operations
+    assert "10.13" in operations
     incident = (ROOT / "docs/incident-response.md").read_text(encoding="utf-8")
     assert "Алерты и дежурство" in incident
     assert "Alertmanager" in incident
     assert "ALERT_EMAIL_TO" in incident
+
+
+def test_cert_expiry_script_and_ci_soft_check():
+    """S-88: скрипт проверки сертификатов, пороги, Telegram и soft-check в CI."""
+    script = (ROOT / "scripts/check-cert-expiry.ps1").read_text(encoding="utf-8")
+    for needle in (
+        "deploy/internal-certs",
+        "deploy/certs",
+        "deploy/nginx",
+        "WarningDays = 30",
+        "CriticalDays = 7",
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_ALERT_CHAT_ID",
+        "exit 2",
+        "exit 1",
+        "cert_path",
+        "days_left",
+        "status",
+    ):
+        assert needle in script, needle
+    ci = (ROOT / "scripts/ci.ps1").read_text(encoding="utf-8")
+    assert "check-cert-expiry.ps1" in ci
+    assert "-NoTelegram" in ci
+    assert "certificate check: critical" in ci
+    gitignore = (ROOT / "deploy/internal-certs/.gitignore").read_text(
+        encoding="utf-8"
+    )
+    assert "*.key" in gitignore and "*.crt" in gitignore
+    # Откат описан через резервную копию: каталог в .gitignore, git checkout
+    # его не восстановит (это осознанное отклонение от черновика).
+    operations = (ROOT / "docs/runbooks/operations.md").read_text(encoding="utf-8")
+    assert "git checkout -- deploy/internal-certs/" in operations
