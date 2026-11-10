@@ -49,7 +49,7 @@ def test_collect_versions_consistent() -> None:
     versions = doc_lint._collect_versions(REPO)
 
     assert versions
-    assert all(value == "0.7.0" for value in versions.values())
+    assert all(value == "0.7.1" for value in versions.values())
 
 
 def test_release_notes_for_current_version_exist() -> None:
@@ -59,9 +59,9 @@ def test_release_notes_for_current_version_exist() -> None:
 
 
 def test_todo_progress_matches_active_plan() -> None:
-    # S-86…S-88 закрыты; S-89 — план v0.7.1.
+    # S-86…S-89 закрыты — цикл v0.7.1 завершён.
     assert doc_lint._check_todo_progress(REPO) == []
-    assert doc_lint.EXPECTED_PROGRESS == (3, 4)
+    assert doc_lint.EXPECTED_PROGRESS == (4, 4)
 
 
 def test_stale_markers_detected(tmp_path: Path) -> None:

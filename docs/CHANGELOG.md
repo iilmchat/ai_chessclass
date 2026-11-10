@@ -5,9 +5,26 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
-## [Unreleased] — v0.7.1
+## [0.7.1] - 2026-11-10
 
 ### Добавлено
+
+#### S-89 — Release v0.7.1 (2026-11-10)
+- Версия **0.7.1** во всех источниках: `backend/pyproject.toml`,
+  `backend/app/__init__.py`, `backend/app/main.py`, `frontend/package.json`,
+  `frontend/package-lock.json`, `IMAGE_TAG` prod/staging compose и
+  `.env.prod.example` / `.env.staging.example`.
+- `docs/release-notes-v0.7.1.md`; CHANGELOG `[0.7.1]`; README/Design/docs README
+  переведены на v0.7.1.
+- Юридический блокер снят: в `docs/legal-review-v0.7.md` добавлен раздел
+  «Статус: ✅ Закрыто на уровне вне кода (решение юриста от 2026-11-08)»;
+  все 16 вопросов — Resolved, изменения в коде не требуются.
+- `TODO_V0.7.1.md`: S-89 ✅, прогресс **4/4**; финальные прогоны и тег
+  `v0.7.1`.
+- `scripts/doc_lint.py`: release-notes v0.7.1 в активных документах,
+  ожидаемый прогресс `(4, 4)`; `backend/tests/test_doc_lint.py` — версия 0.7.1.
+- Backend — **310 collected** (307 passed + 3 skipped); e2e 16; obs-selftest
+  21/21; pip-audit — 0 известных уязвимостей.
 
 #### S-88 — Certificate Rotation & Retention Ops (2026-11-10)
 - `scripts/check-cert-expiry.ps1`: проверка `deploy/internal-certs/*.crt`,
@@ -67,7 +84,7 @@
   зафиксировал, что S-86 в него не входит.
 
 ### Изменено
-- `scripts/doc_lint.py` — активный план `TODO_V0.7.1.md`, прогресс 3/4;
+- `scripts/doc_lint.py` — активный план `TODO_V0.7.1.md`, прогресс 4/4;
   `backend/tests/test_doc_lint.py` — ожидания v0.7.1.
 - `scripts/observability-selftest.ps1` — рендер через entrypoint-скрипты,
   проверка маскировки, SMTP-приёмник и доставка email в runtime, пороги

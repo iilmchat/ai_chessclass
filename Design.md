@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.7.0 · **Дата:** 2026-11-07
+**Версия:** v0.7.1 · **Дата:** 2026-11-10
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 
@@ -1386,6 +1386,12 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `ChessClassRetentionArchiveStale` (> 8 дней), всего 8 правил; runbook
   `operations.md` §7.1 (ротация, окно ≈30 с, откат) и §10.13 (stuck/stale).
   Backend — 310 collected (307 passed + 3 skipped).
+- S-89 (v0.7.1): релиз — версия **0.7.1** во всех источниках
+  (backend/frontend, `IMAGE_TAG` prod/staging), `docs/release-notes-v0.7.1.md`,
+  CHANGELOG `[0.7.1]`, тег `v0.7.1`. Юридический блокер снят: все 16 вопросов
+  `docs/legal-review-v0.7.md` закрыты внешними договорённостями (решение
+  юриста 2026-11-08), изменений в коде не требуют. Следующий цикл —
+  `TODO_V0.8.md` (Production Readiness, S-90…S-94).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
