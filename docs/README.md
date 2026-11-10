@@ -8,8 +8,8 @@
 
 | Документ | Место | Статус | О чём |
 |---|---|---|---|
-| `README.md` | корень | ✅ v0.7.0 | Визитка: возможности, быстрый старт, статус, лицензия |
-| `Design.md` | корень | ✅ v0.7.0 | Архитектура и решения: 20 разделов, ADR-журнал, инвентарь переноса |
+| `README.md` | корень | ✅ v0.7.1 | Визитка: возможности, быстрый старт, статус, лицензия |
+| `Design.md` | корень | ✅ v0.7.1 | Архитектура и решения: 20 разделов, ADR-журнал, инвентарь переноса |
 | `TODO_V0.1.md` | корень | ✅ архив | Спринты v0.1.0: S-01…S-29, этапы E-01…E-10 |
 | `TODO_V0.2.md` | корень | ✅ v0.2.0 | Спринты v0.2.0: S-30…S-45, этапы E-11…E-16 |
 | `TODO_V0.3.md` | корень | ✅ архив | Спринты v0.3.0: S-46…S-57, этапы E-17…E-20 |
@@ -18,12 +18,13 @@
 | `TODO_V0.6.md` | корень | ✅ завершён | Спринты v0.6.0: S-75…S-80 |
 | `TODO_V0.7.md` | корень | ✅ завершён | Спринты v0.7.0: S-81…S-85 (S-81/S-84 отложены) |
 | `TODO_V0.7.1.md` | корень | ✅ активный | Спринты v0.7.1: S-86…S-89 (tech debt cleanup) |
+| `docs/release-notes-v0.7.1.md` | docs/ | ✅ v0.7.1 | Release notes v0.7.1 |
 | `docs/release-notes-v0.7.0.md` | docs/ | ✅ v0.7.0 | Release notes v0.7.0 |
 | `docs/release-notes-v0.6.0.md` | docs/ | ✅ v0.6.0 | Release notes v0.6.0 |
 | `docs/release-notes-v0.5.0.md` | docs/ | ✅ v0.5.0 | Release notes v0.5.0 |
 | `docs/privacy-policy.md` | docs/ | ✅ v0.7.0 | Политика конфиденциальности (COPPA/GDPR-K), ред. 1.1 |
 | `docs/incident-response.md` | docs/ | ✅ v0.7.0 | План реагирования на инциденты, ред. 1.1 |
-| `docs/legal-review-v0.7.md` | docs/ | ✅ S-83 | Внутренний юр-ревью privacy/incident (РФ/ЕС/США), открытые вопросы |
+| `docs/legal-review-v0.7.md` | docs/ | ✅ S-83/S-89 | Юр-ревью privacy/incident; все 16 вопросов закрыты юристом 2026-11-08 |
 | `docs/SPEC.md` | docs/ | ✅ живой (S-33) | Контракты: DDL, API-схемы, JSON-форматы, таблицы промптов/весов |
 | `docs/RULES.md` | docs/ | ✅ живой | Процесс: ветки, ревью, отчёт спринта по 7 пунктам, DoD |
 | `docs/CHANGELOG.md` | docs/ | ✅ живой (S-60) | Изменения по спринтам (формат Keep a Changelog) |
@@ -34,6 +35,7 @@
 | `docs/sprint-reports/S-86-2026-11-08.md` | docs/ | ✅ S-86 | Email outbox hardening (SKIP LOCKED, retention) |
 | `docs/sprint-reports/S-87-2026-11-08.md` | docs/ | ✅ S-87 | Observability hardening (маскировка, email, disk alert) |
 | `docs/sprint-reports/S-88-2026-11-10.md` | docs/ | ✅ S-88 | Certificate rotation & retention ops (cert-check, gauges, runbook) |
+| `docs/sprint-reports/S-89-2026-11-10.md` | docs/ | ✅ S-89 | Релиз v0.7.1 (версии, legal closure, тег) |
 
 ## Исходные проекты (первоисточники контента)
 

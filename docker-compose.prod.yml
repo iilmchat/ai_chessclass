@@ -1,7 +1,7 @@
 # ChessClass — prod-стек (S-30). Справочник: Design.md §15.1.
 # Запуск: cp .env.prod.example .env && docker compose -f docker-compose.prod.yml up -d --build
 # Миграции выполняются сервисом migrate до старта API/worker.
-# Образы версионированы через IMAGE_TAG (default 0.7.0); при релизе обновлять
+# Образы версионированы через IMAGE_TAG (default 0.7.1); при релизе обновлять
 # вместе с pyproject.toml/package.json.
 # TLS/edge-nginx и бэкапы по расписанию — S-38.
 
@@ -66,7 +66,7 @@ services:
   migrate:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-migrate
     command: alembic upgrade head
     env_file: *env-file
@@ -80,7 +80,7 @@ services:
   api:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-api
     command:
       ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020",
@@ -117,7 +117,7 @@ services:
   worker:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -141,7 +141,7 @@ services:
   worker-match-random:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker-match-random
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -164,7 +164,7 @@ services:
   worker-match-greedy:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker-match-greedy
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -187,7 +187,7 @@ services:
   worker-match-minimax:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker-match-minimax
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -210,7 +210,7 @@ services:
   worker-match-sf:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-worker-match-sf
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -234,7 +234,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: chessclass/frontend:${IMAGE_TAG:-0.7.0}
+    image: chessclass/frontend:${IMAGE_TAG:-0.7.1}
     container_name: chessclass-prod-web
     ports:
       - "${WEB_PORT:-3200}:80"
@@ -430,7 +430,7 @@ services:
   seed:
     build:
       context: ./backend
-    image: chessclass/backend:${IMAGE_TAG:-0.7.0}
+    image: chessclass/backend:${IMAGE_TAG:-0.7.1}
     profiles: ["tools"]
     container_name: chessclass-prod-seed
     command: python -m db.seeds
