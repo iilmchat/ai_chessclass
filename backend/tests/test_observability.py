@@ -118,6 +118,22 @@ async def test_http_metrics_histogram_for_p95(admin_client):
     assert "chessclass_http_request_duration_seconds_count" in response.text
 
 
+async def test_backup_status_metrics(admin_client, tmp_path, monkeypatch):
+    """S-93: gauges последнего offsite-бэкапа/restore из status JSON."""
+    status = tmp_path / "backup-status.json"
+    status.write_text(
+        '{"last_success_timestamp": 1700000000, "last_restore_ok": false}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(settings, "backup_status_file", str(status))
+    response = await admin_client.get("/metrics")
+    assert response.status_code == 200
+    assert "chessclass_backup_last_success_timestamp_seconds 1700000000" in (
+        response.text
+    )
+    assert "chessclass_backup_restore_ok 0" in response.text
+
+
 async def test_email_outbox_and_retention_metrics(admin_client, tmp_path, monkeypatch):
     """S-88: gauges stuck email_outbox и возраста retention-архива в /metrics."""
     kind = "test-s88-metrics"

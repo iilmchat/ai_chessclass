@@ -30,7 +30,7 @@ from RestrictedPython.Guards import (
 )
 from RestrictedPython.PrintCollector import PrintCollector
 
-from sandbox.limits import apply_memory_limit, truncate_output
+from sandbox.limits import apply_cpu_limit, apply_memory_limit, truncate_output
 
 #: Модули, доступные ученику в песочнице
 ALLOWED_MODULES: frozenset[str] = frozenset(
@@ -244,6 +244,7 @@ def run_restricted(
     stdin_text: str = "",
     *,
     memory_limit_mb: int | None = None,
+    cpu_limit_s: int | None = None,
     max_output_chars: int | None = None,
     apply_limits: bool = False,
     extra_globals: dict[str, Any] | None = None,
@@ -267,9 +268,17 @@ def run_restricted(
         }
 
     memory_enforced = False
-    limits_warning: str | None = None
+    cpu_enforced = False
+    limit_warnings: list[str] = []
     if apply_limits and memory_limit_mb:
-        memory_enforced, limits_warning = apply_memory_limit(memory_limit_mb)
+        memory_enforced, warning = apply_memory_limit(memory_limit_mb)
+        if warning:
+            limit_warnings.append(warning)
+    if apply_limits and cpu_limit_s:
+        cpu_enforced, warning = apply_cpu_limit(cpu_limit_s)
+        if warning:
+            limit_warnings.append(warning)
+    limits_warning = "; ".join(limit_warnings) or None
 
     stdin_lines = iter(stdin_text.splitlines())
 
@@ -317,6 +326,7 @@ def run_restricted(
             "error_type": "SyntaxError",
             "violations": violations,
             "memory_limit_enforced": memory_enforced,
+            "cpu_limit_enforced": cpu_enforced,
             "limits_warning": limits_warning,
         }
     except Exception as exc:  # noqa: BLE001 — RP может бросить своё
@@ -328,6 +338,7 @@ def run_restricted(
             "error_type": restricted[0] if restricted else type(exc).__name__,
             "violations": violations,
             "memory_limit_enforced": memory_enforced,
+            "cpu_limit_enforced": cpu_enforced,
             "limits_warning": limits_warning,
         }
 
@@ -348,6 +359,7 @@ def run_restricted(
             "execution_time": time.perf_counter() - started,
             "violations": violations,
             "memory_limit_enforced": memory_enforced,
+            "cpu_limit_enforced": cpu_enforced,
             "output_truncated": truncated,
             "limits_warning": limits_warning,
         }
@@ -363,6 +375,7 @@ def run_restricted(
         "execution_time": time.perf_counter() - started,
         "violations": violations,
         "memory_limit_enforced": memory_enforced,
+        "cpu_limit_enforced": cpu_enforced,
         "output_truncated": truncated,
         "limits_warning": limits_warning,
     }

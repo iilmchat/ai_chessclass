@@ -8,6 +8,25 @@
 ## [Unreleased] — v0.8.0
 
 ### Добавлено
+#### S-93 — SMTP, Offsite Backups & Sandbox (2026-11-11)
+- SMTP: `scripts/smtp-smoke.ps1` (sink + verification/reset), реальные
+  STARTTLS/SSL тесты; `.env.prod.example`/staging — SMTP-placeholder'ы
+  (`smtp.example.com`, 587, заполнить боевыми).
+- Offsite-бэкапы: `scripts/backup-offsite.ps1` (pg_dump → aes-256-cbc/pbkdf2
+  → S3/MinIO, JSON size/sha/duration/s3_path, статус
+  `backup-status.json`); `scripts/backup-restore-test.ps1` (download,
+  decrypt, temp PG 5439, users/alembic); weekly job в `load.yml` (guarded by
+  `vars.BACKUP_S3_BUCKET`).
+- Gauges `chessclass_backup_last_success_timestamp_seconds`,
+  `chessclass_backup_restore_ok`; алерты `ChessClassBackupFailed` (>25 ч) и
+  `ChessClassBackupRestoreFailed` (restore_ok=0), всего 10 правил.
+- Sandbox: `RLIMIT_CPU=1 c` (SIGXCPU/SIGKILL → TimeoutError), opt-in
+  `SANDBOX_NETWORK_ISOLATION`, non-root `appuser` uid 1000 в backend image;
+  атаки-тесты CPU/network/filesystem; workers/api не root.
+- Runbook operations §17 (offsite/S3/restore) и §18 (SMTP-диагностика);
+  Design §13.2/§15.3/§16.1; SPEC §7; TODO_V0.8 — S-93 ✅, прогресс 4/5;
+  backend — 328 collected (325 passed + 3 skipped).
+
 #### S-92 — CD, Registry & Observability (2026-11-11)
 - GHCR: job `publish` в `.github/workflows/ci.yml` публикует
   `ghcr.io/<owner>/chessclass-backend` и `chessclass-frontend` с тегами
@@ -60,7 +79,7 @@
 - `TODO_V0.8.md` — Production Readiness (S-90…S-94): edge/auth hardening,
   object-level authorization, GHCR/Sentry/logrotate/per-process metrics,
   SMTP/offsite-бэкапы/песочница, релиз v0.8.0.
-- `scripts/doc_lint.py` — активный план `TODO_V0.8.md`, прогресс `(3, 5)`;
+- `scripts/doc_lint.py` — активный план `TODO_V0.8.md`, прогресс `(4, 5)`;
   `backend/tests/test_doc_lint.py` — ожидания v0.8.0.
 
 ## [0.7.1] - 2026-11-10

@@ -33,6 +33,9 @@ if (-not $SkipStack) {
 }
 
 Write-Host "[ci] ruff + mypy + pytest (in container)..."
-docker compose -f $compose run --rm api sh -c "pip install -q -e '.[dev]' && ruff check . && mypy . && python -m pytest -q"
+# S-93: образ работает под appuser (uid 1000); editable-install в bind mount
+# запрещён (egg-info root-owned), поэтому dev-инструменты ставим в user-site,
+# а код импортируется из /srv/backend (cwd) без переустановки пакета.
+docker compose -f $compose run --rm api sh -c "pip install -q --user 'pytest>=8.3' 'pytest-asyncio>=0.24' 'asgi-lifespan>=0.1' 'ruff>=0.8' 'mypy>=1.13' && ruff check --no-cache . && mypy --cache-dir=/tmp/mypy-cache . && python -m pytest -q -p no:cacheprovider"
 if ($LASTEXITCODE -ne 0) { throw "ci failed" }
 Write-Host "[ci] OK"

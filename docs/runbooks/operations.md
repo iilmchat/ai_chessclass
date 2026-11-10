@@ -417,7 +417,7 @@ ssh -L 9092:127.0.0.1:9092 -L 9093:127.0.0.1:9093 -L 3002:127.0.0.1:3002 <user>@
 curl -s http://127.0.0.1:9092/-/ready        # Prometheus Server is Ready.
 curl -s http://127.0.0.1:9093/-/ready        # OK
 curl -s http://127.0.0.1:3002/api/health     # {"database":"ok",...}
-curl -s http://127.0.0.1:9092/api/v1/rules   # 8 правил ChessClass*
+curl -s http://127.0.0.1:9092/api/v1/rules   # 10 правил ChessClass*
 curl -s http://127.0.0.1:9093/api/v2/status  # cluster/version/config
 ```
 
@@ -532,6 +532,8 @@ Telegram-чат дежурного получает алерты от Alertmanag
 | `ChessClassObservabilityDiskFull` | на `/var/tempo` < 10% свободно | `df -h` на хосте и `docker system df -v`; размер volume `chessclass_prod_tempo`; освободить место или уменьшить retention Tempo (§10.8, §10.12); не удалять volume без разбора |
 | `ChessClassEmailOutboxStuck` | самое старое недоставленное письмо ждёт > 1 часа | проверить cron `email_outbox_deliver` и логи `worker`; SMTP/egress и `chessclass_email_outbox_pending_total`; разбор и ручной requeue — §10.13 |
 | `ChessClassRetentionArchiveStale` | последний gzip-архив retention старше 8 дней | проверить `chessclass_retention_archive_age_seconds`, `retention/status` и логи `worker`; `/srv/archive` и cron `retention_run`; §10.13 |
+| `ChessClassBackupFailed` | успешный offsite-бэкап старше 25 часов | проверить cron/скрипт `backup-offsite.ps1`, S3/credentials, ключ шифрования; §17 |
+| `ChessClassBackupRestoreFailed` | последний restore-test упал | скачать/расшифровать бэкап, повторить `backup-restore-test.ps1`; users/alembic/S3; §17 |
 
 Маршруты Alertmanager: critical повторяется каждый час, warning — раз в
 6 часов; `ChessClassApiDown` подавляет остальные алерты `component="api"`,
@@ -908,3 +910,85 @@ backend/frontend/e2e/secrets; теги — `<sha>` и `<ref>` (`main` или `vX
 - Прочие gauges (`db_up`, очереди, outbox/retention) остаются per-process,
   но отражают общее состояние БД; для p95/error-rate агрегируются именно
   HTTP RED-метрики.
+
+## 17. Offsite-бэкапы S3 (S-93)
+
+Настройка в prod/staging `.env`:
+
+```dotenv
+BACKUP_S3_ENDPOINT=          # пусто для AWS; https://storage.yandexcloud.net / MinIO
+BACKUP_S3_BUCKET=CHANGE_ME
+BACKUP_S3_PREFIX=postgres
+BACKUP_S3_ACCESS_KEY=CHANGE_ME
+BACKUP_S3_SECRET_KEY=CHANGE_ME
+BACKUP_ENCRYPTION_KEY=       # ровно 32 hex-символа, только в секретах
+BACKUP_STATUS_VOLUME=chessclass_prod_archive
+BACKUP_DOCKER_NETWORK=chessclass-prod-net
+BACKUP_EXPECTED_ALEMBIC=0035_s83_email_outbox
+```
+
+- **Запуск** (вручную или cron/Task Scheduler ежедневно):
+
+  ```powershell
+  .\scripts\backup-offsite.ps1 -Container chessclass-prod-db
+  ```
+
+  Скрипт делает `pg_dump -Fc`, шифрует `openssl enc -aes-256-cbc -pbkdf2`,
+  загружает в S3 (host `aws`/`mc` или docker `amazon/aws-cli`) и пишет JSON
+  `size/sha256/duration/s3_path`. `BACKUP_ENCRYPTION_KEY` не логируется;
+  локальный файл удаляется, если не `-KeepLocal`.
+- **Retention:** lifecycle policy на bucket — 30 дней (например, S3 Lifecycle
+  `Expiration: 30`); локальный `BACKUP_DIR` — 14 дней (`backup.ps1`).
+- **Restore-test** (weekly и после релиза):
+
+  ```powershell
+  .\scripts\backup-restore-test.ps1 -RestorePort 5439
+  ```
+
+  Скрипт скачивает последний `*.dump.enc`, расшифровывает, поднимает
+  временный `chessclass-restore-test` на 5439, восстанавливает и проверяет
+  `users > 0` + `alembic_version`. Контейнер/файлы удаляются в `finally`.
+- **Метрики:** `chessclass_backup_last_success_timestamp_seconds`,
+  `chessclass_backup_restore_ok` (1/0). Алерты:
+  `ChessClassBackupFailed` (>25 ч без успеха, critical) и
+  `ChessClassBackupRestoreFailed` (`restore_ok=0`, critical).
+- **Если алерт сработал:** проверить cron/Task Scheduler, `aws s3 ls`,
+  `BACKUP_S3_*`, `BACKUP_ENCRYPTION_KEY`, свободное место; выполнить
+  `backup-offsite.ps1` вручную, затем `backup-restore-test.ps1`. Не удалять
+  старые архивы до успешного restore.
+- **Ограничения:** dump содержит PII; архив шифруется, но ключ — критический
+  секрет. При утечке ключа — перевыпустить ключ, перешифровать/удалить
+  затронутые объекты и зафиксировать инцидент.
+
+## 18. SMTP-диагностика (S-93)
+
+- Проверка конфигурации: `SMTP_HOST/PORT` (587 + `SMTP_STARTTLS=true` или
+  465 + `SMTP_SSL=true`), `SMTP_USER/PASSWORD`, `SMTP_FROM`; пустой
+  `SMTP_HOST` — dev-консоль, в prod это ошибка.
+- **Smoke без боевого провайдера:**
+
+  ```powershell
+  .\scripts\smtp-smoke.ps1
+  ```
+
+  Поднимает `observability-smtp-sink.py` в Docker, отправляет verification и
+  password-reset, проверяет получение. STARTTLS/SSL-ветки проверяются
+  `backend/tests/test_email.py` (fake SMTP).
+- **Email outbox:** `/ops`/`email_outbox`; SQL:
+
+  ```bash
+  docker compose --env-file .env -f docker-compose.prod.yml exec db \
+    psql -U chess -d chessclass -c \
+    "SELECT status, count(*), min(created_at), max(attempts) FROM email_outbox GROUP BY status;"
+  ```
+
+  `failed` с `attempts >= EMAIL_OUTBOX_MAX_ATTEMPTS` — parked; смотреть
+  `last_error`, чинить SMTP и возвращать строку точечно (§10.13).
+- **5xx/4xx от провайдера:** `logs worker` по `email_outbox`; проверить
+  квоты, authentication, From-domain/SPF/DKIM, STARTTLS-порт. 535 —
+  неверный пароль/логин; 550 — политика получателя; 421/451 — временный
+  отказ (retry сам). Bounce приходит на `SMTP_FROM`/return-path — настроить
+  ящик и разбирать вручную; не удалять failed-строки без анализа.
+- Верификация email обязательна: без SMTP новые пользователи не смогут
+  войти; `SMTP_HOST` должен быть задан до публичного запуска. Release-notes
+  v0.8.0 фиксируют это требование для оператора.

@@ -33,6 +33,30 @@ def truncate_output(text: str, max_chars: int | None) -> tuple[str, bool]:
     )
 
 
+def apply_cpu_limit(limit_s: int) -> tuple[bool, str | None]:
+    """S-93: RLIMIT_CPU на POSIX (SIGXCPU при превышении)."""
+    if limit_s <= 0:
+        return False, "лимит CPU отключён"
+    if sys.platform == "win32":
+        return False, "RLIMIT_CPU недоступен на Windows"
+    try:
+        import resource
+    except ImportError as exc:  # pragma: no cover
+        return False, f"resource недоступен: {exc}"
+    resource_any: Any = resource
+    try:
+        _, hard = resource_any.getrlimit(resource_any.RLIMIT_CPU)
+        new_hard = (
+            limit_s
+            if hard == resource_any.RLIM_INFINITY
+            else min(int(hard), limit_s)
+        )
+        resource_any.setrlimit(resource_any.RLIMIT_CPU, (limit_s, new_hard))
+    except (OSError, ValueError) as exc:
+        return False, f"setrlimit(RLIMIT_CPU): {exc}"
+    return True, None
+
+
 def apply_memory_limit(limit_mb: int) -> tuple[bool, str | None]:
     """Применить лимит памяти к текущему процессу.
 

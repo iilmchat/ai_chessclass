@@ -57,6 +57,14 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . .
 
+# S-93: worker/api не работают от root. Каталоги volume'ов создаются заранее,
+# чтобы Docker унаследовал owner при первом монтировании named volume.
+RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin appuser \
+    && mkdir -p /srv/reports /srv/archive /srv/voice_cache /srv/jwt \
+    && chown -R appuser:appuser /srv/reports /srv/archive /srv/voice_cache /srv/jwt
+ENV PATH="/home/appuser/.local/bin:${PATH}"
+USER appuser
+
 EXPOSE 8020
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020"]

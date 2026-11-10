@@ -73,13 +73,15 @@ Runtime smoke использует **фиктивные** `TELEGRAM_BOT_TOKEN` �
 - Tempo traces по `{service.name="chessclass-api"}`; в каждом trace виден
   `trace_id`, который также пишется в JSON-логи и `llm_calls.trace_id`.
 
-Prometheus-алерты (`alerts.yml`, 8 правил): `ChessClassApiDown`,
+Prometheus-алерты (`alerts.yml`, 10 правил): `ChessClassApiDown`,
 `ChessClassHighErrorRate` (5xx > 5 %), `ChessClassP95LatencyHigh` (> 2 s),
 `ChessClassDLQGrowth` (`chessclass_failed_jobs > 10`),
 `ChessClassDLQGrowthRate` (рост DLQ),
 `ChessClassObservabilityDiskFull` (<10% на `/var/tempo`),
 `ChessClassEmailOutboxStuck` (oldest pending > 1 ч),
-`ChessClassRetentionArchiveStale` (архив > 8 дней). Маршруты: `critical →
+`ChessClassRetentionArchiveStale` (архив > 8 дней),
+`ChessClassBackupFailed` (бэкап > 25 ч),
+`ChessClassBackupRestoreFailed` (restore-test failed). Маршруты: `critical →
 telegram-critical,email` (повтор 1 ч), `warning → telegram,email` (повтор
 6 ч); email включается при `SMTP_HOST` + `ALERT_EMAIL_TO`; inhibit — critical
 гасит warning того же alertname/component, `ChessClassApiDown` гасит остальные

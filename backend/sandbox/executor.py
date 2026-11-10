@@ -11,6 +11,9 @@ spawn перезапускает `__main__` и конфликтует с uvicorn
 """
 
 import json
+import os
+import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -31,6 +34,7 @@ _RUNNER = (
     "    payload['code'],\n"
     "    payload.get('stdin', ''),\n"
     "    memory_limit_mb=payload.get('memory_limit_mb'),\n"
+    "    cpu_limit_s=payload.get('cpu_limit_s'),\n"
     "    max_output_chars=payload.get('max_output_chars'),\n"
     "    apply_limits=True,\n"
     ")\n"
@@ -46,6 +50,30 @@ def _timeout_result(timeout_s: float) -> dict[str, Any]:
         "error_type": "TimeoutError",
         "violations": [],
     }
+
+
+def _cpu_timeout_result(cpu_s: int) -> dict[str, Any]:
+    return {
+        "success": False,
+        "output": "",
+        "error": f"Превышен лимит CPU ({cpu_s} с)",
+        "error_type": "TimeoutError",
+        "violations": [],
+    }
+
+
+def _sandbox_command() -> list[str]:
+    """S-93: opt-in network namespace через unshare (Linux/root)."""
+    command = [sys.executable, "-c", _RUNNER]
+    if not settings.sandbox_network_isolation or not sys.platform.startswith(
+        "linux"
+    ):
+        return command
+    unshare = shutil.which("unshare")
+    can_unshare = bool(unshare) and hasattr(os, "geteuid") and os.geteuid() == 0
+    if can_unshare:
+        return [unshare, "-n", "--", *command]  # type: ignore[list-item]
+    return command
 
 
 def _crash_result(stderr_tail: str) -> dict[str, Any]:
@@ -87,6 +115,7 @@ def run_sync(
                 if memory_limit_mb is not None
                 else settings.sandbox_memory_limit_mb
             ),
+            "cpu_limit_s": settings.sandbox_cpu_limit_s,
             "max_output_chars": (
                 max_output_chars
                 if max_output_chars is not None
@@ -98,7 +127,7 @@ def run_sync(
     limit = timeout_s if timeout_s is not None else settings.sandbox_timeout_s
     try:
         completed = subprocess.run(
-            [sys.executable, "-c", _RUNNER],
+            _sandbox_command(),
             input=payload + "\n",
             capture_output=True,
             text=True,
@@ -110,6 +139,13 @@ def run_sync(
         return _timeout_result(limit)
 
     if completed.returncode != 0:
+        # RLIMIT_CPU: Linux может прислать SIGXCPU (soft) или SIGKILL (hard,
+        # если SIGXCPU проигнорирован/заблокирован) — это timeout, не crash.
+        if completed.returncode in (
+            -getattr(signal, "SIGXCPU", -1),
+            -getattr(signal, "SIGKILL", -2),
+        ):
+            return _cpu_timeout_result(settings.sandbox_cpu_limit_s)
         return _crash_result(completed.stderr or "")
     try:
         result = json.loads(completed.stdout)

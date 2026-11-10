@@ -1099,8 +1099,13 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
   - белый список импортов (`math` и стандартные safe builtin-объекты из
     policy-конфига), глобалы чистые, `__builtins__` секьюрные;
   - per-run timeout: 1 c для ботов, настраиваемо для заданий;
+    S-93: `RLIMIT_CPU=1 c` (SIGXCPU → `TimeoutError`) и `RLIMIT_AS`
+    (256 МБ, `MemoryError`);
   - лимит памяти (порт teacher),
-    запрет сети/файлов/потоков/`ctypes`/`os`;
+    запрет сети/файлов/потоков/`ctypes`/`os`; opt-in `unshare -n` для
+    отдельного network namespace (требует root/CAP_SYS_ADMIN, в prod worker
+    работает non-root; альтернатива — отдельный контейнер `network_mode:none`);
+  - worker/api в Docker — uid 1000 (`appuser`), не root;
   - stdout/stderr с ограничением объёма (64 КБ на выход).
 - Выполнение — в отдельном процессе/потоке воркера; API-процесс никогда не
   `exec`-ит ученический код.
@@ -1280,7 +1285,12 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
 - Health: `GET /healthz` — DB+Redis (liveness); `GET /readyz` — ревизия
   миграций, версия, детали. SF/LLM-проверки — S-31.
 - Бэкапы: скрипт `backend/scripts/backup.sh` (pg_dump, retention 14 дн);
-  cron/restore-проверка — S-38.
+  cron/restore-проверка — S-38. S-93: `backup-offsite.ps1` (S3/MinIO,
+  aes-256-cbc/pbkdf2, JSON size/sha/duration, статус в
+  `BACKUP_STATUS_FILE`), `backup-restore-test.ps1` (temp PG 5439,
+  users/alembic); алерты `ChessClassBackupFailed`/`...RestoreFailed`.
+- SMTP (S-93): prod обязан иметь `SMTP_HOST` (587/STARTTLS или 465/SSL),
+  иначе email-верификация не работает; smoke `scripts/smtp-smoke.ps1`.
 - CD/Registry (S-92): GHCR publish (sha + ref), prod pull/rollback сменой
   `IMAGE_TAG`; Sentry включается `SENTRY_DSN` (API/worker/frontend), PII
   выключен; Docker json-file 10m×5 + `deploy/logrotate/chessclass` для
@@ -1445,8 +1455,13 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `IMAGE_TAG`; Sentry (`SENTRY_DSN`, API/worker/frontend, PII off, fake-DSN
   test); json-file 10m×5 + `deploy/logrotate/chessclass`; Prometheus
   multiprocess HTTP metrics (`PROMETHEUS_MULTIPROC_DIR`,
-  `MultiProcessCollector`, smoke с 2 uvicorn-воркерами). Backend — 323
-  collected (320 passed + 3 skipped).
+  `MultiProcessCollector`, smoke с 2 uvicorn-воркерами). Backend — 328
+  collected (325 passed + 3 skipped).
+- S-93 (v0.8.0): SMTP smoke + STARTTLS/SSL tests; offsite S3 backup
+  (aes-256/pbkdf2, JSON status, restore-test в temp PG 5439, weekly job);
+  alerts `ChessClassBackupFailed`/`...RestoreFailed` (10 правил); sandbox
+  CPU-rlimit 1 c, memory 256 MB, opt-in network ns, non-root `appuser` uid
+  1000; SMTP/backup runbook §17–§18.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
