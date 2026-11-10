@@ -5,6 +5,15 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
+## [Unreleased] — v0.8.0
+
+### Добавлено
+- `TODO_V0.8.md` — Production Readiness (S-90…S-94): edge/auth hardening,
+  object-level authorization, GHCR/Sentry/logrotate/per-process metrics,
+  SMTP/offsite-бэкапы/песочница, релиз v0.8.0.
+- `scripts/doc_lint.py` — активный план `TODO_V0.8.md`, прогресс `(0, 5)`;
+  `backend/tests/test_doc_lint.py` — ожидания v0.8.0.
+
 ## [0.7.1] - 2026-11-10
 
 ### Добавлено

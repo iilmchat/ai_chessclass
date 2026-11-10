@@ -59,9 +59,12 @@ def test_release_notes_for_current_version_exist() -> None:
 
 
 def test_todo_progress_matches_active_plan() -> None:
-    # S-86…S-89 закрыты — цикл v0.7.1 завершён.
+    # v0.7.1 закрыт (4/4); активный план — v0.8.0 (S-90…S-94 впереди).
     assert doc_lint._check_todo_progress(REPO) == []
-    assert doc_lint.EXPECTED_PROGRESS == (4, 4)
+    assert doc_lint.ACTIVE_PLAN == "TODO_V0.8.md"
+    assert doc_lint.EXPECTED_PROGRESS == (0, 5)
+    old = (REPO / "TODO_V0.7.1.md").read_text(encoding="utf-8")
+    assert "**Прогресс: 4/4**" in old
 
 
 def test_stale_markers_detected(tmp_path: Path) -> None:
