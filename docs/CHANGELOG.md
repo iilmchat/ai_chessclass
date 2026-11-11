@@ -10,13 +10,17 @@
 ### Добавлено
 - `TODO_V0.9.md` — план S-95…S-99 (live LRS/TTS, GPU tunnel, sandbox
   network isolation, retention/legal hold, release v0.9.0); doc-lint:
-  активный план `TODO_V0.9.md`, прогресс `1/5`, целевая версия `0.9.0`.
+  активный план `TODO_V0.9.md`, прогресс `2/5`, целевая версия `0.9.0`.
 
 ### Безопасность
 - **S-97:** сетевая изоляция песочницы по умолчанию — `bwrap --unshare-net`
   (uid 1000, без CAP_SYS_ADMIN), `deploy/seccomp-sandbox.json`, fallback
   `unshare`/none с warning; `network_isolation_enforced`/`network_backend`
   в результате executor.
+- **S-98:** retention `email_outbox` (body `[deleted]` через 30 дней,
+  метаданные через 90, архив без body), `legal_holds` (миграция 0036, API
+  `/admin/legal-holds`), DSAR `/admin/users/{id}/erase` (409 при hold,
+  audit `user.erased`), gauges/alerts legal hold и retention.
 
 ## [0.8.1] - 2026-11-11
 

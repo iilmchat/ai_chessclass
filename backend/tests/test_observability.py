@@ -15,6 +15,7 @@ from core.http_metrics import reset_http_metrics
 from domains.auth.models import User, UserRole
 from domains.notifications.models import EmailOutbox
 from domains.observability.models import FailedJob
+from domains.retention.models import LegalHold
 from domains.voice.usage import VoiceUsage
 from llm.models import LLMCall
 from tests.conftest import API, make_direct_user
@@ -318,3 +319,68 @@ async def test_failed_jobs_list_retry_and_alert(admin_client, monkeypatch):
     async with session_factory() as session:
         await session.execute(sa.delete(FailedJob).where(FailedJob.id == row_id))
         await session.commit()
+
+
+async def test_legal_hold_and_body_scrub_metrics(
+    admin_client, unique_email, monkeypatch
+):
+    """S-98: gauges legal hold и email body pending scrub."""
+    user_id = await make_direct_user(unique_email)
+    kind = "test-s98-metrics"
+    old = datetime.now(UTC) - timedelta(days=60)
+    async with session_factory() as session:
+        await session.execute(sa.delete(EmailOutbox).where(EmailOutbox.kind == kind))
+        session.add(
+            EmailOutbox(
+                kind=kind,
+                recipient=unique_email,
+                subject="old",
+                body="secret",
+                status="sent",
+                attempts=1,
+                next_attempt_at=old,
+                created_at=old,
+                sent_at=old,
+            )
+        )
+        await session.commit()
+
+    response = await admin_client.post(
+        f"{API}/admin/legal-holds",
+        json={
+            "subjectType": "user",
+            "subjectId": str(user_id),
+            "reason": "metrics-test",
+        },
+    )
+    assert response.status_code == 201, response.text
+    hold_id = int(response.json()["id"])
+    try:
+        response = await admin_client.get("/metrics")
+        assert response.status_code == 200
+        text = response.text
+        assert "chessclass_legal_holds_active_total" in text
+        assert "chessclass_email_outbox_body_pending_scrub_total" in text
+        assert "chessclass_retention_last_success_timestamp_seconds" in text
+        legal = next(
+            line for line in text.splitlines()
+            if line.startswith("chessclass_legal_holds_active_total ")
+        )
+        scrub = next(
+            line for line in text.splitlines()
+            if line.startswith(
+                "chessclass_email_outbox_body_pending_scrub_total "
+            )
+        )
+        assert int(legal.rsplit(" ", 1)[1]) >= 1
+        assert int(scrub.rsplit(" ", 1)[1]) >= 1
+    finally:
+        await admin_client.delete(f"{API}/admin/legal-holds/{hold_id}")
+        async with session_factory() as session:
+            await session.execute(
+                sa.delete(EmailOutbox).where(EmailOutbox.kind == kind)
+            )
+            await session.execute(
+                sa.delete(LegalHold).where(LegalHold.subject_id == str(user_id))
+            )
+            await session.commit()

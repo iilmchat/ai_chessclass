@@ -16,6 +16,7 @@ from domains.bot_lab.queues import MATCH_QUEUES, active_key
 from domains.notifications.models import EmailOutbox
 from domains.observability.models import FailedJob
 from domains.retention import service as retention
+from domains.retention.models import LegalHold
 from domains.telegram.models import TelegramOutbox
 from domains.voice.usage import VoiceUsage
 from llm.models import LLMCall
@@ -407,6 +408,45 @@ async def metrics_text(session: AsyncSession, redis) -> str:
     outbox_pending, outbox_oldest_age = await _email_outbox_stats(session)
     archive_age = _retention_archive_age_seconds(datetime.now(UTC))
     backup_last, backup_restore_ok = _backup_status()
+    now = datetime.now(UTC)
+    active_holds = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(LegalHold)
+            .where(
+                LegalHold.revoked_at.is_(None),
+                or_(
+                    LegalHold.expires_at.is_(None),
+                    LegalHold.expires_at > now,
+                ),
+            )
+        )
+        or 0
+    )
+    body_cutoff = now - timedelta(
+        days=settings.email_outbox_body_retention_days
+    )
+    body_pending_scrub = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(EmailOutbox)
+            .where(
+                EmailOutbox.status.in_(("sent", "failed")),
+                func.coalesce(
+                    EmailOutbox.sent_at, EmailOutbox.created_at
+                )
+                < body_cutoff,
+                EmailOutbox.body != "[deleted]",
+            )
+        )
+        or 0
+    )
+    retention_last = data.get("retentionLastRun")
+    retention_ts = (
+        datetime.fromisoformat(retention_last).timestamp()
+        if retention_last
+        else 0.0
+    )
     lines = [
         "# HELP chessclass_up ChessClass process up",
         "# TYPE chessclass_up gauge",
@@ -462,6 +502,27 @@ async def metrics_text(session: AsyncSession, redis) -> str:
         "# HELP chessclass_backup_restore_ok Last restore-test result (1/0)",
         "# TYPE chessclass_backup_restore_ok gauge",
         f"chessclass_backup_restore_ok {backup_restore_ok}",
+        "# HELP chessclass_legal_holds_active_total Active legal holds",
+        "# TYPE chessclass_legal_holds_active_total gauge",
+        f"chessclass_legal_holds_active_total {active_holds}",
+        (
+            "# HELP chessclass_email_outbox_body_pending_scrub_total "
+            "email_outbox bodies awaiting PII scrub"
+        ),
+        "# TYPE chessclass_email_outbox_body_pending_scrub_total gauge",
+        (
+            "chessclass_email_outbox_body_pending_scrub_total "
+            f"{body_pending_scrub}"
+        ),
+        (
+            "# HELP chessclass_retention_last_success_timestamp_seconds "
+            "Unix ts of last successful retention run"
+        ),
+        "# TYPE chessclass_retention_last_success_timestamp_seconds gauge",
+        (
+            "chessclass_retention_last_success_timestamp_seconds "
+            f"{round(retention_ts, 3)}"
+        ),
     ]
     for queue, depth in data["queues"].items():
         lines.append(f'chessclass_queue_depth{{queue="{queue}"}} {depth}')

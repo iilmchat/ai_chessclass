@@ -43,6 +43,8 @@ from domains.pvp.router import admin_router as pvp_admin_router
 from domains.pvp.router import router as pvp_router
 from domains.python_teacher.router import router as py_router
 from domains.reports.router import router as reports_router
+from domains.retention.router import holds_router as legal_holds_router
+from domains.retention.router import users_router as retention_users_router
 from domains.review.router import router as review_router
 from domains.studies.router import admin_router as studies_admin_router
 from domains.studies.router import router as studies_router
@@ -241,6 +243,8 @@ app.include_router(readyz.router, prefix="/api/v1", include_in_schema=False)
 # домены API v1 (Design §12.2)
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(auth_admin_router, prefix="/api/v1")
+app.include_router(legal_holds_router, prefix="/api/v1")
+app.include_router(retention_users_router, prefix="/api/v1")
 app.include_router(profile_router, prefix="/api/v1")
 app.include_router(progress_router, prefix="/api/v1")
 app.include_router(py_router, prefix="/api/v1")

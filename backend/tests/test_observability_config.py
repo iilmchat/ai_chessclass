@@ -271,13 +271,18 @@ def test_selftest_covers_masking_and_second_receiver():
         "ChessClassObservabilityDiskFull",
         "ChessClassEmailOutboxStuck",
         "ChessClassRetentionArchiveStale",
+        "ChessClassLegalHoldActive",
+        "ChessClassRetentionFailed",
         "chessclass_email_outbox_pending_total",
         "chessclass_email_outbox_oldest_pending_age_seconds",
         "chessclass_retention_archive_age_seconds",
+        "chessclass_legal_holds_active_total",
+        "chessclass_email_outbox_body_pending_scrub_total",
+        "chessclass_retention_last_success_timestamp_seconds",
         "check-cert-expiry.ps1",
         "ChessClassBackupFailed",
         "ChessClassBackupRestoreFailed",
-        "SUCCESS: 10 rules found",
+        "SUCCESS: 12 rules found",
     ):
         assert needle in selftest, needle
     assert "up -d tempo otel-collector node-exporter prometheus alertmanager grafana" in selftest
@@ -326,13 +331,15 @@ def test_alerts_cover_required_signals():
         "ChessClassObservabilityDiskFull",
         "ChessClassEmailOutboxStuck",
         "ChessClassRetentionArchiveStale",
+        "ChessClassLegalHoldActive",
+        "ChessClassRetentionFailed",
         "ChessClassBackupFailed",
         "ChessClassBackupRestoreFailed",
     ):
         assert name in rules, name
-    assert len(rules) == 10
+    assert len(rules) == 12
     for rule in rules.values():
-        assert rule["labels"]["severity"] in {"warning", "critical"}
+        assert rule["labels"]["severity"] in {"info", "warning", "critical"}
         assert rule["labels"]["component"] in {
             "api",
             "worker",
@@ -364,6 +371,16 @@ def test_alerts_cover_required_signals():
     assert "chessclass_backup_restore_ok == 0" in (
         rules["ChessClassBackupRestoreFailed"]["expr"]
     )
+    assert (
+        "chessclass_legal_holds_active_total > 0"
+        in rules["ChessClassLegalHoldActive"]["expr"]
+    )
+    assert rules["ChessClassLegalHoldActive"]["labels"]["severity"] == "info"
+    assert (
+        "chessclass_retention_last_success_timestamp_seconds"
+        in rules["ChessClassRetentionFailed"]["expr"]
+    )
+    assert "25 * 3600" in rules["ChessClassRetentionFailed"]["expr"]
 
 
 def test_entrypoints_and_cert_script():

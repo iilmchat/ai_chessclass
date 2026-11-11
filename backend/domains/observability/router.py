@@ -72,6 +72,7 @@ class RetentionResultOut(CamelModel):
     deleted: int
     archive_path: str | None
     dry_run: bool
+    scrubbed: int = 0
 
 
 class RetentionStatusOut(CamelModel):
@@ -283,6 +284,7 @@ async def run_retention(
             deleted=item.deleted,
             archive_path=item.archive_path,
             dry_run=item.dry_run,
+            scrubbed=item.scrubbed,
         )
         for item in results
     ]
