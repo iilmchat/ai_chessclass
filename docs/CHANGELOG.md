@@ -5,9 +5,28 @@
 `TODO_V0.2.md` — архив, `TODO_V0.3.md` — v0.3.0, `TODO_V0.4.md` — v0.4.0).
 Детали — в `docs/sprint-reports/`.
 
-## [Unreleased] — v0.8.0
+## [Unreleased]
+
+## [0.8.0] - 2026-11-11
 
 ### Добавлено
+#### S-94 — Release v0.8.0 (2026-11-11)
+- Версия **0.8.0** во всех источниках: `backend/pyproject.toml`,
+  `backend/app/__init__.py`, `backend/app/main.py`, `frontend/package.json`,
+  `frontend/package-lock.json`, `IMAGE_TAG` prod/staging compose и
+  `.env.prod.example` / `.env.staging.example`; README/Design/docs README.
+- `docs/release-notes-v0.8.0.md` (что нового, обязательные шаги оператора,
+  известные ограничения, обновление prod); CHANGELOG `[0.8.0]`; отчёт
+  `docs/sprint-reports/S-94-2026-11-11.md`.
+- `TODO_V0.8.md`: S-94 ✅, прогресс **5/5**; `scripts/doc_lint.py` —
+  `EXPECTED_VERSION = "0.8.0"`, `EXPECTED_PROGRESS = (5, 5)`, release-notes
+  v0.8.0 в активных документах; `backend/tests/test_doc_lint.py` — v0.8.0.
+- Финальные гейты: `ci.ps1`, `e2e.ps1 test` (16), `smtp-smoke.ps1`,
+  `backup-restore-test.ps1`, `observability-selftest.ps1 -Stack` (21/21),
+  pip-audit (0), doc-lint (6 checks, 0 failed).
+- Тег `v0.8.0`; GHCR-образы `chessclass-backend:v0.8.0` и
+  `chessclass-frontend:v0.8.0` опубликованы workflow `publish`.
+
 #### S-93 — SMTP, Offsite Backups & Sandbox (2026-11-11)
 - SMTP: `scripts/smtp-smoke.ps1` (sink + verification/reset), реальные
   STARTTLS/SSL тесты; `.env.prod.example`/staging — SMTP-placeholder'ы

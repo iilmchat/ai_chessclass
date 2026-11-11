@@ -4,8 +4,8 @@
 лаборатория с разбором партий, конструктор ботов с лестницей Elo и когнитивный
 дашборд навыков — **один профиль, один уровень, один LLM-ассистент** на все домены.
 
-**Версия:** v0.7.1 (58/60 спринтов, релиз; S-81/S-84 отложены) · **Предыдущая:** v0.7.0
-([release notes](docs/release-notes-v0.7.0.md)) · **© 2026 RuChating (iilmchat)**
+**Версия:** v0.8.0 (63/65 спринтов, релиз; S-81/S-84 отложены) · **Предыдущая:** v0.7.1
+([release notes](docs/release-notes-v0.7.1.md)) · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
 [![load](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml/badge.svg?event=schedule)](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml)
@@ -100,12 +100,12 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
   `email_outbox`/`retention archive`, runbook §7.1/§10.13), релиз v0.7.1
   (S-89 ✅). Юридический блокер снят: 16 вопросов `legal-review-v0.7.md`
   закрыты внешними договорённостями (решение юриста 2026-11-08).
-- **v0.8 (S-90…S-94, в работе)** — Production Readiness: edge/auth hardening
-  (S-90 ✅: реальный IP за прокси, per-account lockout, edge rate-limit 429,
+- **v0.8.0 (S-90…S-94, релиз)** — Production Readiness: edge/auth hardening
+  (S-90: реальный IP за прокси, per-account lockout, edge rate-limit 429,
   RS256/JWKS и `JWT_LEGACY_HS256=false`), object-level authorization
-  (S-91 ✅: BOLA-хелперы, 403 на чужой объект, кросс-тенантные тесты),
-  GHCR/Sentry/logrotate/multiprocess metrics (S-92 ✅), SMTP/offsite-бэкапы/
-  песочница (S-93 ✅), релиз v0.8.0 (S-94).
+  (S-91: BOLA-хелперы, 403 на чужой объект, кросс-тенантные тесты),
+  GHCR/Sentry/logrotate/multiprocess metrics (S-92), SMTP/offsite-бэкапы/
+  песочница (S-93), релиз v0.8.0 (S-94).
 
 ---
 
@@ -160,8 +160,8 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v0.7.1** (2026-11-10, релиз) |
-| Спринты | **58 закрыто** (S-30…S-89), этапы E-11…E-24 ✅; v0.7.1: S-86…S-89 ✅; S-81 ⏸️ (нет боевых ключей LRS/TTS), S-84 ⏸️ (нет физической станции) |
+| Версия | **v0.8.0** (2026-11-11, релиз) |
+| Спринты | **63 закрыто** (S-30…S-94), этапы E-11…E-24 ✅; v0.8.0: S-90…S-94 ✅; S-81 ⏸️ (нет боевых ключей LRS/TTS), S-84 ⏸️ (нет физической станции) |
 | Юридический блокер | ✅ снят: все 16 вопросов `docs/legal-review-v0.7.md` закрыты внешними договорённостями (решение юриста 2026-11-08) |
 | Тесты backend | **328 passed** (число собранных тестов; факт — 325 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87; +2 cert/retention ops/S-88; +4 edge/auth hardening/S-90; +7 object authz/S-91; +2 error tracking/S-92; +5 smtp/sandbox/backup S-93) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
@@ -169,7 +169,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Миграции | Alembic head **0035_s83_email_outbox** (35) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
-| Следующий этап | v0.8.0 Production Readiness: S-90 edge/auth ✅, S-91 object authz ✅, S-92 CD/observability ✅, S-93 SMTP/backups/sandbox ✅, релиз v0.8.0 (S-94) ([TODO_V0.8.md](TODO_V0.8.md)) |
+| Следующий этап | v0.8.1 / v0.9: live staging с боевыми ключами, GPU-туннель, network ns, legal hold ([TODO_V0.8.md](TODO_V0.8.md)) |
 
 ---
 
@@ -196,7 +196,9 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [docs/sprint-reports/S-91-2026-11-11.md](docs/sprint-reports/S-91-2026-11-11.md) — отчёт S-91
 - [docs/sprint-reports/S-92-2026-11-11.md](docs/sprint-reports/S-92-2026-11-11.md) - отчёт S-92
 - [docs/sprint-reports/S-93-2026-11-11.md](docs/sprint-reports/S-93-2026-11-11.md) - отчёт S-93
+- [docs/sprint-reports/S-94-2026-11-11.md](docs/sprint-reports/S-94-2026-11-11.md) — отчёт S-94 (релиз v0.8.0)
 - [deploy/logrotate/chessclass](deploy/logrotate/chessclass) — ротация файловых логов
+- [docs/release-notes-v0.8.0.md](docs/release-notes-v0.8.0.md) — release notes v0.8.0
 - [docs/release-notes-v0.7.1.md](docs/release-notes-v0.7.1.md) — release notes v0.7.1
 - [docs/release-notes-v0.7.0.md](docs/release-notes-v0.7.0.md) — release notes v0.7.0
 - [docs/release-notes-v0.6.0.md](docs/release-notes-v0.6.0.md) — release notes v0.6.0

@@ -5,6 +5,7 @@
   A) согласованность версий: backend/pyproject.toml, frontend/package.json,
      backend/app/__init__.py (__version__), backend/app/main.py (FastAPI version),
      default IMAGE_TAG в docker-compose.prod.yml / docker-compose.staging.yml;
+     все источники должны совпасть с EXPECTED_VERSION (0.8.0);
   B) alembic-граф: head (revision, не встречающийся в down_revision) и число
      миграций = строке README «Alembic head **<head>** (<count>)»;
   C) счётчики тестов в README: backend vs `pytest --collect-only` (--tests-count
@@ -45,6 +46,7 @@ ACTIVE_DOCS: tuple[str, ...] = (
     "docs/release-notes-v0.3.0.md",
     "docs/release-notes-v0.7.0.md",
     "docs/release-notes-v0.7.1.md",
+    "docs/release-notes-v0.8.0.md",
     "docs/runbooks/llm-gateway.md",
     "docs/runbooks/staging.md",
     "docs/runbooks/operations.md",
@@ -69,9 +71,11 @@ README_ALEMBIC_RE = re.compile(
     r"Alembic head \*\*(?P<head>[0-9a-z_]+)\*\* \((?P<count>\d+)\)"
 )
 
-#: Активный план и ожидаемый прогресс: v0.8.0, S-90…S-93 закрыты; S-94 впереди.
+#: Активный план и ожидаемый прогресс: v0.8.0, S-90…S-94 закрыты.
 ACTIVE_PLAN: str = "TODO_V0.8.md"
-EXPECTED_PROGRESS: tuple[int, int] = (4, 5)
+EXPECTED_PROGRESS: tuple[int, int] = (5, 5)
+#: Ожидаемая версия релиза (проверка A сверяет все источники с ней).
+EXPECTED_VERSION: str = "0.8.0"
 
 CollectError = str
 
@@ -155,6 +159,11 @@ def _check_versions(root: Path) -> list[str]:
     if len(present) > 1:
         details = ", ".join(f"{source}={value}" for source, value in versions.items())
         errors.append(f"A: версии расходятся: {details}")
+    if present and present != [EXPECTED_VERSION]:
+        details = ", ".join(f"{source}={value}" for source, value in versions.items())
+        errors.append(
+            f"A: ожидается версия {EXPECTED_VERSION}, факт: {details}"
+        )
     return errors
 
 

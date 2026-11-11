@@ -1,7 +1,7 @@
 # TODO_V0.8.md — План v0.8.0 «Production Readiness»
 
-**Статус:** 🔶 В работе (S-90…S-93 ✅; S-94 впереди)
-**Сводно:** 5 спринтов · **Прогресс: 4/5**
+**Статус:** ✅ Завершён (S-90…S-94 ✅; релиз v0.8.0)
+**Сводно:** 5 спринтов · **Прогресс: 5/5**
 **Цель:** Закрыть блокеры DevOps-аудита для выхода в production (пилот в школе).
 
 ## S-90: Edge & Auth Hardening (P0)
@@ -37,8 +37,13 @@
 - **DoD:** ✅ SMTP smoke (verification/password-reset) + STARTTLS/SSL tests; бэкап S3Mock→restore (users=15/alembic); sandbox 5+ attack tests; alerts 10 правил.
 
 ## S-94: Release v0.8.0 (Production Ready)
-- [ ] Финальные прогоны, тег `v0.8.0`, release-notes.
-- **DoD:** Все гейты зелёные, тег запушен.
+**Статус:** ✅ Завершён (2026-11-11)
+
+- [x] Версии **0.8.0** во всех источниках (backend/frontend, `IMAGE_TAG` prod/staging и env-examples), README/Design.
+- [x] `docs/release-notes-v0.8.0.md` и секция CHANGELOG `[0.8.0] - 2026-11-11`.
+- [x] Финальные прогоны: `ci.ps1`, `e2e.ps1 test`, `smtp-smoke.ps1`, `backup-restore-test.ps1`, `observability-selftest.ps1 -Stack`, pip-audit, doc-lint.
+- [x] Тег `v0.8.0` запушен, GHCR-образы `v0.8.0` опубликованы и проверены `docker pull`.
+- **DoD:** ✅ Все гейты зелёные, тег запушен.
 
 ---
 

@@ -3,7 +3,7 @@
 #   docker compose --env-file .env -f docker-compose.prod.yml pull
 #   docker compose --env-file .env -f docker-compose.prod.yml up -d
 # Миграции выполняются сервисом migrate до старта API/worker.
-# Образы версионированы через IMAGE_TAG (default 0.7.1); при релизе обновлять
+# Образы версионированы через IMAGE_TAG (default 0.8.0); при релизе обновлять
 # вместе с pyproject.toml/package.json.
 # TLS/edge-nginx и бэкапы по расписанию — S-38.
 
@@ -78,7 +78,7 @@ services:
 
   migrate:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
-    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.8.0}
     container_name: chessclass-prod-migrate
     command: alembic upgrade head
     env_file: *env-file
@@ -91,7 +91,7 @@ services:
 
   api:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
-    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.8.0}
     container_name: chessclass-prod-api
     command:
       ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020",
@@ -130,7 +130,7 @@ services:
 
   worker:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
-    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.8.0}
     container_name: chessclass-prod-worker
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -154,7 +154,7 @@ services:
 
   worker-match-random:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
-    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.8.0}
     container_name: chessclass-prod-worker-match-random
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -177,7 +177,7 @@ services:
 
   worker-match-greedy:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
-    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.8.0}
     container_name: chessclass-prod-worker-match-greedy
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -200,7 +200,7 @@ services:
 
   worker-match-minimax:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
-    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.8.0}
     container_name: chessclass-prod-worker-match-minimax
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -223,7 +223,7 @@ services:
 
   worker-match-sf:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
-    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.8.0}
     container_name: chessclass-prod-worker-match-sf
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -246,7 +246,7 @@ services:
 
   web:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
-    image: ghcr.io/iilmchat/chessclass-frontend:${IMAGE_TAG:-0.7.1}
+    image: ghcr.io/iilmchat/chessclass-frontend:${IMAGE_TAG:-0.8.0}
     container_name: chessclass-prod-web
     ports:
       - "${WEB_PORT:-3200}:80"
@@ -441,7 +441,7 @@ services:
   # Ручные операции: docker compose -f docker-compose.prod.yml run --rm seed
   seed:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
-    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.7.1}
+    image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-0.8.0}
     profiles: ["tools"]
     container_name: chessclass-prod-seed
     command: python -m db.seeds
