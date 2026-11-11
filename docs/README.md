@@ -18,7 +18,8 @@
 | `TODO_V0.6.md` | корень | ✅ завершён | Спринты v0.6.0: S-75…S-80 |
 | `TODO_V0.7.md` | корень | ✅ завершён | Спринты v0.7.0: S-81…S-85 (S-81/S-84 отложены) |
 | `TODO_V0.7.1.md` | корень | ✅ завершён | Спринты v0.7.1: S-86…S-89 (tech debt cleanup) |
-| `TODO_V0.8.md` | корень | ✅ активный | Спринты v0.8.0: S-90…S-94; patch v0.8.1 |
+| `TODO_V0.8.md` | корень | ✅ завершён | Спринты v0.8.0: S-90…S-94; patch v0.8.1 |
+| `TODO_V0.9.md` | корень | ✅ активный | Спринты v0.9.0: S-95…S-99 (live, isolation, retention) |
 | `docs/release-notes-v0.8.1.md` | docs/ | ✅ v0.8.1 | Release notes v0.8.1 (patch: absolute `-BackupDir`) |
 | `docs/release-notes-v0.8.0.md` | docs/ | ✅ v0.8.0 | Release notes v0.8.0 (Production Readiness) |
 | `docs/release-notes-v0.7.1.md` | docs/ | ✅ v0.7.1 | Release notes v0.7.1 |

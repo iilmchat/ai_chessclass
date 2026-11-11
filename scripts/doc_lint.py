@@ -5,16 +5,17 @@
   A) согласованность версий: backend/pyproject.toml, frontend/package.json,
      backend/app/__init__.py (__version__), backend/app/main.py (FastAPI version),
      default IMAGE_TAG в docker-compose.prod.yml / docker-compose.staging.yml;
-     все источники должны совпасть с EXPECTED_VERSION (0.8.1);
+     все источники должны совпасть с CURRENT_VERSION (0.8.1);
+     EXPECTED_VERSION (0.9.0) — целевой релиз активного плана;
   B) alembic-граф: head (revision, не встречающийся в down_revision) и число
      миграций = строке README «Alembic head **<head>** (<count>)»;
   C) счётчики тестов в README: backend vs `pytest --collect-only` (--tests-count
      auto|N), frontend vs `it(` в frontend/src/**/*.test.ts(x), e2e vs `test(`
      в frontend/e2e/*.spec.ts;
-  D) ровно один активный план в docs/README.md (TODO_V0.8.md), архивные планы;
+  D) ровно один активный план в docs/README.md (TODO_V0.9.md), архивные планы;
   E) стрейл-маркеры только в активных доках, версия в шапке Design.md,
      release-notes текущей версии;
-  F) активный этап и прогресс в TODO_V0.8.md.
+  F) активный этап и прогресс в TODO_V0.9.md.
 
 CLI:
     python scripts/doc_lint.py [--root PATH] [--tests-count auto|N]
@@ -42,6 +43,7 @@ ACTIVE_DOCS: tuple[str, ...] = (
     "TODO_V0.7.md",
     "TODO_V0.7.1.md",
     "TODO_V0.8.md",
+    "TODO_V0.9.md",
     "docs/README.md",
     "docs/release-notes-v0.3.0.md",
     "docs/release-notes-v0.7.0.md",
@@ -72,11 +74,13 @@ README_ALEMBIC_RE = re.compile(
     r"Alembic head \*\*(?P<head>[0-9a-z_]+)\*\* \((?P<count>\d+)\)"
 )
 
-#: Активный план и ожидаемый прогресс: v0.8.0, S-90…S-94 закрыты; v0.8.1 — patch.
-ACTIVE_PLAN: str = "TODO_V0.8.md"
-EXPECTED_PROGRESS: tuple[int, int] = (5, 5)
-#: Ожидаемая версия релиза (проверка A сверяет все источники с ней).
-EXPECTED_VERSION: str = "0.8.1"
+#: Активный план и ожидаемый прогресс: v0.9.0, S-95…S-99 впереди.
+ACTIVE_PLAN: str = "TODO_V0.9.md"
+EXPECTED_PROGRESS: tuple[int, int] = (0, 5)
+#: Текущая выпущенная версия (её проверяет A по всем источникам).
+CURRENT_VERSION: str = "0.8.1"
+#: Целевая версия активного плана (release-notes/тег готовит S-99).
+EXPECTED_VERSION: str = "0.9.0"
 
 CollectError = str
 
@@ -160,10 +164,10 @@ def _check_versions(root: Path) -> list[str]:
     if len(present) > 1:
         details = ", ".join(f"{source}={value}" for source, value in versions.items())
         errors.append(f"A: версии расходятся: {details}")
-    if present and present != [EXPECTED_VERSION]:
+    if present and present != [CURRENT_VERSION]:
         details = ", ".join(f"{source}={value}" for source, value in versions.items())
         errors.append(
-            f"A: ожидается версия {EXPECTED_VERSION}, факт: {details}"
+            f"A: ожидается текущая версия {CURRENT_VERSION}, факт: {details}"
         )
     return errors
 
@@ -371,6 +375,7 @@ def _check_active_plan(root: Path) -> list[str]:
         )
     for name in (
         ACTIVE_PLAN,
+        "TODO_V0.8.md",
         "TODO_V0.7.1.md",
         "TODO_V0.7.md",
         "TODO_V0.6.md",
@@ -385,6 +390,7 @@ def _check_active_plan(root: Path) -> list[str]:
         "TODO_V0.5.md",
         "TODO_V0.6.md",
         "TODO_V0.7.md",
+        "TODO_V0.8.md",
     ):
         try:
             header = "\n".join(read_text(root / name).splitlines()[:10])
@@ -457,8 +463,10 @@ def _check_todo_progress(root: Path) -> list[str]:
     except OSError as exc:
         return [f"F: {ACTIVE_PLAN} не читается: {exc}"]
     errors: list[str] = []
-    if "v0.8.0" not in text:
-        errors.append(f"F: {ACTIVE_PLAN} не упоминает активный этап v0.8.0")
+    if f"v{EXPECTED_VERSION}" not in text:
+        errors.append(
+            f"F: {ACTIVE_PLAN} не упоминает активный этап v{EXPECTED_VERSION}"
+        )
     if "Прогресс:" not in text:
         errors.append(f"F: {ACTIVE_PLAN}: нет строки 'Прогресс:'")
     summary = re.search(r"\*\*Сводно:\*\*\s*(\d+)\s+спринт", text)

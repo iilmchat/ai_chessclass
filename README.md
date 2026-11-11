@@ -188,7 +188,8 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [TODO_V0.6.md](TODO_V0.6.md) — завершённый план v0.6.0 (S-75…S-80)
 - [TODO_V0.7.md](TODO_V0.7.md) — завершённый план v0.7.0 (S-81…S-85)
 - [TODO_V0.7.1.md](TODO_V0.7.1.md) — завершённый план v0.7.1 (S-86…S-89)
-- [TODO_V0.8.md](TODO_V0.8.md) — активный план v0.8.0 (S-90…S-94, Production Readiness)
+- [TODO_V0.8.md](TODO_V0.8.md) — завершённый план v0.8.0 (S-90…S-94, Production Readiness)
+- [TODO_V0.9.md](TODO_V0.9.md) — активный план v0.9.0 (S-95…S-99, live/isolation/retention)
 - [docs/sprint-reports/S-86-2026-11-08.md](docs/sprint-reports/S-86-2026-11-08.md) — отчёт S-86
 - [docs/sprint-reports/S-87-2026-11-08.md](docs/sprint-reports/S-87-2026-11-08.md) — отчёт S-87
 - [docs/sprint-reports/S-88-2026-11-10.md](docs/sprint-reports/S-88-2026-11-10.md) — отчёт S-88
