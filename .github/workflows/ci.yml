@@ -50,7 +50,7 @@ jobs:
       - name: Install Stockfish + fonts
         run: |
           sudo apt-get update
-          sudo apt-get install -y stockfish fonts-dejavu-core
+          sudo apt-get install -y stockfish fonts-dejavu-core bubblewrap
           stockfish_bin="$(command -v stockfish || true)"
           if [ -z "$stockfish_bin" ]; then
             stockfish_bin=/usr/games/stockfish

@@ -43,6 +43,7 @@ services:
       context: ./backend
     image: chessclass/backend:dev
     container_name: chessclass-api
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: uvicorn app.main:app --host 0.0.0.0 --port 8020 --reload
     volumes:
       - ./backend:/srv/backend
@@ -57,6 +58,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       OTEL_ENABLED: ${OTEL_ENABLED:-false}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      # S-97: в Docker bwrap обязателен; тесты падают, а не skip.
+      CHESSCLASS_REQUIRE_BWRAP: "1"
     ports:
       - "${API_PORT:-8020}:8020"
     depends_on:
@@ -71,6 +74,7 @@ services:
       context: ./backend
     image: chessclass/backend:dev
     container_name: chessclass-worker
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     volumes:
       - ./backend:/srv/backend
@@ -96,6 +100,7 @@ services:
       context: ./backend
     image: chessclass/backend:dev
     container_name: chessclass-worker-match-random
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     volumes:
       - ./backend:/srv/backend
@@ -118,6 +123,7 @@ services:
       context: ./backend
     image: chessclass/backend:dev
     container_name: chessclass-worker-match-greedy
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     volumes:
       - ./backend:/srv/backend
@@ -140,6 +146,7 @@ services:
       context: ./backend
     image: chessclass/backend:dev
     container_name: chessclass-worker-match-minimax
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     volumes:
       - ./backend:/srv/backend
@@ -162,6 +169,7 @@ services:
       context: ./backend
     image: chessclass/backend:dev
     container_name: chessclass-worker-match-sf
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     volumes:
       - ./backend:/srv/backend

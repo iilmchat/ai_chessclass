@@ -57,6 +57,12 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . .
 
+# S-97: bubblewrap — сетевая изоляция песочницы без root; контейнер
+# запускается с deploy/seccomp-sandbox.json (namespace/mount syscalls).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends bubblewrap \
+    && rm -rf /var/lib/apt/lists/*
+
 # S-93: worker/api не работают от root. Каталоги volume'ов создаются заранее,
 # чтобы Docker унаследовал owner при первом монтировании named volume.
 RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin appuser \

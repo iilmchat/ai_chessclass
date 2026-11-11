@@ -164,7 +164,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Версия | **v0.8.1** (2026-11-11, patch) |
 | Спринты | **63 закрыто** (S-30…S-94), этапы E-11…E-24 ✅; v0.8.0: S-90…S-94 ✅; S-81 ⏸️ (нет боевых ключей LRS/TTS), S-84 ⏸️ (нет физической станции) |
 | Юридический блокер | ✅ снят: все 16 вопросов `docs/legal-review-v0.7.md` закрыты внешними договорённостями (решение юриста 2026-11-08) |
-| Тесты backend | **328 passed** (число собранных тестов; факт — 325 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87; +2 cert/retention ops/S-88; +4 edge/auth hardening/S-90; +7 object authz/S-91; +2 error tracking/S-92; +5 smtp/sandbox/backup S-93) |
+| Тесты backend | **334 passed** (число собранных тестов; факт — 331 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87; +2 cert/retention ops/S-88; +4 edge/auth hardening/S-90; +7 object authz/S-91; +2 error tracking/S-92; +5 smtp/sandbox/backup S-93; +6 sandbox network S-97) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
 | UI-e2e | **16 passed** (Playwright: journey 7 + axe 2 + PvP 1 + RAG/review/ops/telegram/consent/chess-a11y 6) |
 | Миграции | Alembic head **0035_s83_email_outbox** (35) |
@@ -201,6 +201,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [docs/sprint-reports/S-94-2026-11-11.md](docs/sprint-reports/S-94-2026-11-11.md) — отчёт S-94 (релиз v0.8.0)
 - [docs/sprint-reports/v0.8.1-2026-11-11.md](docs/sprint-reports/v0.8.1-2026-11-11.md) — отчёт v0.8.1 (patch)
 - [docs/sprint-reports/staging-acceptance-2026-11-11.md](docs/sprint-reports/staging-acceptance-2026-11-11.md) — Staging Acceptance v0.8.1 (операция)
+- [docs/sprint-reports/S-97-2026-11-12.md](docs/sprint-reports/S-97-2026-11-12.md) — отчёт S-97
 - [deploy/logrotate/chessclass](deploy/logrotate/chessclass) — ротация файловых логов
 - [docs/release-notes-v0.8.1.md](docs/release-notes-v0.8.1.md) — release notes v0.8.1
 - [docs/release-notes-v0.8.0.md](docs/release-notes-v0.8.0.md) — release notes v0.8.0

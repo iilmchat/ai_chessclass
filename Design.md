@@ -1102,9 +1102,16 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
     S-93: `RLIMIT_CPU=1 c` (SIGXCPU → `TimeoutError`) и `RLIMIT_AS`
     (256 МБ, `MemoryError`);
   - лимит памяти (порт teacher),
-    запрет сети/файлов/потоков/`ctypes`/`os`; opt-in `unshare -n` для
-    отдельного network namespace (требует root/CAP_SYS_ADMIN, в prod worker
-    работает non-root; альтернатива — отдельный контейнер `network_mode:none`);
+    запрет сети/файлов/потоков/`ctypes`/`os`;
+  - **S-97: network isolation по умолчанию.** `bwrap --unshare-net`
+    (`SANDBOX_NETWORK_ISOLATION=true`, `SANDBOX_NETWORK_BACKEND=auto`):
+    отдельный network namespace, `/usr`/`/usr/local`/`/lib`/`/lib64` и
+    `backend` — read-only bind, `/tmp` — tmpfs, `--die-with-parent`.
+    Контейнеры api/worker используют `deploy/seccomp-sandbox.json` —
+    копию Docker default seccomp с разрешёнными namespace/mount syscalls
+    для непривилегированного bwrap (без `--privileged`/CAP_SYS_ADMIN).
+    Fallback: `unshare -n` при root, иначе запуск без сети с
+    `network_isolation_enforced=false` и warning в `limits_warning`;
   - worker/api в Docker — uid 1000 (`appuser`), не root;
   - stdout/stderr с ограничением объёма (64 КБ на выход).
 - Выполнение — в отдельном процессе/потоке воркера; API-процесс никогда не
@@ -1475,6 +1482,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   путь до `docker -v` (Windows named-volume bug); `backup-offsite.ps1
   -DryRun`, smoke `backup-relative-dir-smoke.ps1`; версия **0.8.1**, release
   notes `docs/release-notes-v0.8.1.md`, тег `v0.8.1`.
+- S-97 (v0.9.0): sandbox network isolation по умолчанию — `bwrap
+  --unshare-net` (uid 1000, без CAP_SYS_ADMIN), `deploy/seccomp-sandbox.json`
+  для namespace/mount syscalls, fallback `unshare`/none с warning;
+  `network_isolation_enforced`/`network_backend` в результате. Backend —
+  334 collected (331 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

@@ -92,6 +92,7 @@ services:
       context: ./backend
     image: chessclass/backend:${IMAGE_TAG:-0.8.1}
     container_name: chessclass-staging-api
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command:
       ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020",
        "--workers", "${API_WORKERS:-4}"]
@@ -129,6 +130,7 @@ services:
       context: ./backend
     image: chessclass/backend:${IMAGE_TAG:-0.8.1}
     container_name: chessclass-staging-worker
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
     environment:
@@ -153,6 +155,7 @@ services:
       context: ./backend
     image: chessclass/backend:${IMAGE_TAG:-0.8.1}
     container_name: chessclass-staging-worker-match-random
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
     environment:
@@ -176,6 +179,7 @@ services:
       context: ./backend
     image: chessclass/backend:${IMAGE_TAG:-0.8.1}
     container_name: chessclass-staging-worker-match-greedy
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
     environment:
@@ -199,6 +203,7 @@ services:
       context: ./backend
     image: chessclass/backend:${IMAGE_TAG:-0.8.1}
     container_name: chessclass-staging-worker-match-minimax
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
     environment:
@@ -222,6 +227,7 @@ services:
       context: ./backend
     image: chessclass/backend:${IMAGE_TAG:-0.8.1}
     container_name: chessclass-staging-worker-match-sf
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
     environment:

@@ -66,6 +66,7 @@ services:
       context: ./backend
     image: chessclass/backend:e2e
     container_name: chessclass-e2e-api
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: uvicorn app.main:app --host 0.0.0.0 --port 8020
     environment:
       <<: *e2e-env
@@ -97,6 +98,7 @@ services:
       context: ./backend
     image: chessclass/backend:e2e
     container_name: chessclass-e2e-worker
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     environment:
       <<: *e2e-env
@@ -118,6 +120,7 @@ services:
       context: ./backend
     image: chessclass/backend:e2e
     container_name: chessclass-e2e-worker-match-random
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     environment:
       <<: *e2e-env
@@ -139,6 +142,7 @@ services:
       context: ./backend
     image: chessclass/backend:e2e
     container_name: chessclass-e2e-worker-match-greedy
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     environment:
       <<: *e2e-env
@@ -160,6 +164,7 @@ services:
       context: ./backend
     image: chessclass/backend:e2e
     container_name: chessclass-e2e-worker-match-minimax
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     environment:
       <<: *e2e-env
@@ -181,6 +186,7 @@ services:
       context: ./backend
     image: chessclass/backend:e2e
     container_name: chessclass-e2e-worker-match-sf
+    security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     environment:
       <<: *e2e-env
