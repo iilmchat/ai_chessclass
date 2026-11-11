@@ -7,6 +7,19 @@
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-11
+
+### Исправлено
+- `scripts/backup-offsite.ps1` и `scripts/backup-restore-test.ps1`:
+  `-BackupDir` и `-BackupFile` резолвятся в абсолютный путь до `docker -v`.
+  На Windows относительный путь трактовался Docker как named volume, из-за
+  чего `pg_dump`/`openssl`/restore падали (дефект из S-94 §3).
+- `backup-offsite.ps1 -DryRun` и smoke
+  `scripts/backup-relative-dir-smoke.ps1` проверяют абсолютный docker-mount
+  без выполнения бэкапа.
+- Runbook §17: примечание о путях и v0.8.1; release notes
+  `docs/release-notes-v0.8.1.md`; версия **0.8.1** во всех источниках.
+
 ## [0.8.0] - 2026-11-11
 
 ### Добавлено

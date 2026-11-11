@@ -939,6 +939,11 @@ BACKUP_EXPECTED_ALEMBIC=0035_s83_email_outbox
   локальный файл удаляется, если не `-KeepLocal`.
 - **Retention:** lifecycle policy на bucket — 30 дней (например, S3 Lifecycle
   `Expiration: 30`); локальный `BACKUP_DIR` — 14 дней (`backup.ps1`).
+- **Пути (v0.8.1):** `-BackupDir` и `-BackupFile` всегда резолвятся в
+  абсолютный путь перед `docker -v`. На Windows относительный путь ломал
+  bind mount (Docker создавал named volume) — исправлено в v0.8.1.
+  `backup-offsite.ps1 -DryRun` показывает итоговый `docker_mount` без
+  выполнения; smoke — `scripts/backup-relative-dir-smoke.ps1`.
 - **Restore-test** (weekly и после релиза):
 
   ```powershell

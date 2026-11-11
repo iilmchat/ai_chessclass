@@ -19,8 +19,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 $started = Get-Date
-if (-not $StatusFile) { $StatusFile = Join-Path $BackupDir "backup-status.json" }
+
+# v0.8.1: docker -v требует абсолютный host-path. Относительный BackupDir
+# Docker трактует как named volume, и decrypt/download видят пустой каталог.
 New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+$BackupDir = (Resolve-Path -LiteralPath $BackupDir -ErrorAction Stop).Path
+if (-not $StatusFile) { $StatusFile = Join-Path $BackupDir "backup-status.json" }
+$StatusFile = [System.IO.Path]::GetFullPath($StatusFile)
+$statusDir = Split-Path -Parent $StatusFile
+New-Item -ItemType Directory -Force -Path $statusDir | Out-Null
+
 if (-not $EncryptionKey -or $EncryptionKey -notmatch '^[0-9a-fA-F]{32}$') {
     throw "BACKUP_ENCRYPTION_KEY должен быть 32 hex-символа"
 }
@@ -47,8 +55,7 @@ function Write-Status([hashtable]$Data) {
     $json = $Data | ConvertTo-Json -Compress
     Set-Content -LiteralPath $StatusFile -Value $json -Encoding utf8
     if ($StatusVolume) {
-        $absBackupDir = (Resolve-Path -LiteralPath $BackupDir).Path
-        docker run --rm -v "${StatusVolume}:/srv/archive" -v "${absBackupDir}:/src:ro" `
+        docker run --rm -v "${StatusVolume}:/srv/archive" -v "${statusDir}:/src:ro" `
             alpine sh -c "cp /src/$(Split-Path -Leaf $StatusFile) /srv/archive/backup-status.json" |
             Out-Null
     }
@@ -94,9 +101,8 @@ function Download-Latest {
         if ($LASTEXITCODE -ne 0) { throw "mc cp failed" }
     } else {
         if (-not $S3Endpoint) { throw "нужен aws/mc или BACKUP_S3_ENDPOINT" }
-        $absBackupDir = (Resolve-Path -LiteralPath $BackupDir).Path
         docker run --rm --network $(if ($env:BACKUP_DOCKER_NETWORK) { $env:BACKUP_DOCKER_NETWORK } else { "chessclass-net" }) `
-            -v "${absBackupDir}:/backup" `
+            -v "${BackupDir}:/backup" `
             -e AWS_ACCESS_KEY_ID=$S3AccessKey -e AWS_SECRET_ACCESS_KEY=$S3SecretKey `
             -e AWS_DEFAULT_REGION=$(if ($env:AWS_DEFAULT_REGION) { $env:AWS_DEFAULT_REGION } else { "us-east-1" }) `
             amazon/aws-cli --endpoint-url $S3Endpoint `
@@ -120,8 +126,10 @@ docker rm -f $container 2>$null | Out-Null
 try {
     if (-not $BackupFile) { $BackupFile = Download-Latest; $download = $BackupFile }
     if (-not (Test-Path -LiteralPath $BackupFile)) { throw "backup not found: $BackupFile" }
-    $plain = Join-Path $BackupDir "$([IO.Path]::GetFileNameWithoutExtension($BackupFile)).dump"
-    docker run --rm -v "${BackupDir}:/backup" -e "BACKUP_KEY=$EncryptionKey" alpine/openssl `
+    $BackupFile = (Resolve-Path -LiteralPath $BackupFile -ErrorAction Stop).Path
+    $backupFileDir = Split-Path -Parent $BackupFile
+    $plain = Join-Path $backupFileDir "$([IO.Path]::GetFileNameWithoutExtension($BackupFile)).dump"
+    docker run --rm -v "${backupFileDir}:/backup" -e "BACKUP_KEY=$EncryptionKey" alpine/openssl `
         enc -d -aes-256-cbc -pbkdf2 -in "/backup/$(Split-Path -Leaf $BackupFile)" `
         -out "/backup/$(Split-Path -Leaf $plain)" -pass env:BACKUP_KEY | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "openssl decrypt failed" }

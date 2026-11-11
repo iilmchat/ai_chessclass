@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.8.0 · **Дата:** 2026-11-11
+**Версия:** v0.8.1 · **Дата:** 2026-11-11
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 
@@ -1470,6 +1470,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `backup-restore-test.ps1`, `observability-selftest.ps1 -Stack` (21/21),
   pip-audit (0), doc-lint (6 checks, 0 failed); миграций 35, head
   `0035_s83_email_outbox`; backend — 328 collected (325 passed + 3 skipped).
+- v0.8.1 (patch, 2026-11-11): `backup-offsite.ps1` и
+  `backup-restore-test.ps1` резолвят `-BackupDir`/`-BackupFile` в абсолютный
+  путь до `docker -v` (Windows named-volume bug); `backup-offsite.ps1
+  -DryRun`, smoke `backup-relative-dir-smoke.ps1`; версия **0.8.1**, release
+  notes `docs/release-notes-v0.8.1.md`, тег `v0.8.1`.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
