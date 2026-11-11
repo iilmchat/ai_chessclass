@@ -71,7 +71,7 @@ docker compose --env-file .env.staging -f docker-compose.staging.yml run --rm se
 .\scripts\smoke-prod.ps1 -ApiBase http://127.0.0.1:8032 -WebBase http://localhost:3202 `
   -EdgeBase https://localhost:8443 -SkipCertificateCheck
 
-# readyz: migrationsUpToDate=true, db.revision = db.head = 0028
+# readyz: migrationsUpToDate=true, db.revision = db.head = 0035
 Invoke-RestMethod http://127.0.0.1:8032/readyz | ConvertTo-Json -Depth 4
 
 # CORS preflight: Origin из allowlist → access-control-allow-origin
@@ -112,6 +112,133 @@ docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T api
 #       --compare /srv/reports/llm-smoke-echo.json
 ```
 
+## 4.1. Staging Acceptance (v0.8.1)
+
+Операционная приёмка v0.8.1 на стенде с боевыми SMTP/S3. Скрипт **не**
+заменяет проверку провайдера: он проверяет API, JWKS, backup-метрику и
+observability, а доставку письма подтверждает оператор.
+
+**Перед запуском** заполнить `.env.staging` (все секреты — только локально):
+
+```dotenv
+SMTP_HOST=CHANGE_ME
+SMTP_PORT=587
+SMTP_USER=CHANGE_ME
+SMTP_PASSWORD=CHANGE_ME
+SMTP_FROM=noreply@example.com
+SMTP_STARTTLS=true
+SMTP_SSL=false
+
+BACKUP_S3_ENDPOINT=            # пусто для AWS; Yandex/VK/MinIO — URL
+BACKUP_S3_BUCKET=CHANGE_ME
+BACKUP_S3_PREFIX=postgres-staging
+BACKUP_S3_ACCESS_KEY=CHANGE_ME
+BACKUP_S3_SECRET_KEY=CHANGE_ME
+BACKUP_ENCRYPTION_KEY=         # ровно 32 hex-символа
+
+JWT_ALGORITHM=RS256
+JWT_LEGACY_HS256=false
+JWT_KID=staging-2026-11
+PROXY_TRUSTED_HOSTS=172.16.0.0/12,127.0.0.1
+SENTRY_DSN=                    # пусто = Sentry выключен
+```
+
+RS256-ключи: `.\scripts\gen-jwt-keys.ps1` (пути
+`JWT_PRIVATE_KEY_PATH`/`JWT_PUBLIC_KEY_PATH`). После изменения env:
+`docker compose --env-file .env.staging -f docker-compose.staging.yml up -d`.
+
+**Запуск приёмки:**
+
+```powershell
+.\scripts\staging-acceptance.ps1 `
+  -BaseUrl https://localhost:8443/api/v1 `
+  -AdminEmail admin@example.com `
+  -AdminPassword '<боевой-пароль>' `
+  -TestStudentEmail accept-2026-11-11@example.com
+```
+
+`-TestStudentEmail` — одноразовый адрес с доступом к ящику (лучше
+plus-адрес). `-AdminPassword` не коммитить и не писать в общий журнал; при
+повторе используйте новый тестовый email. `BaseUrl` можно передать как
+origin (`https://host`) или как `.../api/v1`.
+
+Скрипт выводит таблицу `Check | Result | Details` и коды:
+`0` — всё ok, `1` — warning, `2` — critical. Пароли/токены не логируются.
+
+| Проверка | Что означает | Действие при провале |
+|---|---|---|
+| `healthz` | API видит PostgreSQL и Redis | `docker compose ps`, логи `api/db/redis`; поднять стек |
+| `readyz` | миграции применены (`migrationsUpToDate=true`) | `run --rm migrate`; сверить revision/head |
+| `admin_login` | admin существует, пароль верный, нет lockout | проверить seed/пароль; снять lockout в Redis |
+| `jwks` | RS256/JWKS непустой, есть `kid` | проверить `JWT_*` и PEM-ключи; перезапустить api |
+| `student_register` | регистрация ученика | 409 — сменить тестовый email; 429 — подождать rate-limit |
+| `email_outbox` | строка outbox в статусе `sent` (если есть) | проверить SMTP/провайдера; verify-письмо синхронное |
+| `backup_metric` | `chessclass_backup_last_success_timestamp_seconds > 0` | выполнить offsite-бэкап (ниже) и повторить |
+| `observability` | summary/alerts без critical | разобрать `/admin/observability/alerts`, §10 operations |
+
+`email_outbox` по умолчанию `SKIP`, если строки для тестового адреса нет:
+verify-письмо отправляется синхронно, а не через outbox. Для строгой
+проверки добавьте `-RequireEmailOutbox` (тогда отсутствие строки — `FAIL`);
+для consent-писем outbox проверяется SQL ниже.
+
+## 4.2. Боевые SMTP/S3 (v0.8.1)
+
+### SMTP
+
+1. Заполнить `SMTP_*` в `.env.staging`; для 465 — `SMTP_SSL=true`,
+   `SMTP_STARTTLS=false`; для 587 — наоборот.
+2. Запустить `.\scripts\smtp-smoke.ps1` (локальный sink, проверка
+   транспорта) и `staging-acceptance.ps1` (регистрация).
+3. Проверить **реальный ящик** `TestStudentEmail`: письмо
+   «Подтвердите email — ChessClass», папка «Спам», заголовки `From`,
+   `Return-Path`, SPF/DKIM/DMARC у провайдера.
+4. Для consent/outbox:
+
+   ```powershell
+   docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T db `
+     psql -U chess -d chessclass -c `
+     "SELECT recipient, kind, status, attempts, last_error, created_at FROM email_outbox ORDER BY created_at DESC LIMIT 10;"
+   ```
+
+   `sent` — доставлено; `pending` — worker ещё не обработал; `failed` с
+   `attempts >= EMAIL_OUTBOX_MAX_ATTEMPTS` — parked, разобрать
+   `last_error` и вернуть строку точечно (operations §18).
+5. При 5xx: 535 — логин/пароль, 550 — политика получателя, 421/451 —
+   временный отказ (retry сам). Bounce приходит на `SMTP_FROM`/return-path.
+
+### S3
+
+1. Заполнить `BACKUP_S3_*` и `BACKUP_ENCRYPTION_KEY` (32 hex).
+2. Запустить offsite-бэкап с **абсолютным или относительным** `-BackupDir`
+   (v0.8.1 резолвит путь сам):
+
+   ```powershell
+   .\scripts\backup-offsite.ps1 -Container chessclass-staging-db `
+     -BackupDir .\backups\staging
+   ```
+
+   Ожидаемо: JSON `status=ok`, `size_bytes`, `sha256`, `s3_path`.
+3. Проверить объект в консоли провайдера или CLI:
+
+   ```powershell
+   aws --endpoint-url $env:BACKUP_S3_ENDPOINT s3 ls `
+     "s3://$env:BACKUP_S3_BUCKET/postgres-staging/"
+   ```
+
+   Сверить размер/дату; скачать объект и проверить sha256 при необходимости.
+4. Restore-test:
+
+   ```powershell
+   .\scripts\backup-restore-test.ps1 -BackupDir .\backups\staging
+   ```
+
+   Ожидаемо: `users=15`, `alembic=0035_s83_email_outbox` (или актуальный
+   head), временный PG 5439 удалён.
+5. Lifecycle: на bucket — `Expiration: 30` дней (S3 Lifecycle / правило
+   провайдера); локально `BACKUP_DIR` — 14 дней. Ключи/S3-секреты не
+   коммитить и не печатать в логи. Алерты — `ChessClassBackupFailed`
+   (>25 ч) и `ChessClassBackupRestoreFailed`.
+
 ## 5. Backup/restore
 
 ```powershell
@@ -121,7 +248,11 @@ docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T api
 ```
 
 `restore-test` работает во временной БД `chessclass_restore` и не трогает
-staging-БД. Ожидаемо: `sha256 OK`, `users>=1`, `alembic=0028`.
+staging-БД. Ожидаемо: `sha256 OK`, `users>=1`,
+`alembic=0035_s83_email_outbox` (актуальный head).
+
+Offsite-бэкап и restore-test с S3 — §4.2; оба скрипта принимают
+относительный `-BackupDir` (v0.8.1 резолвит его в абсолютный путь).
 
 ## 6. Остановка и сброс
 
@@ -143,7 +274,7 @@ docker compose --env-file .env.staging -f docker-compose.staging.yml down -v
 | pg / redis (хост) | 5438 / 6384 | 5440 / 6387 | не публикуются |
 | api / web | 8020 / 3200 | 8032 / 3202 | 8020 / 3200 |
 | edge http/https | — | 8080 / 8443 | 80 / 443 |
-| образы | `:dev` | backend `IMAGE_TAG` (0.3.0), frontend `0.3.0-staging` | `IMAGE_TAG` (0.3.0) |
+| образы | `:dev` | backend `IMAGE_TAG` (0.8.1), frontend `0.8.1-staging` | `IMAGE_TAG` (0.8.1) |
 | сеть / volumes | `chessclass-net` / `chessclass_*` | `chessclass-staging-net` / `chessclass_staging_*` | `chessclass-prod-net` / `chessclass_prod_*` |
 | `WEB_BASE_URL` | — | `https://localhost:8443` | `https://chessclass.example` |
 | `CSP_MODE` (S-61) | default `enforce` (задавать не нужно) | `report-only` (до аудита) | default `enforce` |

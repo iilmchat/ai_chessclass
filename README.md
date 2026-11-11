@@ -199,6 +199,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [docs/sprint-reports/S-93-2026-11-11.md](docs/sprint-reports/S-93-2026-11-11.md) - отчёт S-93
 - [docs/sprint-reports/S-94-2026-11-11.md](docs/sprint-reports/S-94-2026-11-11.md) — отчёт S-94 (релиз v0.8.0)
 - [docs/sprint-reports/v0.8.1-2026-11-11.md](docs/sprint-reports/v0.8.1-2026-11-11.md) — отчёт v0.8.1 (patch)
+- [docs/sprint-reports/staging-acceptance-2026-11-11.md](docs/sprint-reports/staging-acceptance-2026-11-11.md) — Staging Acceptance v0.8.1 (операция)
 - [deploy/logrotate/chessclass](deploy/logrotate/chessclass) — ротация файловых логов
 - [docs/release-notes-v0.8.1.md](docs/release-notes-v0.8.1.md) — release notes v0.8.1
 - [docs/release-notes-v0.8.0.md](docs/release-notes-v0.8.0.md) — release notes v0.8.0

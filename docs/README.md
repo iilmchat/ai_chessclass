@@ -45,6 +45,7 @@
 | `docs/sprint-reports/S-93-2026-11-11.md` | docs/ | ✅ S-93 | SMTP smoke, offsite S3 backups, sandbox hardening |
 | `docs/sprint-reports/S-94-2026-11-11.md` | docs/ | ✅ S-94 | Релиз v0.8.0 (версии, release-notes, тег, GHCR) |
 | `docs/sprint-reports/v0.8.1-2026-11-11.md` | docs/ | ✅ v0.8.1 | Patch: absolute `-BackupDir` в backup-скриптах |
+| `docs/sprint-reports/staging-acceptance-2026-11-11.md` | docs/ | ⏳ операция | Staging Acceptance v0.8.1 (ожидает оператора) |
 
 ## Исходные проекты (первоисточники контента)
 

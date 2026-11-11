@@ -42,6 +42,30 @@ IMAGE_TAG=v0.8.1 docker compose --env-file .env -f docker-compose.prod.yml up -d
 - Миграций нет; схема БД совместима с v0.8.0.
 - Откат — `IMAGE_TAG=0.8.0` и повторный `pull`/`up -d`.
 
+## Staging Acceptance
+
+Операционная приёмка — [`scripts/staging-acceptance.ps1`](../scripts/staging-acceptance.ps1)
+(порядок и разбор провалов — [staging runbook §4.1](runbooks/staging.md)).
+Скрипт проверяет `healthz`, `readyz`, admin login, JWKS, регистрацию
+ученика, backup-метрику и observability; пароли/токены не логирует.
+Коды: `0` — ok, `1` — warning, `2` — critical.
+
+Чек-лист оператора:
+
+- [ ] **SMTP:** `SMTP_HOST/PORT/USER/PASSWORD/FROM`, 587/STARTTLS или
+  465/SSL; тестовое письмо дошло в реальный ящик (не Spam), SPF/DKIM/DMARC.
+- [ ] **S3:** `BACKUP_S3_*`, `BACKUP_ENCRYPTION_KEY` (32 hex);
+  `backup-offsite.ps1` → `status=ok`; объект виден в консоли провайдера;
+  `backup-restore-test.ps1` → `users`/`alembic`; lifecycle 30 дней.
+- [ ] **RS256:** `JWT_ALGORITHM=RS256`, `JWT_LEGACY_HS256=false`,
+  `JWT_KID`, PEM-ключи; `/auth/jwks` непустой с `kid`.
+- [ ] **Proxy:** `PROXY_TRUSTED_HOSTS` — только CIDR edge; реальный IP
+  клиента виден в логах/аудите, подмена `X-Forwarded-For` не проходит.
+- [ ] **Sentry (опционально):** `SENTRY_DSN`/`VITE_SENTRY_DSN`, PII off;
+  тестовое событие без email/токенов.
+- [ ] **Observability:** `/admin/observability/alerts` без critical;
+  `ChessClassBackupFailed`/`...RestoreFailed` не горят.
+
 ## Известные ограничения
 
 Без изменений относительно v0.8.0: live LRS/TTS и GPU-туннель не проверены
