@@ -7,6 +7,11 @@
 
 ## [Unreleased]
 
+### Добавлено
+- `TODO_V0.9.md` — план S-95…S-99 (live LRS/TTS, GPU tunnel, sandbox
+  network isolation, retention/legal hold, release v0.9.0); doc-lint:
+  активный план `TODO_V0.9.md`, прогресс `0/5`, целевая версия `0.9.0`.
+
 ## [0.8.1] - 2026-11-11
 
 ### Исправлено

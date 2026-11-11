@@ -50,7 +50,8 @@ def test_collect_versions_consistent() -> None:
 
     assert versions
     assert all(value == "0.8.1" for value in versions.values())
-    assert doc_lint.EXPECTED_VERSION == "0.8.1"
+    assert doc_lint.CURRENT_VERSION == "0.8.1"
+    assert doc_lint.EXPECTED_VERSION == "0.9.0"
     assert doc_lint._check_versions(REPO) == []
 
 
@@ -63,14 +64,14 @@ def test_release_notes_for_current_version_exist() -> None:
 
 
 def test_todo_progress_matches_active_plan() -> None:
-    # v0.7.1 закрыт (4/4); v0.8.0 закрыт полностью (S-90…S-94).
+    # v0.8.1 выпущен; активный план — v0.9.0 (S-95…S-99, 0/5).
     assert doc_lint._check_todo_progress(REPO) == []
-    assert doc_lint.ACTIVE_PLAN == "TODO_V0.8.md"
-    assert doc_lint.EXPECTED_PROGRESS == (5, 5)
-    active = (REPO / "TODO_V0.8.md").read_text(encoding="utf-8")
-    assert "**Прогресс: 5/5**" in active
-    old = (REPO / "TODO_V0.7.1.md").read_text(encoding="utf-8")
-    assert "**Прогресс: 4/4**" in old
+    assert doc_lint.ACTIVE_PLAN == "TODO_V0.9.md"
+    assert doc_lint.EXPECTED_PROGRESS == (0, 5)
+    active = (REPO / "TODO_V0.9.md").read_text(encoding="utf-8")
+    assert "**Прогресс: 0/5**" in active
+    old = (REPO / "TODO_V0.8.md").read_text(encoding="utf-8")
+    assert "**Прогресс: 5/5**" in old
 
 
 def test_stale_markers_detected(tmp_path: Path) -> None:
