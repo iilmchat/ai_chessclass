@@ -1,7 +1,7 @@
 # TODO_V0.9.md — Цикл v0.9.0 <Live, Isolation & Retention>
 
-**Статус:** 🔶 В работе (S-95/S-96 отложены; S-97 ✅; S-98 впереди; S-99 — релиз)
-**Сводно:** 5 спринтов · **Прогресс: 1/5**
+**Статус:** 🔶 В работе (S-95/S-96 отложены; S-97/S-98 ✅; S-99 — релиз)
+**Сводно:** 5 спринтов · **Прогресс: 2/5**
 **Цель:** закрыть операционные долги после v0.8.1: live-провайдеры,
 изоляция песочницы, retention/legal hold и релиз v0.9.0.
 
@@ -61,21 +61,25 @@
 
 ## S-98: Retention & Legal Hold (P1)
 
-**Статус:** ☐ Запланирован
+**Статус:** ✅ Завершён (2026-11-12)
 **Цель:** PII в `email_outbox`, legal hold и удаление по запросу субъекта.
 
-- [ ] Retention `email_outbox`: TTL для `sent`/`failed`, архивирование
-      метаданных, удаление body с PII; настраиваемые сроки.
-- [ ] Legal hold: флаг/таблица удержания по пользователю/делу; retention не
-      удаляет объекты под hold; аудит изменений.
-- [ ] DSAR-удаление: удаление/анонимизация профиля, outbox, вложений,
-      связанных записей; отчёт об исполнении.
-- [ ] Метрики: `chessclass_email_outbox_pending_total`,
-      `..._oldest_pending_age_seconds`, retention archived/deleted, hold count.
-- [ ] Тесты: hold блокирует удаление, DSAR удаляет PII, retention не трогает
-      hold; миграция и runbook.
+- [x] Retention `email_outbox`: body `[deleted]` через 30 дней, метаданные
+      через 90 дней; архив gzip-JSONL без body; `EMAIL_OUTBOX_*` в env.
+- [x] Legal hold: миграция `0036_s98_legal_hold`, API
+      `POST/DELETE/GET /admin/legal-holds`; retention/DSAR пропускают
+      субъекта, skip — в audit_logs.
+- [x] DSAR `POST /admin/users/{id}/erase`: анонимизация users/profile,
+      удаление outbox/tokens/sessions/links/review/pvp, erase
+      bot/submission/game; 409 при активном hold; audit `user.erased`.
+- [x] Метрики: `chessclass_legal_holds_active_total`,
+      `chessclass_email_outbox_body_pending_scrub_total`,
+      `chessclass_retention_last_success_timestamp_seconds`;
+      алерты `ChessClassLegalHoldActive` (info), `ChessClassRetentionFailed`.
+- [x] Тесты: body scrub, metadata delete, hold блокирует retention, DSAR
+      PII, 409 при hold; миграция и runbook §20.
 - **DoD:** policy применяется идемпотентно; hold/DSAR проверены тестами;
-  метрики/алерты; отчёт `docs/sprint-reports/S-98-YYYY-MM-DD.md`.
+  метрики/алерты; отчёт `docs/sprint-reports/S-98-2026-11-12.md`.
 
 ## S-99: Release v0.9.0 (P0)
 

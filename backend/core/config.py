@@ -180,8 +180,10 @@ class Settings(BaseSettings):
     # --- email outbox (S-83): очередь писем с retry/backoff
     email_outbox_batch: int = 50
     email_outbox_max_attempts: int = 8
-    #: S-86: sent/failed старше N дней архивируются (gzip) и удаляются
-    email_outbox_retention_days: int = 30
+    #: S-98: body (одноразовая ссылка/PII) чистится через N дней.
+    email_outbox_body_retention_days: int = 30
+    #: S-98: метаданные удаляются через N дней; архив пишется без body.
+    email_outbox_retention_days: int = 90
     # --- error tracking / metrics (S-92)
     #: Sentry DSN; пусто — error-tracking выключен (dev/CI по умолчанию).
     sentry_dsn: str = ""

@@ -108,6 +108,32 @@ groups:
             retention. Проверьте `/admin/observability/retention/status` и
             логи worker; действия — operations.md §10.13.
 
+      - alert: ChessClassLegalHoldActive
+        expr: chessclass_legal_holds_active_total > 0
+        for: 0m
+        labels:
+          severity: info
+          component: worker
+        annotations:
+          summary: "ChessClass: активен legal hold"
+          description: >-
+            Есть активный legal hold: retention/DSAR не удаляют данные
+            субъекта до отзыва. Проверить `/admin/legal-holds` и audit_logs;
+            runbook §20.
+
+      - alert: ChessClassRetentionFailed
+        expr: time() - chessclass_retention_last_success_timestamp_seconds > 25 * 3600
+        for: 1h
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "ChessClass: retention не завершался > 25 часов"
+          description: >-
+            Последний успешный `retention.run` старше 25 ч или отсутствует.
+            Проверить cron `retention_run`, worker, `/admin/observability/retention/status`,
+            `RETENTION_ARCHIVE_DIR`; runbook §10.13/§20.
+
       # --- Offsite-бэкапы (S-93) -------------------------------------------
       - alert: ChessClassBackupFailed
         expr: |

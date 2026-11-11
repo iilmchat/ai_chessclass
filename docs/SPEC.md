@@ -43,6 +43,7 @@
 | tournaments | `GET /tournaments`, `GET /tournaments/{id}`; admin: `POST /admin/tournaments`, `GET /admin/tournaments/{id}/export.csv` | — | ✅ S-45 | bracket/round-robin без LLM, лидерборд, CSV (SPEC §3.16) |
 | export | `GET /admin/export/skills.csv`, `GET /admin/export/xapi` | — | ✅ S-45 | LMS: CSV навыков + xAPI statements (SPEC §3.16) |
 | observability | `GET /metrics`; admin: `GET /admin/observability/summary|alerts|costs|costs.csv|retention/status`, `POST /admin/observability/retention/run` | — | ✅ S-46/S-88 | метрики, стоимость, retention/архив (SPEC §3.17); S-88 — gauges outbox/archive |
+| retention | admin: `POST/GET /admin/legal-holds`, `DELETE /admin/legal-holds/{id}`, `POST /admin/users/{id}/erase` | — | ✅ S-98 | legal hold, DSAR erase, retention email_outbox PII (SPEC §3.17) |
 | auth-hardening | `GET /auth/jwks`, `GET /.well-known/jwks.json`; admin: `PATCH /admin/users/{id}/role`, `PATCH /admin/users/{id}/auditor-scope`, `POST /admin/users/{id}/anonymize` | — | ✅ S-47 | RS256/JWKS, auditor scope, PII-анонимизация (SPEC §3.18) |
 | tournaments-v2 | `POST /admin/tournaments` (202/queued), `GET /tournaments/{id}/events` (SSE), `POST /admin/tournaments/{id}/cancel`, `GET /tournaments/{id}/matches/{mid}/replay` | — | ✅ S-48 | async arq, replay, cancel/recovery, SF-античит (SPEC §3.19) |
 | lms | admin: `GET /admin/lms/status`, `POST /admin/lms/sync`, `GET /admin/lms/deliveries`, `GET /admin/lms/deliveries.csv` | — | ✅ S-49 | xAPI LRS, retry/идемпотентность, журнал (SPEC §3.20) |
@@ -1151,10 +1152,24 @@ default now(), `created_at`, `sent_at`. CHECK `email_outbox_status_values`,
 **S-86:** `deliver_pending` выбирает строки с
 `SELECT … FOR UPDATE SKIP LOCKED`, поэтому параллельные воркеры не берут
 одно письмо дважды; индекс `(status, next_attempt_at)` уже покрывает
-выборку. Retention `EMAIL_OUTBOX_RETENTION_DAYS=30`: `sent`/`failed`
-старше срока архивируются в gzip-JSONL и удаляются, `pending` не
-затрагивается. `body` содержит только текст письма, ссылку и версию
-политики; имени/email ребёнка в теле нет (PII остаётся в `recipient`).
+выборку. **S-98:** `EMAIL_OUTBOX_BODY_RETENTION_DAYS=30` — для `sent`/`failed`
+body заменяется на `[deleted]`; `EMAIL_OUTBOX_RETENTION_DAYS=90` — строка
+удаляется, метаданные (без body) архивируются в gzip-JSONL; `pending` не
+затрагивается. Строки под активным legal hold пропускаются, skip пишется
+в `audit_logs` (`retention.skipped_legal_hold`).
+
+**legal_holds** (S-98, миграция 0036): `id` (identity), `subject_type`
+(32, default `user`), `subject_id` (64; для user — его id строкой),
+`reason` text, `created_by` → `users(id) ON DELETE SET NULL`, `created_at`,
+`expires_at` NULL, `revoked_at` NULL, `revoked_by` → `users(id) ON DELETE
+SET NULL. Индексы `(subject_type, subject_id)`, `expires_at`. Активный hold:
+`revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`.
+API admin: `POST /admin/legal-holds`, `DELETE /admin/legal-holds/{id}`,
+`GET /admin/legal-holds?includeRevoked=`; DSAR
+`POST /admin/users/{id}/erase` (body `reason`) при активном hold → 409
+`legal_hold_active`, иначе анонимизация users/profile и удаление PII из
+outbox/tokens/sessions/telegram/review/pvp, erase bot/submission/game;
+`audit_logs`/`llm_calls`/`legal_holds` остаются.
 
 **user_profiles (S-83, миграция 0034):** `age_group_confirmed_at`
 timestamptz NULL, `age_group_confirmed_by` bigint NULL → `users(id)

@@ -170,8 +170,8 @@ async def test_retention_archives_and_keeps_published(
         await session.commit()
 
 
-async def test_retention_email_outbox(tmp_path, monkeypatch):
-    """S-86: sent/failed старше retention архивируются и удаляются."""
+async def test_retention_email_outbox_body_scrubbed(tmp_path, monkeypatch):
+    """S-98: body sent/failed старше 30 дней заменяется на [deleted]."""
     kind = "test-retention-email-outbox"
     now = datetime(2026, 11, 8, tzinfo=UTC)
     old = now - timedelta(days=60)
@@ -231,32 +231,48 @@ async def test_retention_email_outbox(tmp_path, monkeypatch):
         await session.commit()
 
     monkeypatch.setattr(settings, "retention_archive_dir", str(tmp_path / "archive"))
-    monkeypatch.setattr(settings, "email_outbox_retention_days", 30)
+    monkeypatch.setattr(settings, "email_outbox_body_retention_days", 30)
+    monkeypatch.setattr(settings, "email_outbox_retention_days", 90)
 
     async with session_factory() as session:
         counts = await retention_counts(session, now=now)
-        email_count = next(item for item in counts if item["policy"] == "email_outbox")
-        assert email_count["retentionDays"] == 30
-        assert email_count["rows"] == 2
+        body_count = next(
+            item for item in counts if item["policy"] == "email_outbox_body"
+        )
+        email_count = next(
+            item for item in counts if item["policy"] == "email_outbox"
+        )
+        assert body_count["retentionDays"] == 30
+        assert body_count["rows"] == 2
+        assert email_count["retentionDays"] == 90
+        assert email_count["rows"] == 0
 
         results = await run_retention(session, now=now)
         await session.commit()
-        policy = next(item for item in results if item.policy == "email_outbox")
-        assert policy.rows == 2
-        assert policy.archived == 2
-        assert policy.deleted == 2
-        assert policy.archive_path is not None
+        body_policy = next(
+            item for item in results if item.policy == "email_outbox_body"
+        )
+        assert body_policy.rows == 2
+        assert body_policy.scrubbed == 2
+        email_policy = next(
+            item for item in results if item.policy == "email_outbox"
+        )
+        assert email_policy.rows == 0
+        assert email_policy.deleted == 0
 
         remaining = {
-            row.subject: row.status
+            row.subject: (row.status, row.body)
             for row in (
                 await session.execute(
                     sa.select(EmailOutbox).where(EmailOutbox.kind == kind)
                 )
             ).scalars()
         }
-        assert remaining == {"old pending": "pending", "fresh sent": "sent"}
-        assert list((tmp_path / "archive").glob("email_outbox-*.jsonl.gz"))
+        assert remaining["old sent"] == ("sent", "[deleted]")
+        assert remaining["old failed"] == ("failed", "[deleted]")
+        assert remaining["old pending"] == ("pending", "old-pending-body")
+        assert remaining["fresh sent"] == ("sent", "fresh-sent-body")
+        assert not list((tmp_path / "archive").glob("email_outbox-*.jsonl.gz"))
 
         await session.execute(sa.delete(EmailOutbox).where(EmailOutbox.kind == kind))
         await session.commit()

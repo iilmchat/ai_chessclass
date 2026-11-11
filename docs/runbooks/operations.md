@@ -417,7 +417,7 @@ ssh -L 9092:127.0.0.1:9092 -L 9093:127.0.0.1:9093 -L 3002:127.0.0.1:3002 <user>@
 curl -s http://127.0.0.1:9092/-/ready        # Prometheus Server is Ready.
 curl -s http://127.0.0.1:9093/-/ready        # OK
 curl -s http://127.0.0.1:3002/api/health     # {"database":"ok",...}
-curl -s http://127.0.0.1:9092/api/v1/rules   # 10 правил ChessClass*
+curl -s http://127.0.0.1:9092/api/v1/rules   # 12 правил ChessClass*
 curl -s http://127.0.0.1:9093/api/v2/status  # cluster/version/config
 ```
 
@@ -1058,3 +1058,65 @@ BACKUP_EXPECTED_ALEMBIC=0035_s83_email_outbox
   обновлении Docker/ядра; не заменять на `seccomp=unconfined`.
 - **Тесты:** `tests/sandbox/test_attacks.py` — bwrap probe, попытка
   `127.0.0.1:6379`, fallback/warning, `network_isolation_enforced`.
+
+## 20. Legal Hold и DSAR (S-98)
+
+**Legal hold** блокирует retention и DSAR для субъекта. Создавать только по
+письменному запросу юриста/школы; `reason` — без лишних PII.
+
+```bash
+# создать hold на пользователя (admin JWT)
+curl -X POST "$API/admin/legal-holds" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"subjectType":"user","subjectId":"123","reason":"litigation-2026-11"}'
+
+# список активных / всех
+curl "$API/admin/legal-holds?includeRevoked=false" -H "Authorization: Bearer $ADMIN_TOKEN"
+curl "$API/admin/legal-holds?includeRevoked=true"  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# отозвать
+curl -X DELETE "$API/admin/legal-holds/42" -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+- Активный hold: `revoked_at IS NULL` и `expires_at` пуст/в будущем.
+- Retention пропускает `email_outbox` субъекта (body и metadata) и пишет
+  `retention.skipped_legal_hold` в `audit_logs`; DSAR erase при hold
+  возвращает **409 `legal_hold_active`**.
+- `legal_holds` не удаляются при erase (история удержания); после отзыва
+  hold DSAR можно повторить.
+
+**DSAR erase** (admin, только после подтверждения личности/запроса):
+
+```bash
+curl -X POST "$API/admin/users/123/erase" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"reason":"GDPR/152-ФЗ request 2026-11-12"}'
+```
+
+Что происходит: `users.email=deleted-{id}@anon`, случайный пароль,
+`is_active=false`; профиль/prefs обезличиваются; удаляются
+`email_outbox` (по старому email), `email_tokens`, `refresh_sessions`,
+`telegram_links`, `telegram_outbox`, `review_cards`, `pvp_ratings`;
+`bot_versions.code`, `py_submissions.code`, `chess_games.pgn` →
+`# erased`; `parental_consents.parent_email` → `deleted-{id}@anon`.
+`audit_logs`, `llm_calls`, `legal_holds` остаются.
+
+- При 409: проверить `GET /admin/legal-holds`; отозвать hold только после
+  юридического согласования, затем повторить erase.
+- Проверка audit:
+
+  ```sql
+  SELECT action, target_id, meta, created_at
+  FROM audit_logs
+  WHERE action IN ('user.erased','legal_hold.create','legal_hold.revoke',
+                   'retention.skipped_legal_hold')
+  ORDER BY created_at DESC LIMIT 20;
+  ```
+
+- Retention `email_outbox`: body чистится через
+  `EMAIL_OUTBOX_BODY_RETENTION_DAYS=30` (`[deleted]`), метаданные
+  удаляются через `EMAIL_OUTBOX_RETENTION_DAYS=90`; архив
+  `email_outbox-*.jsonl.gz` не содержит body. Метрики:
+  `chessclass_legal_holds_active_total`,
+  `chessclass_email_outbox_body_pending_scrub_total`,
+  `chessclass_retention_last_success_timestamp_seconds`.

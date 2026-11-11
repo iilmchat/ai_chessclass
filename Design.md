@@ -1128,6 +1128,17 @@ audit_log(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
   `POST /admin/users/{id}/anonymize`: anon-email/пароль, display_name
   «Удалённый пользователь», age_group unknown, отзыв refresh; учебные
   записи сохраняются для аудита.
+- **S-98: DSAR и legal hold.** `POST /admin/users/{id}/erase` (admin,
+  `reason`): `users.email=deleted-{id}@anon`, random password,
+  `is_active=false`, profile/prefs; удаление `email_outbox`,
+  `email_tokens`, `refresh_sessions`, `telegram_links`, `review_cards`,
+  `pvp_ratings`; `bot_versions.code`, `py_submissions.code`,
+  `chess_games.pgn` → `# erased`; `audit_logs`/`llm_calls`/`legal_holds`
+  остаются. При активном `legal_holds` (subject_type=user, subject_id,
+  revoked_at IS NULL, expires_at NULL/> now) — 409 `legal_hold_active`;
+  retention также пропускает удержанные email_outbox и пишет
+  `retention.skipped_legal_hold` в audit_logs. API:
+  `POST/DELETE/GET /admin/legal-holds`.
 - Auditor scope (S-47): `flags`, `audit`, `reports`, `observability`;
   задаётся admin через `PATCH /admin/users/{id}/auditor-scope`.
 
@@ -1487,6 +1498,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   для namespace/mount syscalls, fallback `unshare`/none с warning;
   `network_isolation_enforced`/`network_backend` в результате. Backend —
   334 collected (331 passed + 3 skipped).
+- S-98 (v0.9.0): `email_outbox` body scrub (30 дн) + metadata delete
+  (90 дн, архив без body); `legal_holds` (миграция 0036, API
+  `/admin/legal-holds`), retention skip + audit; DSAR
+  `/admin/users/{id}/erase` с 409 при hold; gauges/alerts legal hold и
+  retention success; backend — 339 collected (336 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

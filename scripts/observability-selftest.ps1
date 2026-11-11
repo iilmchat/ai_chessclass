@@ -112,12 +112,14 @@ Check "promtool check rules (alerts.yml)" {
     $out = docker run --rm --entrypoint promtool `
         -v "${alerts}:/tmp/alerts.yml:ro" prom/prometheus:v3.1.0 `
         check rules /tmp/alerts.yml 2>&1
-    Assert-True (($out -join "`n") -match "SUCCESS: 10 rules found") ($out -join " ")
+    Assert-True (($out -join "`n") -match "SUCCESS: 12 rules found") ($out -join " ")
     $content = Get-Content -Raw -LiteralPath $alerts
     foreach ($name in @(
         "ChessClassObservabilityDiskFull",
         "ChessClassEmailOutboxStuck",
         "ChessClassRetentionArchiveStale",
+        "ChessClassLegalHoldActive",
+        "ChessClassRetentionFailed",
         "ChessClassBackupFailed",
         "ChessClassBackupRestoreFailed"
     )) {
@@ -314,16 +316,19 @@ try {
                 -ForegroundColor DarkYellow
         }
     }
-    Check "правила загружены в Prometheus (10)" {
+    Check "правила загружены в Prometheus (12)" {
         $groups = (Invoke-RestMethod -Uri "$prom/api/v1/rules").data.groups
         $count = ($groups | ForEach-Object { $_.rules.Count } | Measure-Object -Sum).Sum
-        Assert-True ($count -eq 10) "rules=$count"
+        Assert-True ($count -eq 12) "rules=$count"
     }
     Check "S-88 gauges email_outbox/retention видны в /metrics" {
         $metricNames = @(
             "chessclass_email_outbox_pending_total",
             "chessclass_email_outbox_oldest_pending_age_seconds",
-            "chessclass_retention_archive_age_seconds"
+            "chessclass_retention_archive_age_seconds",
+            "chessclass_legal_holds_active_total",
+            "chessclass_email_outbox_body_pending_scrub_total",
+            "chessclass_retention_last_success_timestamp_seconds"
         )
         # Профиль можно проверять без базового стека; gauges отдаёт api.
         # Если api не запущен — это ответственность smoke базового стека
