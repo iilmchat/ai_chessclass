@@ -115,9 +115,10 @@ class Settings(BaseSettings):
     app_role: str = "api"
     # --- песочница (S-07; Design §13.2)
     sandbox_memory_limit_mb: int = 256
-    # S-93: CPU-rlimit дочернего процесса (SIGXCPU) + opt-in network ns.
+    # S-93: CPU-rlimit; S-97: network isolation по умолчанию (bwrap/unshare).
     sandbox_cpu_limit_s: int = 1
-    sandbox_network_isolation: bool = False
+    sandbox_network_isolation: bool = True
+    sandbox_network_backend: str = "auto"  # auto | bwrap | unshare | none
     sandbox_max_output_chars: int = 65_536  # 64 КБ на stdout/stderr
     sandbox_timeout_s: float = 5.0  # per-run для заданий; боты — bot_permove_timeout_s
     # --- chess_lab (E-04)

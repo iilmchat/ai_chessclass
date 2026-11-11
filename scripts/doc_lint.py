@@ -74,9 +74,9 @@ README_ALEMBIC_RE = re.compile(
     r"Alembic head \*\*(?P<head>[0-9a-z_]+)\*\* \((?P<count>\d+)\)"
 )
 
-#: Активный план и ожидаемый прогресс: v0.9.0, S-95…S-99 впереди.
+#: Активный план и ожидаемый прогресс: v0.9.0, S-97 закрыт (1/5).
 ACTIVE_PLAN: str = "TODO_V0.9.md"
-EXPECTED_PROGRESS: tuple[int, int] = (0, 5)
+EXPECTED_PROGRESS: tuple[int, int] = (1, 5)
 #: Текущая выпущенная версия (её проверяет A по всем источникам).
 CURRENT_VERSION: str = "0.8.1"
 #: Целевая версия активного плана (release-notes/тег готовит S-99).

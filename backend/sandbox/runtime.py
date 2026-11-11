@@ -327,6 +327,8 @@ def run_restricted(
             "violations": violations,
             "memory_limit_enforced": memory_enforced,
             "cpu_limit_enforced": cpu_enforced,
+            "network_isolation_enforced": False,
+            "network_backend": "none",
             "limits_warning": limits_warning,
         }
     except Exception as exc:  # noqa: BLE001 — RP может бросить своё
@@ -339,6 +341,8 @@ def run_restricted(
             "violations": violations,
             "memory_limit_enforced": memory_enforced,
             "cpu_limit_enforced": cpu_enforced,
+            "network_isolation_enforced": False,
+            "network_backend": "none",
             "limits_warning": limits_warning,
         }
 
@@ -360,6 +364,8 @@ def run_restricted(
             "violations": violations,
             "memory_limit_enforced": memory_enforced,
             "cpu_limit_enforced": cpu_enforced,
+            "network_isolation_enforced": False,
+            "network_backend": "none",
             "output_truncated": truncated,
             "limits_warning": limits_warning,
         }
@@ -376,6 +382,8 @@ def run_restricted(
         "violations": violations,
         "memory_limit_enforced": memory_enforced,
         "cpu_limit_enforced": cpu_enforced,
+        "network_isolation_enforced": False,
+        "network_backend": "none",
         "output_truncated": truncated,
         "limits_warning": limits_warning,
     }

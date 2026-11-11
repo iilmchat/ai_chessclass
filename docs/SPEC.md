@@ -1216,9 +1216,12 @@ ON DELETE SET NULL`, индекс `ix_user_profiles_age_group_confirmed_by`.
 `compile_restricted` (RestrictedPython 8.5) → ограниченные builtins + гварды
 доступа/записи → собственный `__import__` с белым списком → subprocess с
 лимитами (RLIMIT_AS/Job Object и `RLIMIT_CPU` ставятся внутри дочернего
-процесса). Worker/api в Docker — non-root (`appuser`, uid 1000); network ns
-(`unshare -n`) — opt-in `SANDBOX_NETWORK_ISOLATION=true` при наличии
-root/CAP_SYS_ADMIN либо отдельный контейнер `network_mode:none`.
+процесса). Worker/api в Docker — non-root (`appuser`, uid 1000); сеть по
+умолчанию изолирована `bwrap --unshare-net` (`SANDBOX_NETWORK_ISOLATION=true`,
+`SANDBOX_NETWORK_BACKEND=auto|bwrap|unshare|none`), контейнер использует
+`deploy/seccomp-sandbox.json` (namespace/mount syscalls) без CAP_SYS_ADMIN;
+fallback — `unshare -n` (root) или запуск без сети с
+`network_isolation_enforced=false`.
 
 **Разрешённые модули:** math, random, datetime, collections, itertools,
 functools, string, re, statistics, decimal, fractions, json.
@@ -1227,21 +1230,24 @@ functools, string, re, statistics, decimal, fractions, json.
 
 **Результат `run_restricted` / executor.run:** `{success, output, error,
 error_type, execution_time, violations[], memory_limit_enforced,
-cpu_limit_enforced, output_truncated, limits_warning}`. Коды `error_type`:
+cpu_limit_enforced, network_isolation_enforced, network_backend,
+output_truncated, limits_warning}`. Коды `error_type`:
 `SecurityError` (статика), `SyntaxError`, `RecursionError`, `MemoryError`
 (RLIMIT_AS), `TimeoutError` (per-run или RLIMIT_CPU/SIGXCPU),
 `RestrictedFeatureError` (подсказка про f-строки вместо .format — RP 8.x),
 `SandboxCrash`.
 
 **Лимиты (config/env):** память `SANDBOX_MEMORY_LIMIT_MB=256`, CPU
-`SANDBOX_CPU_LIMIT_S=1`, network ns `SANDBOX_NETWORK_ISOLATION=false` по
+`SANDBOX_CPU_LIMIT_S=1`, network isolation
+`SANDBOX_NETWORK_ISOLATION=true` и `SANDBOX_NETWORK_BACKEND=auto` по
 умолчанию, обрезка вывода `SANDBOX_MAX_OUTPUT_CHARS=65536` (64 КБ + пометка),
 таймаут заданий `SANDBOX_TIMEOUT_S=5`, боты — `BOT_PERMOVE_TIMEOUT_S=1`.
 
 **Тест-матрица атак** (`tests/sandbox/`, обязательный набор §16.1): импорты
 (os/subprocess/socket/threading/ctypes), eval/exec/open/compile, dunder-атрибуты,
 recursion, memory spike, бесконечный цикл (timeout), CPU-rlimit, network
-`__import__`, `/etc/passwd`, обрезка вывода, stdin.
+`__import__`, bwrap `socket.connect` → отказ, `/etc/passwd`, обрезка вывода,
+stdin.
 
 ## 8. История ревизий контрактов
 

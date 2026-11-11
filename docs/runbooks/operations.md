@@ -997,3 +997,64 @@ BACKUP_EXPECTED_ALEMBIC=0035_s83_email_outbox
 - Верификация email обязательна: без SMTP новые пользователи не смогут
   войти; `SMTP_HOST` должен быть задан до публичного запуска. Release-notes
   v0.8.0 фиксируют это требование для оператора.
+
+## 19. Сетевая изоляция песочницы (S-97)
+
+По умолчанию `SANDBOX_NETWORK_ISOLATION=true`,
+`SANDBOX_NETWORK_BACKEND=auto`: `bwrap --unshare-net` (uid 1000, без
+`--privileged`/CAP_SYS_ADMIN) → `unshare -n` (если root) → запуск без сети
+с `network_isolation_enforced=false` и warning в `limits_warning`.
+
+- **Проверка bwrap в контейнере:**
+
+  ```bash
+  docker compose --env-file .env -f docker-compose.prod.yml exec -T api \
+    sh -c "bwrap --unshare-net --dev /dev --proc /proc \
+      --ro-bind /usr /usr --ro-bind /usr/local /usr/local \
+      --ro-bind /lib /lib --ro-bind /lib64 /lib64 \
+      --tmpfs /tmp --chdir /tmp --die-with-parent \
+      python -c 'print(\"bwrap-ok\")'"
+  ```
+
+- **Проверка, что сеть реально закрыта:**
+
+  ```bash
+  docker compose --env-file .env -f docker-compose.prod.yml exec -T api \
+    sh -c "bwrap --unshare-net --dev /dev --proc /proc \
+      --ro-bind /usr /usr --ro-bind /usr/local /usr/local \
+      --ro-bind /lib /lib --ro-bind /lib64 /lib64 \
+      --tmpfs /tmp --chdir /tmp --die-with-parent \
+      python -c \"import socket; s=socket.socket(); s.settimeout(1); \
+        s.connect(('127.0.0.1', 6379))\""
+  ```
+
+  Ожидаемо `ConnectionRefusedError`/`OSError` (в netns нет Redis).
+- **Результат executor:** `network_isolation_enforced=true`,
+  `network_backend=bwrap`; при fallback — `false`/`none` и
+  `limits_warning`. Проверка из API-контейнера:
+
+  ```bash
+  docker compose --env-file .env -f docker-compose.prod.yml exec -T api \
+    python -c "from sandbox.executor import run_sync; \
+      r=run_sync('print(1)'); print(r['network_isolation_enforced'], r['network_backend'])"
+  ```
+
+- **`bwrap: setting up uid map: Permission denied` / `No permissions to
+  create a new namespace`.** Не включены unprivileged user namespaces или
+  не применён seccomp-профиль. Проверить:
+  `sysctl kernel.unprivileged_userns_clone` (если есть) и
+  `sysctl user.max_user_namespaces` (>0); в Docker — что сервис использует
+  `security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]` (профиль
+  добавляет `unshare`/`clone`/mount-syscalls к Docker default, без
+  `seccomp=unconfined`). На хосте при необходимости:
+  `sysctl -w kernel.unprivileged_userns_clone=1` (где доступно).
+- **Fallback.** Если bwrap недоступен/не может создать namespace, executor
+  повторяет запуск через `unshare -n` (root) или без сети; задание не
+  падает, но `network_isolation_enforced=false` и warning. Для строгого
+  режима задайте `SANDBOX_NETWORK_BACKEND=bwrap` — тогда без bwrap
+  изоляция не подтверждается (warning остаётся).
+- **`deploy/seccomp-sandbox.json`** — копия Docker default seccomp с
+  дополнительными namespace/mount syscalls для bwrap. Обновлять при
+  обновлении Docker/ядра; не заменять на `seccomp=unconfined`.
+- **Тесты:** `tests/sandbox/test_attacks.py` — bwrap probe, попытка
+  `127.0.0.1:6379`, fallback/warning, `network_isolation_enforced`.

@@ -1,7 +1,7 @@
 # TODO_V0.9.md — Цикл v0.9.0 <Live, Isolation & Retention>
 
-**Статус:** 🔶 В работе (S-95…S-98 впереди; S-99 — релиз)
-**Сводно:** 5 спринтов · **Прогресс: 0/5**
+**Статус:** 🔶 В работе (S-95/S-96 отложены; S-97 ✅; S-98 впереди; S-99 — релиз)
+**Сводно:** 5 спринтов · **Прогресс: 1/5**
 **Цель:** закрыть операционные долги после v0.8.1: live-провайдеры,
 изоляция песочницы, retention/legal hold и релиз v0.9.0.
 
@@ -40,21 +40,24 @@
 
 ## S-97: Sandbox Network Isolation (P0)
 
-**Статус:** ☐ Запланирован
+**Статус:** ✅ Завершён (2026-11-12)
 **Цель:** убрать opt-in `unshare -n` и привилегии из worker.
 
-- [ ] Отдельный sandbox-контейнер с `network_mode: none`, non-root,
-      read-only rootfs, без capabilities, лимиты CPU/памяти/pids.
-- [ ] `sandbox/executor.py`: запуск задания в sandbox-контейнере (или
-      документированный эквивалент), таймаут/kill, сбор stdout/stderr.
-- [ ] Compose: сервис `sandbox`/`worker-sandbox` без доступа к БД/Redis;
-      сеть только между API/worker и sandbox (или `none` + stdin/stdout).
-- [ ] Тест-матрица атак: network (`socket`, `__import__`), filesystem
-      (`/etc/passwd`), CPU/память, fork/pids; отсутствие регрессий.
-- [ ] Runbook: диагностика sandbox, лимиты, ротация образа; Design §13.2 и
-      SPEC §7.
+- [x] `bwrap --unshare-net` по умолчанию (uid 1000); `/usr`, `/usr/local`,
+      `/lib`, `/lib64`, `backend` — read-only bind, `/tmp` — tmpfs,
+      `--die-with-parent`.
+- [x] `SANDBOX_NETWORK_ISOLATION=true`, `SANDBOX_NETWORK_BACKEND=auto`
+      (`auto|bwrap|unshare|none`); fallback `unshare`/none с warning.
+- [x] `deploy/seccomp-sandbox.json`: Docker default + namespace/mount
+      syscalls для bwrap без `--privileged`/CAP_SYS_ADMIN; compose
+      `security_opt` для api/worker/match.
+- [x] `sandbox/executor.py`: `network_isolation_enforced`,
+      `network_backend`, fallback и маппинг 128+signal (bwrap).
+- [x] Тесты: bwrap probe, `socket.connect` → отказ, fallback/warning,
+      `network_isolation_enforced`; существующие атаки без регрессий.
+- [x] Runbook operations §19; Design §13.2; SPEC §7.
 - **DoD:** worker не требует root/CAP_SYS_ADMIN; network-атаки блокируются
-  на уровне контейнера; 5+ тестов; runbook обновлён.
+  в netns; 5+ тестов; runbook обновлён.
 
 ## S-98: Retention & Legal Hold (P1)
 

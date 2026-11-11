@@ -64,12 +64,12 @@ def test_release_notes_for_current_version_exist() -> None:
 
 
 def test_todo_progress_matches_active_plan() -> None:
-    # v0.8.1 выпущен; активный план — v0.9.0 (S-95…S-99, 0/5).
+    # v0.8.1 выпущен; v0.9.0 — S-97 закрыт, S-95/S-96 отложены (1/5).
     assert doc_lint._check_todo_progress(REPO) == []
     assert doc_lint.ACTIVE_PLAN == "TODO_V0.9.md"
-    assert doc_lint.EXPECTED_PROGRESS == (0, 5)
+    assert doc_lint.EXPECTED_PROGRESS == (1, 5)
     active = (REPO / "TODO_V0.9.md").read_text(encoding="utf-8")
-    assert "**Прогресс: 0/5**" in active
+    assert "**Прогресс: 1/5**" in active
     old = (REPO / "TODO_V0.8.md").read_text(encoding="utf-8")
     assert "**Прогресс: 5/5**" in old
 

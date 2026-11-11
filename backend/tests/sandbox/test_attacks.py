@@ -4,10 +4,20 @@
 безопасные (статика, синтаксис, вывод) — можно in-process.
 """
 
+import os
+import shutil
+import subprocess
+import sys
+
 import pytest
 
 from core.config import settings
-from sandbox.executor import run_sync
+from sandbox.executor import (
+    _bwrap_argv,
+    _fallback_sandbox,
+    _sandbox_command,
+    run_sync,
+)
 from sandbox.runtime import find_violations, run_restricted
 
 # --- статическая отсечка (find_violations, без выполнения)
@@ -114,6 +124,31 @@ def test_output_truncated_in_process():
 FAST_TIMEOUT = 2.0
 
 
+def _bwrap_works() -> bool:
+    """Проверить, что bwrap реально создаёт namespace в этом окружении."""
+    if not shutil.which("bwrap"):
+        return False
+    try:
+        probe = subprocess.run(
+            _bwrap_argv([sys.executable, "-c", "print('bwrap-probe')"]),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return probe.returncode == 0
+
+
+def _require_bwrap_or_skip() -> None:
+    """В Docker (CHESSCLASS_REQUIRE_BWRAP=1) отсутствие bwrap — провал."""
+    if _bwrap_works():
+        return
+    if os.environ.get("CHESSCLASS_REQUIRE_BWRAP") == "1":
+        pytest.fail("bwrap обязателен в Docker: проверьте образ и seccomp-профиль")
+    pytest.skip("bwrap недоступен/не может создать namespace")
+
+
 def test_executor_happy_path():
     result = run_sync("print('executor ok')", timeout_s=FAST_TIMEOUT)
     assert result["success"] is True
@@ -139,6 +174,77 @@ def test_executor_network_import_blocked():
     result = run_sync("__import__('socket').socket()", timeout_s=FAST_TIMEOUT)
     assert result["success"] is False
     assert result["error_type"] == "SecurityError"
+
+
+def test_executor_reports_network_isolation_enforced():
+    """S-97: сеть изолирована по умолчанию (bwrap/unshare)."""
+    _require_bwrap_or_skip()
+    result = run_sync("print('network-ok')", timeout_s=FAST_TIMEOUT)
+    assert result["success"] is True
+    assert result["network_isolation_enforced"] is True
+    assert result["network_backend"] in {"bwrap", "unshare"}
+
+
+def test_bwrap_available_in_backend_image():
+    _require_bwrap_or_skip()
+    backend = _sandbox_command()
+    assert backend.backend == "bwrap"
+    assert backend.enforced is True
+
+
+def test_bwrap_network_namespace_blocks_redis():
+    """S-97: в netns bwrap 127.0.0.1:6379 недоступен."""
+    _require_bwrap_or_skip()
+    code = (
+        "import socket\n"
+        "s = socket.socket()\n"
+        "s.settimeout(1)\n"
+        "s.connect(('127.0.0.1', 6379))\n"
+    )
+    completed = subprocess.run(
+        _bwrap_argv([sys.executable, "-c", code]),
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert completed.returncode != 0
+    stderr = completed.stderr or ""
+    assert (
+        "ConnectionRefusedError" in stderr
+        or "Network is unreachable" in stderr
+        or "OSError" in stderr
+    ), stderr
+
+
+def test_network_fallback_warns_when_disabled(monkeypatch):
+    monkeypatch.setattr(settings, "sandbox_network_backend", "none")
+    result = run_sync("print('no-net')", timeout_s=FAST_TIMEOUT)
+    assert result["success"] is True
+    assert result["network_isolation_enforced"] is False
+    assert result["network_backend"] == "none"
+    assert result["limits_warning"]
+
+
+def test_network_fallback_warns_without_bwrap_or_root(monkeypatch):
+    from sandbox import executor as executor_mod
+
+    monkeypatch.setattr(settings, "sandbox_network_backend", "auto")
+    monkeypatch.setattr(executor_mod.shutil, "which", lambda _name: None)
+    result = run_sync("print('fallback')", timeout_s=FAST_TIMEOUT)
+    assert result["success"] is True
+    assert result["network_isolation_enforced"] is False
+    assert "bwrap/unshare" in result["limits_warning"]
+
+
+def test_fallback_sandbox_reports_warning():
+    fallback = _fallback_sandbox(
+        [sys.executable, "-c", "print(1)"], "simulated bwrap failure"
+    )
+    assert fallback.backend in {"unshare", "none"}
+    if fallback.backend == "none":
+        assert fallback.enforced is False
+    assert fallback.warning is not None
+    assert "bwrap fallback" in fallback.warning
 
 
 def test_executor_filesystem_open_blocked():
