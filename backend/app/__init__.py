@@ -1,3 +1,3 @@
 """ChessClass API (Design.md §3)."""
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"

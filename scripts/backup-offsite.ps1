@@ -23,7 +23,8 @@ param(
     [string]$StatusVolume = $env:BACKUP_STATUS_VOLUME,
     [string]$StatusFile = $env:BACKUP_STATUS_FILE,
     [switch]$KeepLocal,
-    [switch]$SkipUpload
+    [switch]$SkipUpload,
+    [switch]$DryRun
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,8 +32,26 @@ $started = Get-Date
 if (-not $Container) { $Container = "chessclass-prod-db" }
 if (-not $User) { $User = "chess" }
 if (-not $Database) { $Database = "chessclass" }
-if (-not $StatusFile) { $StatusFile = Join-Path $BackupDir "backup-status.json" }
+
+# v0.8.1: docker -v требует абсолютный host-path. Относительный BackupDir
+# Docker трактует как named volume, и pg_dump/openssl видят пустой каталог.
 New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+$BackupDir = (Resolve-Path -LiteralPath $BackupDir -ErrorAction Stop).Path
+if (-not $StatusFile) { $StatusFile = Join-Path $BackupDir "backup-status.json" }
+$StatusFile = [System.IO.Path]::GetFullPath($StatusFile)
+$statusDir = Split-Path -Parent $StatusFile
+New-Item -ItemType Directory -Force -Path $statusDir | Out-Null
+
+if ($DryRun) {
+    [pscustomobject]@{
+        status = "dry-run"
+        backup_dir = $BackupDir
+        status_file = $StatusFile
+        docker_mount = "${BackupDir}:/backup"
+        mount_is_absolute = [System.IO.Path]::IsPathRooted($BackupDir)
+    } | ConvertTo-Json -Compress
+    return
+}
 
 if (-not $EncryptionKey -or $EncryptionKey -notmatch '^[0-9a-fA-F]{32}$') {
     throw "BACKUP_ENCRYPTION_KEY должен быть 32 hex-символа"
@@ -63,8 +82,7 @@ function Write-Status([hashtable]$Data) {
     $json = $Data | ConvertTo-Json -Compress
     Set-Content -LiteralPath $StatusFile -Value $json -Encoding utf8
     if ($StatusVolume) {
-        $absBackupDir = (Resolve-Path -LiteralPath $BackupDir).Path
-        docker run --rm -v "${StatusVolume}:/srv/archive" -v "${absBackupDir}:/src:ro" `
+        docker run --rm -v "${StatusVolume}:/srv/archive" -v "${statusDir}:/src:ro" `
             alpine sh -c "cp /src/$(Split-Path -Leaf $StatusFile) /srv/archive/backup-status.json" |
             Out-Null
         if ($LASTEXITCODE -ne 0) {

@@ -8,8 +8,8 @@
 
 | Документ | Место | Статус | О чём |
 |---|---|---|---|
-| `README.md` | корень | ✅ v0.8.0 | Визитка: возможности, быстрый старт, статус, лицензия |
-| `Design.md` | корень | ✅ v0.8.0 | Архитектура и решения: 20 разделов, ADR-журнал, инвентарь переноса |
+| `README.md` | корень | ✅ v0.8.1 | Визитка: возможности, быстрый старт, статус, лицензия |
+| `Design.md` | корень | ✅ v0.8.1 | Архитектура и решения: 20 разделов, ADR-журнал, инвентарь переноса |
 | `TODO_V0.1.md` | корень | ✅ архив | Спринты v0.1.0: S-01…S-29, этапы E-01…E-10 |
 | `TODO_V0.2.md` | корень | ✅ v0.2.0 | Спринты v0.2.0: S-30…S-45, этапы E-11…E-16 |
 | `TODO_V0.3.md` | корень | ✅ архив | Спринты v0.3.0: S-46…S-57, этапы E-17…E-20 |
@@ -18,7 +18,8 @@
 | `TODO_V0.6.md` | корень | ✅ завершён | Спринты v0.6.0: S-75…S-80 |
 | `TODO_V0.7.md` | корень | ✅ завершён | Спринты v0.7.0: S-81…S-85 (S-81/S-84 отложены) |
 | `TODO_V0.7.1.md` | корень | ✅ завершён | Спринты v0.7.1: S-86…S-89 (tech debt cleanup) |
-| `TODO_V0.8.md` | корень | ✅ активный | Спринты v0.8.0: S-90…S-94 (Production Readiness) |
+| `TODO_V0.8.md` | корень | ✅ активный | Спринты v0.8.0: S-90…S-94; patch v0.8.1 |
+| `docs/release-notes-v0.8.1.md` | docs/ | ✅ v0.8.1 | Release notes v0.8.1 (patch: absolute `-BackupDir`) |
 | `docs/release-notes-v0.8.0.md` | docs/ | ✅ v0.8.0 | Release notes v0.8.0 (Production Readiness) |
 | `docs/release-notes-v0.7.1.md` | docs/ | ✅ v0.7.1 | Release notes v0.7.1 |
 | `docs/release-notes-v0.7.0.md` | docs/ | ✅ v0.7.0 | Release notes v0.7.0 |
@@ -43,6 +44,7 @@
 | `docs/sprint-reports/S-92-2026-11-11.md` | docs/ | ✅ S-92 | CD/registry/observability (GHCR, Sentry, logrotate, multiprocess) |
 | `docs/sprint-reports/S-93-2026-11-11.md` | docs/ | ✅ S-93 | SMTP smoke, offsite S3 backups, sandbox hardening |
 | `docs/sprint-reports/S-94-2026-11-11.md` | docs/ | ✅ S-94 | Релиз v0.8.0 (версии, release-notes, тег, GHCR) |
+| `docs/sprint-reports/v0.8.1-2026-11-11.md` | docs/ | ✅ v0.8.1 | Patch: absolute `-BackupDir` в backup-скриптах |
 
 ## Исходные проекты (первоисточники контента)
 
