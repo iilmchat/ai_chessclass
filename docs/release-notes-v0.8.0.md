@@ -125,6 +125,10 @@ curl -fsS https://<host>/api/v1/readyz
   точного отката).
 - Перед обновлением — свежий бэкап (`.\scripts\backup.ps1` или
   `backup-offsite.ps1`) и проверка `.\scripts\check-cert-expiry.ps1`.
+- **Windows:** для `backup-offsite.ps1` / `backup-restore-test.ps1` передавать
+  абсолютный `-BackupDir` (например,
+  `-BackupDir C:\backups\chessclass`). Относительный путь Docker трактует как
+  named volume, и шифрование/restore падает; исправление — в v0.8.1.
 - После обновления — smoke: `.\scripts\smoke-prod.ps1 -EdgeBase https://<host>`,
   `.\scripts\smtp-smoke.ps1`, `.\scripts\backup-restore-test.ps1`.
 - **Откат:** выставить `IMAGE_TAG` предыдущего релиза (`0.7.1`) и повторить
