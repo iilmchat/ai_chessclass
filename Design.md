@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.7.1 · **Дата:** 2026-11-10
+**Версия:** v0.8.0 · **Дата:** 2026-11-11
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 
@@ -1462,6 +1462,14 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   alerts `ChessClassBackupFailed`/`...RestoreFailed` (10 правил); sandbox
   CPU-rlimit 1 c, memory 256 MB, opt-in network ns, non-root `appuser` uid
   1000; SMTP/backup runbook §17–§18.
+- S-94 (v0.8.0): релиз Production Readiness — версия **0.8.0** во всех
+  источниках (backend/frontend, `IMAGE_TAG` prod/staging и env-examples),
+  `docs/release-notes-v0.8.0.md`, CHANGELOG `[0.8.0]`, тег `v0.8.0`,
+  GHCR-образы `chessclass-backend:v0.8.0` / `chessclass-frontend:v0.8.0`.
+  Финальные гейты: `ci.ps1`, `e2e.ps1 test` (16), `smtp-smoke.ps1`,
+  `backup-restore-test.ps1`, `observability-selftest.ps1 -Stack` (21/21),
+  pip-audit (0), doc-lint (6 checks, 0 failed); миграций 35, head
+  `0035_s83_email_outbox`; backend — 328 collected (325 passed + 3 skipped).
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
