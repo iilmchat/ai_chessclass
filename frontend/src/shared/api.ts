@@ -107,6 +107,23 @@ export async function login(email: string, password: string): Promise<AuthOut> {
   return data;
 }
 
+export function verifyEmail(token: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>('/auth/verify', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
+export function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>('/auth/password-reset/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword }),
+  });
+}
+
 export function logout(): void {
   setToken(null);
 }

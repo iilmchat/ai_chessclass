@@ -7,6 +7,17 @@
 
 ## [Unreleased]
 
+### Исправлено
+- **Hotfix email-routes:** ссылки из писем больше не ведут на пустую
+  страницу. Добавлены публичные `/verify-email` (токен из query,
+  `POST /auth/verify`, состояния loading/success/error) и `/reset-password`
+  (валидация ≥ 8 символов, `POST /auth/password-reset/confirm`,
+  `newPassword`), а также `/login`. API-клиент: `verifyEmail`,
+  `resetPassword`; Vitest (2 теста) и Playwright (невалидный токен).
+- **CI:** тест `test_edge_auth_s90.py` синхронизирован с hardening
+  `7bbdf90` — edge выставляет `X-Forwarded-For` из `$remote_addr` и не
+  принимает клиентский заголовок.
+
 ### Добавлено
 - **S-100:** финальная операционная приёмка перед v1.0.0 — runbook
   `docs/runbooks/final-acceptance.md` (SMTP/SPF-DKIM-DMARC, S3 + lifecycle

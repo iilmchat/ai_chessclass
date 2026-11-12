@@ -11,9 +11,9 @@
 а live LRS/TTS либо подтверждены, либо владелец проекта явно зафиксировал
 их как известное ограничение v1.0.0.
 
-**Контекст:** цикл v0.9.0 закрыт (S-96…S-99 ✅), S-100 — операция
-(приёмка + GPU), план v0.9.0 — в
-[`docs/archive/TODO_V0.9.md`](docs/archive/TODO_V0.9.md).
+**Контекст:** цикл v0.9.0 закрыт (S-96…S-99 ✅), S-100 пройдена
+(8/8 OK, GPU 57.4 ток/с), hotfix публичных auth-страниц влит в `main`;
+план v0.9.0 — в [`docs/archive/TODO_V0.9.md`](docs/archive/TODO_V0.9.md).
 
 ## S-95: Live LRS/TTS (S-81) (P1)
 
@@ -40,6 +40,10 @@
 - [ ] Зафиксировать результат S-100: отчёт приёмки, отсутствие critical
       алертов, GPU live-факт; при незакрытом S-95 — письменное решение
       владельца о выпуске с известным ограничением.
+      - [x] S-100: staging acceptance **8/8 OK**, GPU **57.4 ток/с**
+            (`docs/runbooks/final-acceptance.md`).
+      - [x] Hotfix email-routes: `/verify-email`, `/reset-password`, `/login`
+            (отчёт `docs/sprint-reports/fix-email-routes-2026-11-12.md`).
 - [ ] Версия **1.0.0** во всех источниках: `backend/pyproject.toml`,
       `backend/app/__init__.py`, `backend/app/main.py`,
       `frontend/package.json`, `frontend/package-lock.json`,
