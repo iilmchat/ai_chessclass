@@ -10,7 +10,10 @@
 ### Добавлено
 - `TODO_V0.9.md` — план S-95…S-99 (live LRS/TTS, GPU tunnel, sandbox
   network isolation, retention/legal hold, release v0.9.0); doc-lint:
-  активный план `TODO_V0.9.md`, прогресс `2/5`, целевая версия `0.9.0`.
+  активный план `TODO_V0.9.md`, прогресс `3/5`, целевая версия `0.9.0`.
+- **S-96:** внешняя GPU-станция (Windows, RTX 3060, LM Studio Qwen-7B)
+  через reverse SSH tunnel; `LLM_LOCAL_MODEL`, `scripts/test-gpu-tunnel.ps1`,
+  `scripts/wg-gpu-tunnel.ps1`, runbook §6; cloud → local → echo тесты.
 
 ### Безопасность
 - **S-97:** сетевая изоляция песочницы по умолчанию — `bwrap --unshare-net`

@@ -58,9 +58,10 @@ class LLMResult:
 
 @dataclass(frozen=True, slots=True)
 class _ProviderStep:
-    """Шаг цепочки: провайдер, его model_used и ключ circuit breaker."""
+    """Шаг цепочки: провайдер, модель, model_used и ключ circuit breaker."""
 
     provider: LLMProvider
+    model: str
     model_used: str
     key: str
 
@@ -157,21 +158,32 @@ async def _llm_generate(
         )
 
     effective = verdict.effective_spec
+    local_model = (settings.llm_local_model or "").strip() or effective.slug
     chain: list[_ProviderStep] = []
     fallback_reason: str | None = None
     if provider is not None:
-        chain.append(_ProviderStep(provider, effective.slug, "cloud"))
+        chain.append(
+            _ProviderStep(provider, effective.slug, effective.slug, "cloud")
+        )
         if local_provider is not None:  # тест-инъекция local после облака
-            chain.append(_ProviderStep(local_provider, "lmstudio", "local"))
+            chain.append(
+                _ProviderStep(local_provider, local_model, "lmstudio", "local")
+            )
     else:
         cloud = get_cloud_provider()
         if cloud.is_configured():
-            chain.append(_ProviderStep(cloud, effective.slug, "cloud"))
+            chain.append(
+                _ProviderStep(cloud, effective.slug, effective.slug, "cloud")
+            )
         else:
             fallback_reason = "failover:no_config"
         if settings.llm_local_fallback:
-            chain.append(_ProviderStep(get_local_provider(), "lmstudio", "local"))
-    chain.append(_ProviderStep(EchoProvider(), "echo", "echo"))
+            chain.append(
+                _ProviderStep(
+                    get_local_provider(), local_model, "lmstudio", "local"
+                )
+            )
+    chain.append(_ProviderStep(EchoProvider(), "echo", "echo", "echo"))
 
     cb = CircuitBreaker(redis)
     started = time.monotonic()
@@ -188,10 +200,10 @@ async def _llm_generate(
             with trace.get_tracer("chessclass.llm").start_as_current_span(
                 f"llm.provider.{step.key}"
             ) as provider_span:
-                provider_span.set_attribute("llm.model", effective.slug)
+                provider_span.set_attribute("llm.model", step.model)
                 provider_span.set_attribute("llm.provider", step.key)
                 text, usage = await step.provider.generate(
-                    effective.slug, messages,
+                    step.model, messages,
                     temperature=temperature, max_tokens=max_tokens,
                 )
         except Exception as exc:  # noqa: BLE001 — идём дальше по цепочке

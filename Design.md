@@ -651,6 +651,12 @@ cloud RouterAI (по маршруту) → local LM Studio :1234 (если вк�
 ```
 
 - v0.1 default: cloud → echo (local — фича-флаг `LLM_LOCAL_FALLBACK`).
+- **S-96: local может быть внешней GPU-станцией** (Windows, RTX 3060,
+  LM Studio Qwen-7B) через reverse SSH tunnel:
+  `LLM_LOCAL_BASE_URL=http://172.18.0.1:8035/v1`, `LLM_LOCAL_MODEL` — id
+  из `GET /v1/models`, `LLM_LOCAL_API_KEY` — токен LM Studio. Туннель
+  поднимается с станции (`ssh -N -R ...`, Scheduled Task); падение
+  туннеля → breaker local → echo, без влияния на cloud-маршрут.
 - Circuit breaker per провайдер (`cloud`/`local`/`echo`) в Redis (S-70):
   5 ошибок за 60 с → OPEN; через 60 с → HALF_OPEN с одним probe
   (`cb:probe:*`, `SET NX`), успех → CLOSED и сброс счётчика, ошибка → OPEN.
@@ -1262,6 +1268,7 @@ REDIS_URL=redis://...:6384/0
 LLM_BASE_URL=<RouterAI endpoint>  LLM_API_KEY=...
 LLM_MODEL_L1=...  LLM_MODEL_L2=...  LLM_MODEL_L3=...  LLM_MODEL_JUDGE=...
 LLM_LOCAL_FALLBACK=false  LLM_LOCAL_BASE_URL=http://localhost:1234/v1
+LLM_LOCAL_MODEL=  LLM_LOCAL_API_KEY=
 LLM_COST_CURRENCY=RUB
 FAILED_JOBS_RETENTION_DAYS=90  OBS_FAILED_JOBS_ALERT_THRESHOLD=10
 BUDGET_FREE_TOKENS_DAY=50000   BUDGET_PRO_TOKENS_DAY=500000
@@ -1388,6 +1395,11 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   gateway передаёт его в `get_local_provider`; runbook §6 описывает
   обратный SSH-туннель GPU (RTX 3060) через `GatewayPorts`. Backend —
   278 collected (275 passed + 3 skipped).
+- S-96 (v0.9.0): внешняя GPU-станция (Windows, RTX 3060 12 GB, LM Studio
+  Qwen-7B) через reverse SSH tunnel; `LLM_LOCAL_MODEL` задаёт id модели
+  LM Studio, `LLM_LOCAL_BASE_URL=http://172.18.0.1:8035/v1`; cloud →
+  local → echo, breaker local после 5 ошибок; `scripts/test-gpu-tunnel.ps1`
+  и `wg-gpu-tunnel.ps1`; backend — 342 collected (339 passed + 3 skipped).
 - S-79 (v0.6): LRS OAuth2-токен кешируется в Redis (`lrs:oauth:token`), при
   401 обновляется и PUT повторяется; TTS 429/ошибка/нет ключа возвращает
   `X-Voice-Fallback: text`; react-chessboard v5 получает `aria-label` клеток

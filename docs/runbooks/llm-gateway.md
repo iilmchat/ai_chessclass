@@ -20,6 +20,11 @@
 `LLM_BASE_URL` обязан включать `/v1`. Для LM Studio в Docker включите
 **Serve on Local Network** (иначе контейнер не достучится до loopback хоста).
 
+**S-96:** local-провайдер может быть внешней GPU-станцией:
+`LLM_LOCAL_BASE_URL=http://172.18.0.1:8035/v1`, `LLM_LOCAL_MODEL` — id из
+`GET /v1/models`, `LLM_LOCAL_API_KEY` — токен LM Studio (`Require Auth`).
+Полная инструкция для Windows-станции — §6.
+
 **Каталог сверён 2026-11-03** (RouterAI, 582 модели; цены ₽/1M input/output):
 
 | Тир | Слаг | ₽/1M in | ₽/1M out |
@@ -148,34 +153,141 @@ HALF_OPEN с одним probe. Причина — в `llm_calls.fallback_from`
 3. Все `LLM_MODEL_*` = id из `GET /v1/models`; `LLM_COST_*=0`.
 4. Проверить: `docker run --rm chessclass/backend:dev python -c "import urllib.request; print(urllib.request.urlopen('http://host.docker.internal:8034/v1/models', timeout=5).read()[:200])"`.
 
-## 6. Опционально: GPU-инференс через обратный SSH (RTX 3060)
+## 6. GPU-инференс через обратный SSH (RTX 3060, Windows)
 
-ChessClass поддерживает использование локальной GPU-станции (Windows + LM Studio) в качестве основного или fallback-провайдера для L1/L2 маршрутов. Это снижает расходы на RouterAI и ускоряет ответы (38-51 ток/с против 3 ток/с на CPU).
+Станция: **Windows-ПК, NVIDIA RTX 3060 12 GB, 32 GB RAM, Xeon E5-2690 v3**,
+LM Studio с моделью семейства `qwen-7b` (например,
+`Qwen2.5-7B-Instruct`, Q4_K_M). L1/L2 идут в облако, при его отказе —
+local LM Studio, затем echo.
 
 **Архитектура:**
-[API ChessClass (Docker)] -> `http://172.x.x.x:8035/v1` (Bridge)
-         ^ (Обратный SSH-туннель)
-[Сервер ChessClass] <- SSH -> [ПК с LM Studio 127.0.0.1:8034]
 
-**Шаги подключения:**
-
-1. На ПК запустить LM Studio, включить `Require Auth` (токен) и загрузить модель (например, Qwen-2.5-7B-Instruct).
-2. На сервере с ChessClass (в `sshd_config`) включить `GatewayPorts clientspecified`.
-3. На ПК выполнить: `ssh -N -R 172.18.0.1:8035:127.0.0.1:8034 root@[IP-сервера]`. (Для Windows — оформить в Scheduled Task с переподключением).
-4. На сервере открыть порт в `ufw`: `ufw allow in on [docker-bridge] to 172.18.0.1 port 8035 proto tcp`.
-5. В `.env` ChessClass указать:
-
-```env
-LLM_LOCAL_FALLBACK=true
-LLM_LOCAL_BASE_URL=http://172.18.0.1:8035/v1
-LLM_LOCAL_API_KEY=[токен из LM Studio]
-LLM_MODEL_L1=qwen2.5-7b-instruct@q4_k_m
-LLM_MODEL_L2=qwen2.5-7b-instruct@q4_k_m
+```text
+[API/worker ChessClass (Docker)] -> http://172.18.0.1:8035/v1
+          ^ (reverse SSH tunnel, bind на docker gateway)
+[Сервер ChessClass] <- SSH <- [Windows + LM Studio 127.0.0.1:1234]
 ```
 
-6. Перезапустить контейнеры `api` и `worker`.
+### Шаг 1. LM Studio на станции
 
-**Важно:** Если ПК выключается, Circuit Breaker (ADR-016) автоматически откроется после 5 ошибок и переключит трафик на облако (RouterAI) или Echo.
+1. Установить LM Studio, скачать `Qwen2.5-7B-Instruct` (Q4_K_M; 12 GB VRAM
+   хватает с GPU offload всех слоёв, context 4096–8192).
+2. Загрузить модель, открыть **Developer → Local Server**:
+   - **Serve on Local Network** — включить;
+   - порт **1234** (или 8034, если занят);
+   - **Require Auth** — включить и сохранить токен (он же
+     `LLM_LOCAL_API_KEY`).
+3. Проверить на станции:
+
+   ```powershell
+   curl.exe http://127.0.0.1:1234/v1/models -H "Authorization: Bearer <token>"
+   ```
+
+   В ответе `data[].id` — точный id модели для `LLM_LOCAL_MODEL`.
+
+### Шаг 2. SSH-клиент на Windows
+
+1. Встроенный OpenSSH: `ssh -V` (Windows 10/11). Если нет — Settings →
+   Optional Features → OpenSSH Client.
+2. Ключ (без пароля в Scheduled Task):
+
+   ```powershell
+   ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\id_ed25519
+   type $env:USERPROFILE\.ssh\id_ed25519.pub |
+     ssh root@<IP-сервера> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+   ```
+
+3. На сервере в `/etc/ssh/sshd_config`: `GatewayPorts clientspecified`,
+   затем `systemctl reload ssh`.
+4. Определить docker gateway (не всегда 172.18.0.1):
+
+   ```bash
+   docker network inspect chessclass-prod-net \
+     --format '{{(index .IPAM.Config 0).Gateway}}'
+   ```
+
+5. Пробный туннель (окно оставить открытым):
+
+   ```powershell
+   ssh -N -R 172.18.0.1:8035:127.0.0.1:1234 root@<IP-сервера>
+   ```
+
+   `-R` пробрасывает локальный LM Studio на gateway сервера; порт 8035
+   доступен контейнерам, но не публичному интернету.
+
+### Шаг 3. Автозапуск с реконнектом
+
+Скопировать `scripts/wg-gpu-tunnel.ps1` на станцию, например в
+`C:\ChessClass\wg-gpu-tunnel.ps1`; запускать:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File C:\ChessClass\wg-gpu-tunnel.ps1 `
+  -ServerHost <IP-сервера> -SshUser root
+```
+
+Скрипт проверяет `127.0.0.1:1234`, держит `ssh -N -R`, при обрыве ждёт
+10 с и переподключается. LM Studio должен быть запущен до туннеля.
+
+### Шаг 4. Scheduled Task (при входе в систему)
+
+```powershell
+schtasks /Create /SC ONLOGON /TN "ChessClass GPU Tunnel" `
+  /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\ChessClass\wg-gpu-tunnel.ps1 -ServerHost <IP-сервера> -SshUser root" `
+  /RL HIGHEST /F
+schtasks /Run /TN "ChessClass GPU Tunnel"
+```
+
+- Питание: `powercfg /change standby-timeout-ac 0`,
+  `powercfg /change hibernate-timeout-ac 0`; отключить сон/гибернацию.
+- Проверить: `Get-ScheduledTask -TaskName "ChessClass GPU Tunnel"`.
+
+### Шаг 5. Проверка с сервера
+
+```powershell
+.\scripts\test-gpu-tunnel.ps1 `
+  -BaseUrl http://172.18.0.1:8035/v1 `
+  -ApiKey '<токен LM Studio>' `
+  -Model qwen2.5-7b-instruct
+```
+
+Ожидаемо: `models` — список, `chat` — «Париж», `latency_ms`,
+`tokens_per_second` (RTX 3060: ориентир 30–50 ток/с). Exit `0` — OK.
+Скрипт не печатает ключ. Без PowerShell — `curl`:
+
+```bash
+curl -s http://172.18.0.1:8035/v1/models -H "Authorization: Bearer $LM_TOKEN"
+```
+
+### Шаг 6. Конфигурация ChessClass
+
+```dotenv
+LLM_LOCAL_FALLBACK=true
+LLM_LOCAL_BASE_URL=http://172.18.0.1:8035/v1
+LLM_LOCAL_MODEL=qwen2.5-7b-instruct   # точный id из GET /models
+LLM_LOCAL_API_KEY=<токен LM Studio>
+```
+
+`LLM_MODEL_L1/L2` остаются облачными slug; `LLM_LOCAL_MODEL` задаёт модель
+для LM Studio. Перезапустить `api` и `worker`. Проверить, что local
+провайдер реально отвечает:
+
+```bash
+docker compose --env-file .env -f docker-compose.prod.yml exec -T api \
+  python -c "import asyncio; from llm.gateway import get_local_provider; \
+  print(asyncio.run(get_local_provider().list_models()))"
+```
+
+**Firewall:** если на сервере включён ufw, разрешить вход на gateway:8035
+только из docker bridge (`ufw allow in on <docker-bridge> to 172.18.0.1
+port 8035 proto tcp`); LM Studio не публиковать в интернет. На Windows
+входящие 1234 не нужны — SSH идёт наружу.
+
+**Отказоустойчивость:** при падении туннеля локальный шаг падает,
+Circuit Breaker (S-70) после 5 ошибок открывает `cb:state:local`; шлюз
+уходит в echo (`fallback_from=failover:local` / `failover:cb_open`).
+Сон/выключение станции = временный отказ; Scheduled Task поднимет туннель
+после входа.
 
 ## 7. Диагностика
 

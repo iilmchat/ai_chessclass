@@ -49,6 +49,7 @@
 | `docs/sprint-reports/staging-acceptance-2026-11-11.md` | docs/ | ⏳ операция | Staging Acceptance v0.8.1 (ожидает оператора) |
 | `docs/sprint-reports/S-97-2026-11-12.md` | docs/ | ✅ S-97 | Sandbox network isolation (bwrap, seccomp, fallback) |
 | `docs/sprint-reports/S-98-2026-11-12.md` | docs/ | ✅ S-98 | Retention email_outbox, legal hold, DSAR erase |
+| `docs/sprint-reports/S-96-2026-11-12.md` | docs/ | ✅ S-96 | GPU tunnel (server config, verification, Windows runbook) |
 
 ## Исходные проекты (первоисточники контента)
 

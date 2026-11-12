@@ -1105,9 +1105,13 @@ Stockfish 17.1 (ubuntu avx2) ставится в образ на build (Dockerfi
 **Fallback-цепочка** (Design §8.4): cloud RouterAI → local LM Studio
 (флаг `LLM_LOCAL_FALLBACK`) → echo; local использует отдельный
 `LLM_LOCAL_API_KEY` (LM Studio `Require Auth`) и не переиспользует
-облачный ключ; в каждом шаге — 1 retry с
+облачный ключ; `LLM_LOCAL_MODEL` — id модели из `GET /v1/models` (пусто —
+slug tier); в каждом шаге — 1 retry с
 экспоненциальным backoff и jitter. Перед шагом — circuit breaker (Redis,
 S-70): 5 ошибок за 60 с → OPEN, через 60 с → HALF_OPEN с одним probe.
+**S-96:** local может быть внешней Windows-станцией (RTX 3060, LM Studio
+Qwen-7B) через reverse SSH tunnel:
+`LLM_LOCAL_BASE_URL=http://172.18.0.1:8035/v1`.
 Причина переключения — `fallback_from`:
 `failover:cloud`/`failover:local` (ошибка провайдера) · `failover:cb_open`
 (breaker открыт) · `failover:no_config` (провайдер/ключ не настроен) ·
