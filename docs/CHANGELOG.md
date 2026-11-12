@@ -7,13 +7,18 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-12
+
 ### Добавлено
-- `TODO_V0.9.md` — план S-95…S-99 (live LRS/TTS, GPU tunnel, sandbox
-  network isolation, retention/legal hold, release v0.9.0); doc-lint:
-  активный план `TODO_V0.9.md`, прогресс `3/5`, целевая версия `0.9.0`.
 - **S-96:** внешняя GPU-станция (Windows, RTX 3060, LM Studio Qwen-7B)
   через reverse SSH tunnel; `LLM_LOCAL_MODEL`, `scripts/test-gpu-tunnel.ps1`,
   `scripts/wg-gpu-tunnel.ps1`, runbook §6; cloud → local → echo тесты.
+- **S-99:** релиз v0.9.0 — версия **0.9.0** во всех источниках
+  (backend/frontend, `IMAGE_TAG` prod/staging и env-examples), release notes
+  `docs/release-notes-v0.9.0.md`, тег `v0.9.0`, GHCR-образы
+  `chessclass-backend:v0.9.0` / `chessclass-frontend:v0.9.0`.
+  `TODO_V0.9.md`: S-99 ✅, прогресс **4/5** (S-95 отложен); doc-lint
+  `CURRENT_VERSION=0.9.0`, `EXPECTED_PROGRESS=(4, 5)`.
 
 ### Безопасность
 - **S-97:** сетевая изоляция песочницы по умолчанию — `bwrap --unshare-net`
@@ -24,6 +29,10 @@
   метаданные через 90, архив без body), `legal_holds` (миграция 0036, API
   `/admin/legal-holds`), DSAR `/admin/users/{id}/erase` (409 при hold,
   audit `user.erased`), gauges/alerts legal hold и retention.
+
+### Отложено
+- **S-95 (live LRS/TTS):** нет боевых ключей LRS/ElevenLabs; приёмка —
+  после выдачи ключей оператором.
 
 ## [0.8.1] - 2026-11-11
 

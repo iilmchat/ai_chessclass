@@ -4,8 +4,8 @@
 лаборатория с разбором партий, конструктор ботов с лестницей Elo и когнитивный
 дашборд навыков — **один профиль, один уровень, один LLM-ассистент** на все домены.
 
-**Версия:** v0.8.1 (patch; 63/65 спринтов, S-81/S-84 отложены)
-([release notes](docs/release-notes-v0.8.1.md)) · **Предыдущая:** v0.8.0 · **© 2026 RuChating (iilmchat)**
+**Версия:** v0.9.0 (67/68 спринтов, S-95 отложен)
+([release notes](docs/release-notes-v0.9.0.md)) · **Предыдущая:** v0.8.1 · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
 [![load](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml/badge.svg?event=schedule)](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml)
@@ -107,6 +107,12 @@ Redis 7 · Docker Compose · LLM-шлюз RouterAI (DeepSeek / MiniMax / Beam, �
   GHCR/Sentry/logrotate/multiprocess metrics (S-92), SMTP/offsite-бэкапы/
   песочница (S-93), релиз v0.8.0 (S-94). Патч **v0.8.1**: абсолютные
   `-BackupDir`/`-BackupFile` в backup-скриптах (Windows `docker -v`).
+- **v0.9.0 (S-95…S-99, релиз)** — Sandbox Network Isolation (S-97:
+  `bwrap --unshare-net` по умолчанию, seccomp без CAP_SYS_ADMIN),
+  Retention & Legal Hold (S-98: body scrub, legal holds, DSAR erase),
+  GPU Tunnel (S-96: `LLM_LOCAL_MODEL`, reverse SSH, проверка станции),
+  релиз v0.9.0 (S-99). Live LRS/TTS (S-95) отложен до появления боевых
+  ключей.
 
 ---
 
@@ -161,8 +167,8 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v0.8.1** (2026-11-11, patch) |
-| Спринты | **63 закрыто** (S-30…S-94), этапы E-11…E-24 ✅; v0.8.0: S-90…S-94 ✅; S-81 ⏸️ (нет боевых ключей LRS/TTS), S-84 ⏸️ (нет физической станции) |
+| Версия | **v0.9.0** (2026-11-12, minor) |
+| Спринты | **67 закрыто** (S-30…S-99), этапы E-11…E-24 ✅; v0.8.0: S-90…S-94 ✅; v0.9.0: S-96…S-99 ✅; S-95 ⏸️ (нет боевых ключей LRS/TTS); S-96 live-проверка — оператор станции |
 | Юридический блокер | ✅ снят: все 16 вопросов `docs/legal-review-v0.7.md` закрыты внешними договорённостями (решение юриста 2026-11-08) |
 | Тесты backend | **342 passed** (число собранных тестов; факт — 339 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87; +2 cert/retention ops/S-88; +4 edge/auth hardening/S-90; +7 object authz/S-91; +2 error tracking/S-92; +5 smtp/sandbox/backup S-93; +6 sandbox network S-97; +5 retention/legal hold/DSAR S-98; +3 GPU tunnel fallback S-96) |
 | Тесты frontend | **5 passed** (Vitest: SSE-парсер/поток/reconnect) |
@@ -170,7 +176,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Миграции | Alembic head **0036_s98_legal_hold** (36) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
-| Следующий этап | v0.9: live staging с боевыми ключами, GPU-туннель, network ns, legal hold ([TODO_V0.8.md](TODO_V0.8.md)) |
+| Следующий этап | staging-приёмка v0.8.1 с боевыми ключами и подключение GPU-станции; далее цикл v1.0 ([TODO_V0.9.md](TODO_V0.9.md)) |
 
 ---
 
@@ -204,7 +210,9 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [docs/sprint-reports/S-97-2026-11-12.md](docs/sprint-reports/S-97-2026-11-12.md) — отчёт S-97
 - [docs/sprint-reports/S-98-2026-11-12.md](docs/sprint-reports/S-98-2026-11-12.md) — отчёт S-98
 - [docs/sprint-reports/S-96-2026-11-12.md](docs/sprint-reports/S-96-2026-11-12.md) — отчёт S-96
+- [docs/sprint-reports/S-99-2026-11-12.md](docs/sprint-reports/S-99-2026-11-12.md) — отчёт S-99 (релиз v0.9.0)
 - [deploy/logrotate/chessclass](deploy/logrotate/chessclass) — ротация файловых логов
+- [docs/release-notes-v0.9.0.md](docs/release-notes-v0.9.0.md) — release notes v0.9.0
 - [docs/release-notes-v0.8.1.md](docs/release-notes-v0.8.1.md) — release notes v0.8.1
 - [docs/release-notes-v0.8.0.md](docs/release-notes-v0.8.0.md) — release notes v0.8.0
 - [docs/release-notes-v0.7.1.md](docs/release-notes-v0.7.1.md) — release notes v0.7.1

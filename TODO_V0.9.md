@@ -1,7 +1,7 @@
 # TODO_V0.9.md — Цикл v0.9.0 <Live, Isolation & Retention>
 
-**Статус:** 🔶 В работе (S-95 отложен; S-96…S-98 ✅; S-99 — релиз)
-**Сводно:** 5 спринтов · **Прогресс: 3/5**
+**Статус:** ✅ Завершён (S-95 отложен; S-96…S-99 ✅; релиз v0.9.0)
+**Сводно:** 5 спринтов · **Прогресс: 4/5**
 **Цель:** закрыть операционные долги после v0.8.1: live-провайдеры,
 изоляция песочницы, retention/legal hold и релиз v0.9.0.
 
@@ -87,18 +87,18 @@ LM Studio + Qwen-7B.
 
 ## S-99: Release v0.9.0 (P0)
 
-**Статус:** ☐ Запланирован
+**Статус:** ✅ Завершён (2026-11-12)
 
-- [ ] Версия **0.9.0** во всех источниках: `backend/pyproject.toml`,
+- [x] Версия **0.9.0** во всех источниках: `backend/pyproject.toml`,
       `backend/app/__init__.py`, `backend/app/main.py`,
       `frontend/package.json`, `frontend/package-lock.json`,
       `IMAGE_TAG` prod/staging, `.env.*.example`; README/Design.
-- [ ] `docs/release-notes-v0.9.0.md`, CHANGELOG `[0.9.0]`, doc-lint:
-      `EXPECTED_VERSION=0.9.0`, прогресс `5/5`.
-- [ ] Финальные гейты: `ci.ps1`, `e2e.ps1 test`, `smtp-smoke.ps1`,
+- [x] `docs/release-notes-v0.9.0.md`, CHANGELOG `[0.9.0]`, doc-lint:
+      `CURRENT_VERSION=0.9.0`, `EXPECTED_VERSION=0.9.0`, прогресс `4/5`.
+- [x] Финальные гейты: `ci.ps1`, `e2e.ps1 test`, `smtp-smoke.ps1`,
       `observability-selftest.ps1 -Stack`, staging acceptance, pip-audit,
       doc-lint; аудит алфавитов.
-- [ ] Тег `v0.9.0`, GHCR-образы `v0.9.0`, `docker pull`, отчёт S-99.
+- [x] Тег `v0.9.0`, GHCR-образы `v0.9.0`, `docker pull`, отчёт S-99.
 - **DoD:** все доступные спринты закрыты (S-95/S-96 могут остаться
   отложенными с явной пометкой), тег и образы опубликованы.
 

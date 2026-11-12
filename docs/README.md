@@ -8,8 +8,8 @@
 
 | Документ | Место | Статус | О чём |
 |---|---|---|---|
-| `README.md` | корень | ✅ v0.8.1 | Визитка: возможности, быстрый старт, статус, лицензия |
-| `Design.md` | корень | ✅ v0.8.1 | Архитектура и решения: 20 разделов, ADR-журнал, инвентарь переноса |
+| `README.md` | корень | ✅ v0.9.0 | Визитка: возможности, быстрый старт, статус, лицензия |
+| `Design.md` | корень | ✅ v0.9.0 | Архитектура и решения: 20 разделов, ADR-журнал, инвентарь переноса |
 | `TODO_V0.1.md` | корень | ✅ архив | Спринты v0.1.0: S-01…S-29, этапы E-01…E-10 |
 | `TODO_V0.2.md` | корень | ✅ v0.2.0 | Спринты v0.2.0: S-30…S-45, этапы E-11…E-16 |
 | `TODO_V0.3.md` | корень | ✅ архив | Спринты v0.3.0: S-46…S-57, этапы E-17…E-20 |
@@ -19,7 +19,8 @@
 | `TODO_V0.7.md` | корень | ✅ завершён | Спринты v0.7.0: S-81…S-85 (S-81/S-84 отложены) |
 | `TODO_V0.7.1.md` | корень | ✅ завершён | Спринты v0.7.1: S-86…S-89 (tech debt cleanup) |
 | `TODO_V0.8.md` | корень | ✅ завершён | Спринты v0.8.0: S-90…S-94; patch v0.8.1 |
-| `TODO_V0.9.md` | корень | ✅ активный | Спринты v0.9.0: S-95…S-99 (live, isolation, retention) |
+| `TODO_V0.9.md` | корень | ✅ активный | Спринты v0.9.0: S-95…S-99 (live, isolation, retention); S-95 отложен |
+| `docs/release-notes-v0.9.0.md` | docs/ | ✅ v0.9.0 | Release notes v0.9.0 (isolation, retention, GPU tunnel prep) |
 | `docs/release-notes-v0.8.1.md` | docs/ | ✅ v0.8.1 | Release notes v0.8.1 (patch: absolute `-BackupDir`) |
 | `docs/release-notes-v0.8.0.md` | docs/ | ✅ v0.8.0 | Release notes v0.8.0 (Production Readiness) |
 | `docs/release-notes-v0.7.1.md` | docs/ | ✅ v0.7.1 | Release notes v0.7.1 |
@@ -50,6 +51,7 @@
 | `docs/sprint-reports/S-97-2026-11-12.md` | docs/ | ✅ S-97 | Sandbox network isolation (bwrap, seccomp, fallback) |
 | `docs/sprint-reports/S-98-2026-11-12.md` | docs/ | ✅ S-98 | Retention email_outbox, legal hold, DSAR erase |
 | `docs/sprint-reports/S-96-2026-11-12.md` | docs/ | ✅ S-96 | GPU tunnel (server config, verification, Windows runbook) |
+| `docs/sprint-reports/S-99-2026-11-12.md` | docs/ | ✅ S-99 | Релиз v0.9.0 (версии, release-notes, тег, GHCR) |
 
 ## Исходные проекты (первоисточники контента)
 

@@ -49,8 +49,8 @@ def test_collect_versions_consistent() -> None:
     versions = doc_lint._collect_versions(REPO)
 
     assert versions
-    assert all(value == "0.8.1" for value in versions.values())
-    assert doc_lint.CURRENT_VERSION == "0.8.1"
+    assert all(value == "0.9.0" for value in versions.values())
+    assert doc_lint.CURRENT_VERSION == "0.9.0"
     assert doc_lint.EXPECTED_VERSION == "0.9.0"
     assert doc_lint._check_versions(REPO) == []
 
@@ -58,18 +58,18 @@ def test_collect_versions_consistent() -> None:
 def test_release_notes_for_current_version_exist() -> None:
     version = doc_lint._collect_versions(REPO)["backend/pyproject.toml"]
 
-    assert version == "0.8.1"
-    assert (REPO / "docs/release-notes-v0.8.1.md").is_file()
+    assert version == "0.9.0"
+    assert (REPO / "docs/release-notes-v0.9.0.md").is_file()
     assert (REPO / f"docs/release-notes-v{version}.md").is_file()
 
 
 def test_todo_progress_matches_active_plan() -> None:
-    # v0.8.1 выпущен; v0.9.0 — S-96…S-98 закрыты, S-95 отложен (3/5).
+    # v0.9.0 выпущен; S-96…S-99 закрыты, S-95 отложен (4/5).
     assert doc_lint._check_todo_progress(REPO) == []
     assert doc_lint.ACTIVE_PLAN == "TODO_V0.9.md"
-    assert doc_lint.EXPECTED_PROGRESS == (3, 5)
+    assert doc_lint.EXPECTED_PROGRESS == (4, 5)
     active = (REPO / "TODO_V0.9.md").read_text(encoding="utf-8")
-    assert "**Прогресс: 3/5**" in active
+    assert "**Прогресс: 4/5**" in active
     old = (REPO / "TODO_V0.8.md").read_text(encoding="utf-8")
     assert "**Прогресс: 5/5**" in old
 

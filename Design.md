@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.8.1 · **Дата:** 2026-11-11
+**Версия:** v0.9.0 · **Дата:** 2026-11-12
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 
@@ -1515,6 +1515,12 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   `/admin/legal-holds`), retention skip + audit; DSAR
   `/admin/users/{id}/erase` с 409 при hold; gauges/alerts legal hold и
   retention success; backend — 339 collected (336 passed + 3 skipped).
+- S-99 (v0.9.0): релиз Sandbox Network Isolation / Retention & Legal Hold /
+  GPU Tunnel prep — версия **0.9.0** во всех источниках, release notes
+  `docs/release-notes-v0.9.0.md`, CHANGELOG `[0.9.0]`, тег `v0.9.0`,
+  GHCR-образы `chessclass-backend:v0.9.0` / `chessclass-frontend:v0.9.0`;
+  S-95 (live LRS/TTS) остаётся отложенным до появления боевых ключей;
+  backend — 342 collected (339 passed + 3 skipped), e2e 16.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.
