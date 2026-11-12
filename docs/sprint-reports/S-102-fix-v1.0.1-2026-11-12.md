@@ -52,9 +52,17 @@
 
 ### 1.1. GHCR digests
 
-Workflow `publish` для тега `v1.0.1` — см. run после push тега; digest
-образов `1.0.1` и результат `docker pull` фиксируются здесь после
-завершения.
+Workflow `publish` (run `43222340741`) завершился успешно; оба образа
+скачаны локально (`docker pull` → `Downloaded newer image`). Тег
+`v1.0.1` в GHCR отсутствует (`manifest unknown`) — публикуется только
+semver `1.0.1`, как и требует compose.
+
+- `ghcr.io/iilmchat/chessclass-backend:1.0.1` —
+  `sha256:4cd1b3bf4cdf847cc757ee74e724afcc3f733df45c34f09571c9990dffb93cfe`
+  (linux/amd64 manifest `sha256:e2cd9d47dd9e0d43c241dcd5ebf65233f2dc62b2236b4566a40122b7dcbd919b`).
+- `ghcr.io/iilmchat/chessclass-frontend:1.0.1` —
+  `sha256:fb82ae948b9c1e1d5c7862e14b31bd80f41558faa9ad0778139de19a1662cae3`
+  (linux/amd64 manifest `sha256:1423eb92de7643a8187df3ed62bd24c5ddffc3cfa2708df55609c67711e68c36`).
 
 ## 2. DoD
 
