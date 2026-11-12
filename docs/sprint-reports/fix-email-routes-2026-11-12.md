@@ -1,7 +1,7 @@
 # Отчёт Hotfix — публичные страницы verify-email и reset-password
 
 > **Тип:** hotfix (P0-блокер v1.0.0). Дата: 2026-11-12.
-> Ветка: `fix/email-routes-v1.0`. План: [`TODO_V1.0.md`](../../TODO_V1.0.md).
+> Ветка: `fix/email-routes-v1.0`. План: [`TODO_V1.0.md`](../archive/TODO_V1.0.md).
 
 ## 1. Что сделано
 

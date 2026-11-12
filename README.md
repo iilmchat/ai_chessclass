@@ -175,8 +175,8 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v1.0.0** (2026-11-12, major — Production Ready) |
-| Спринты | **68 закрыто** (S-30…S-101), этапы E-11…E-24 ✅; v0.8.0: S-90…S-94 ✅; v0.9.0: **4/5** (S-96…S-99 ✅); v1.0.0: **1/2** (S-101 ✅; S-95 ⏸️ → v1.1.0 по решению владельца) |
+| Версия | **v1.0.0** (Production Ready), пилот в школе |
+| Спринты | **68 закрыто** (S-30…S-101), этапы E-11…E-24 ✅; v0.8.0: S-90…S-94 ✅; v0.9.0: **4/5** (S-96…S-99 ✅); v1.0.0: **1/2** (S-101 ✅); v1.1.0: **0/4** (S-95 ⏸️, S-102…S-104 ☐) |
 | Юридический блокер | ✅ снят: все 16 вопросов `docs/legal-review-v0.7.md` закрыты внешними договорённостями (решение юриста 2026-11-08) |
 | Тесты backend | **342 passed** (число собранных тестов; факт — 339 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87; +2 cert/retention ops/S-88; +4 edge/auth hardening/S-90; +7 object authz/S-91; +2 error tracking/S-92; +5 smtp/sandbox/backup S-93; +6 sandbox network S-97; +5 retention/legal hold/DSAR S-98; +3 GPU tunnel fallback S-96) |
 | Тесты frontend | **7 passed** (Vitest: SSE-парсер/поток/reconnect + verify-email success/error) |
@@ -184,7 +184,7 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 | Миграции | Alembic head **0036_s98_legal_hold** (36) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
-| Следующий этап | ✅ **v1.0.0 Production Ready**: приёмка S-100 8/8 OK, GPU 57.4 ток/с; пилот в школе; бэклог v1.1.0 — Live LRS/TTS и prod-мониторинг ([release notes](docs/release-notes-v1.0.0.md)) |
+| Следующий этап | **v1.1.0** — пилот в школе: S-102 Feedback & Polish, S-103 observability parity, S-95 live LRS/TTS (после ключей), S-104 релиз ([TODO_V1.1.md](TODO_V1.1.md)) |
 
 ---
 
@@ -204,7 +204,8 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [TODO_V0.7.1.md](TODO_V0.7.1.md) — завершённый план v0.7.1 (S-86…S-89)
 - [TODO_V0.8.md](TODO_V0.8.md) — завершённый план v0.8.0 (S-90…S-94, Production Readiness)
 - [TODO_V0.9.md](docs/archive/TODO_V0.9.md) — завершённый план v0.9.0 (S-95…S-99, live/isolation/retention)
-- [TODO_V1.0.md](TODO_V1.0.md) — завершённый план v1.0.0 (S-101 ✅, S-95 ⏸️ → v1.1.0)
+- [TODO_V1.0.md](docs/archive/TODO_V1.0.md) — завершённый план v1.0.0 (S-101 ✅, S-95 ⏸️ → v1.1.0)
+- [TODO_V1.1.md](TODO_V1.1.md) — активный план v1.1.0 (S-95 ⏸️, S-102 feedback, S-103 observability, S-104 релиз)
 - [docs/runbooks/final-acceptance.md](docs/runbooks/final-acceptance.md) — финальная приёмка staging + GPU (S-100)
 - [docs/sprint-reports/S-86-2026-11-08.md](docs/sprint-reports/S-86-2026-11-08.md) — отчёт S-86
 - [docs/sprint-reports/S-87-2026-11-08.md](docs/sprint-reports/S-87-2026-11-08.md) — отчёт S-87

@@ -20,7 +20,8 @@
 | `TODO_V0.7.1.md` | корень | ✅ завершён | Спринты v0.7.1: S-86…S-89 (tech debt cleanup) |
 | `TODO_V0.8.md` | корень | ✅ завершён | Спринты v0.8.0: S-90…S-94; patch v0.8.1 |
 | `docs/archive/TODO_V0.9.md` | docs/archive/ | ✅ завершён | Спринты v0.9.0: S-95…S-99 (live, isolation, retention); S-95 отложен |
-| `TODO_V1.0.md` | корень | ✅ активный | План v1.0.0: S-101 ✅ (релиз), S-95 ⏸️ → v1.1.0 |
+| `docs/archive/TODO_V1.0.md` | docs/archive/ | ✅ завершён | План v1.0.0: S-101 ✅ (релиз), S-95 ⏸️ → v1.1.0 |
+| `TODO_V1.1.md` | корень | ✅ активный | План v1.1.0: S-95 (⏸️ live LRS/TTS), S-102 feedback, S-103 observability, S-104 релиз |
 | `docs/release-notes-v1.0.0.md` | docs/ | ✅ v1.0.0 | Release notes v1.0.0 (Production Ready: auth-страницы, приёмка S-100) |
 | `docs/release-notes-v0.9.0.md` | docs/ | ✅ v0.9.0 | Release notes v0.9.0 (isolation, retention, GPU tunnel prep) |
 | `docs/release-notes-v0.8.1.md` | docs/ | ✅ v0.8.1 | Release notes v0.8.1 (patch: absolute `-BackupDir`) |
