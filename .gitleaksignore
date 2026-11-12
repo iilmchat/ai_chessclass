@@ -1,0 +1,15 @@
+# v1.0.1: ложные срабатывания gitleaks (P2-1 инфраструктурного аудита).
+# Формат: commit:file:rule:line. Секретов здесь нет — только имена
+# настроек и заведомо фиктивные selftest-значения.
+#
+# 1) Лог-строка предупреждения о legacy HS256: это имя настройки,
+#    а не ключ. Встречается в двух исторических коммитах main.py.
+6ac6a8ae768a846f975cc210807000995405db03:backend/app/main.py:generic-api-key:75
+32d86d6d5ebee4d9bc2d3b9a427e7eb73131f044:backend/app/main.py:generic-api-key:75
+#
+# 2) Цитата той же лог-строки в отчёте инфраструктурного аудита.
+6f6ba14c6777917af42ebb0b0c627fea78f36464:docs/sprint-reports/infra-audit-v1.0.0-2026-11-12.md:generic-api-key:82
+#
+# 3) Фиктивный Telegram-токен для selftest Alertmanager (не боевой,
+#    специально помечен как dummy/not-a-real-token).
+f273c930ef7ba589683ab2a60106931146fb907c:scripts/observability-selftest.ps1:telegram-bot-api-token:110

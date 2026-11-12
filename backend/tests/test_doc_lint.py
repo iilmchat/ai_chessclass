@@ -49,17 +49,17 @@ def test_collect_versions_consistent() -> None:
     versions = doc_lint._collect_versions(REPO)
 
     assert versions
-    assert all(value == "1.0.0" for value in versions.values())
-    assert doc_lint.CURRENT_VERSION == "1.0.0"
-    # Активный план — v1.1.0 (следующий релиз).
-    assert doc_lint.EXPECTED_VERSION == "1.1.0"
+    assert all(value == "1.0.1" for value in versions.values())
+    assert doc_lint.CURRENT_VERSION == "1.0.1"
+    # Текущий релиз — патч v1.0.1; активный план — v1.1.0.
+    assert doc_lint.EXPECTED_VERSION == "1.0.1"
     assert doc_lint._check_versions(REPO) == []
 
 
 def test_release_notes_for_current_version_exist() -> None:
     version = doc_lint._collect_versions(REPO)["backend/pyproject.toml"]
 
-    assert version == "1.0.0"
+    assert version == "1.0.1"
     assert (REPO / "docs/release-notes-v0.9.0.md").is_file()
     assert (REPO / f"docs/release-notes-v{version}.md").is_file()
 

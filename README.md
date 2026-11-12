@@ -4,13 +4,13 @@
 лаборатория с разбором партий, конструктор ботов с лестницей Elo и когнитивный
 дашборд навыков — **один профиль, один уровень, один LLM-ассистент** на все домены.
 
-**Версия:** v1.0.0 — Production Ready (68/69 спринтов, S-95 ⏸️ → v1.1.0)
-([release notes](docs/release-notes-v1.0.0.md)) · **Предыдущая:** v0.9.0 · **© 2026 RuChating (iilmchat)**
+**Версия:** v1.0.1 — Production Ready Fix (68/69 спринтов, S-95 ⏸️ → v1.1.0)
+([release notes](docs/release-notes-v1.0.1.md)) · **Предыдущая:** v1.0.0 · **© 2026 RuChating (iilmchat)**
 
 [![CI](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iilmchat/ai_chessclass/actions/workflows/ci.yml)
 [![load](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml/badge.svg?event=schedule)](https://github.com/iilmchat/ai_chessclass/actions/workflows/load.yml)
 [![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fiilmchat-2496ED?logo=github)](https://github.com/iilmchat/ai_chessclass/pkgs/container/chessclass-backend)
-[![Production Ready](https://img.shields.io/badge/status-production%20ready-brightgreen)](docs/release-notes-v1.0.0.md)
+[![Production Ready](https://img.shields.io/badge/status-production%20ready-brightgreen)](docs/release-notes-v1.0.1.md)
 [![Staging Acceptance](https://img.shields.io/badge/staging%20acceptance-8%2F8%20passed-brightgreen)](docs/runbooks/final-acceptance.md)
 — backend: lint (ruff) → typecheck (mypy) → alembic → seeds → pytest →
 **pip-audit** → doc-lint; frontend: Vitest → tsc/build; e2e: Playwright
@@ -175,16 +175,16 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 
 | Показатель | Значение |
 |------------|----------|
-| Версия | **v1.0.0** (Production Ready), пилот в школе |
-| Спринты | **68 закрыто** (S-30…S-101), этапы E-11…E-24 ✅; v0.8.0: S-90…S-94 ✅; v0.9.0: **4/5** (S-96…S-99 ✅); v1.0.0: **1/2** (S-101 ✅); v1.1.0: **0/4** (S-95 ⏸️, S-102…S-104 ☐) |
+| Версия | **v1.0.1** (Production Ready Fix), пилот в школе |
+| Спринты | **68 закрыто** (S-30…S-101), этапы E-11…E-24 ✅; v0.8.0: S-90…S-94 ✅; v0.9.0: **4/5** (S-96…S-99 ✅); v1.0.0: **1/2** (S-101 ✅); v1.0.1: hotfix деплоя (P0/P1); v1.1.0: **0/4** (S-95 ⏸️, S-102…S-104 ☐) |
 | Юридический блокер | ✅ снят: все 16 вопросов `docs/legal-review-v0.7.md` закрыты внешними договорённостями (решение юриста 2026-11-08) |
-| Тесты backend | **342 passed** (число собранных тестов; факт — 339 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87; +2 cert/retention ops/S-88; +4 edge/auth hardening/S-90; +7 object authz/S-91; +2 error tracking/S-92; +5 smtp/sandbox/backup S-93; +6 sandbox network S-97; +5 retention/legal hold/DSAR S-98; +3 GPU tunnel fallback S-96) |
+| Тесты backend | **347 passed** (число собранных тестов; факт — 344 passed + 3 skipped CSP-группы контейнеров; 203 база v0.3.0; +8 egress/S-61; +3 CSP-truth/S-61; +2 env-контракт/S-61; +3 hash-lock/S-62; +1 gold-set eval/S-64; +3 pvp-жалобы/S-65; +5 OAuth2/mapping/S-67; +8 telegram-webhook/события/S-68; +7 CB/backoff/S-70; +11 prompt-injection/S-71; +6 RLS-изоляция/S-72; +5 arq/DLQ/trace/S-73; +4 parental consent/S-74; +5 SMTP/enforcement/S-75; +1 DLQ operations/S-76; +3 OTel/HTTP metrics/S-77; +1 local API key/S-78; +2 LRS OAuth/TTS fallback/S-79; +6 email outbox/S-83; +4 teacher age confirmation/S-83; +10 observability config/S-82; +2 doc-lint прогресс/release-notes/S-85; +3 outbox SKIP LOCKED/index/retention/S-86; +3 observability hardening/S-87; +2 cert/retention ops/S-88; +4 edge/auth hardening/S-90; +7 object authz/S-91; +2 error tracking/S-92; +5 smtp/sandbox/backup S-93; +6 sandbox network S-97; +5 retention/legal hold/DSAR S-98; +3 GPU tunnel fallback S-96; +5 deploy config v1.0.1) |
 | Тесты frontend | **7 passed** (Vitest: SSE-парсер/поток/reconnect + verify-email success/error) |
 | UI-e2e | **17 passed** (Playwright: journey 7 + axe 2 + PvP 1 + RAG/review/ops/telegram/consent/chess-a11y/verify-email 7) |
 | Миграции | Alembic head **0036_s98_legal_hold** (36) |
 | Ruff / MyPy / tsc | 0 / 0 / 0 |
 | Seed-данные | 5 пользователей + 11 навыков + 5 skill_links + 16 заданий + 6 бейджей + 17 RAG-док |
-| Следующий этап | **v1.1.0** — пилот в школе: S-102 Feedback & Polish, S-103 observability parity, S-95 live LRS/TTS (после ключей), S-104 релиз ([TODO_V1.1.md](TODO_V1.1.md)) |
+| Следующий этап | **v1.1.0** — пилот в школе: S-102 Feedback & Polish, S-103 observability parity, S-95 live LRS/TTS (после ключей), S-104 релиз ([TODO_V1.1.md](TODO_V1.1.md)); блокеры деплоя закрыты в v1.0.1 |
 
 ---
 
@@ -207,6 +207,9 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [TODO_V1.0.md](docs/archive/TODO_V1.0.md) — завершённый план v1.0.0 (S-101 ✅, S-95 ⏸️ → v1.1.0)
 - [TODO_V1.1.md](TODO_V1.1.md) — активный план v1.1.0 (S-95 ⏸️, S-102 feedback, S-103 observability, S-104 релиз)
 - [docs/runbooks/final-acceptance.md](docs/runbooks/final-acceptance.md) — финальная приёмка staging + GPU (S-100)
+- [docs/runbooks/production-deployment-v1.0.1.md](docs/runbooks/production-deployment-v1.0.1.md) — production-деплой v1.0.1 (GHCR, `ENV_FILE`, edge, observability)
+- [docs/runbooks/production-readiness-checklist.md](docs/runbooks/production-readiness-checklist.md) — чек-лист production-готовности
+- [docs/sprint-reports/infra-audit-v1.0.0-2026-11-12.md](docs/sprint-reports/infra-audit-v1.0.0-2026-11-12.md) — инфраструктурный аудит v1.0.0 (P0/P1/P2)
 - [docs/sprint-reports/S-86-2026-11-08.md](docs/sprint-reports/S-86-2026-11-08.md) — отчёт S-86
 - [docs/sprint-reports/S-87-2026-11-08.md](docs/sprint-reports/S-87-2026-11-08.md) — отчёт S-87
 - [docs/sprint-reports/S-88-2026-11-10.md](docs/sprint-reports/S-88-2026-11-10.md) — отчёт S-88
@@ -225,6 +228,8 @@ edge-TLS, бэкапы) — S-30/S-38 ✅; детали — [TODO_V0.2.md](TODO_
 - [docs/sprint-reports/S-100-2026-11-12.md](docs/sprint-reports/S-100-2026-11-12.md) — отчёт S-100 (операция: приёмка, архив, план v1.0)
 - [docs/sprint-reports/fix-email-routes-2026-11-12.md](docs/sprint-reports/fix-email-routes-2026-11-12.md) — hotfix публичных auth-страниц
 - [docs/sprint-reports/S-101-2026-11-12.md](docs/sprint-reports/S-101-2026-11-12.md) — отчёт S-101 (релиз v1.0.0, Production Ready)
+- [docs/sprint-reports/S-102-fix-v1.0.1-2026-11-12.md](docs/sprint-reports/S-102-fix-v1.0.1-2026-11-12.md) — отчёт S-102 (hotfix v1.0.1: P0/P1)
+- [docs/release-notes-v1.0.1.md](docs/release-notes-v1.0.1.md) — release notes v1.0.1 (Production Ready Fix: P0/P1)
 - [docs/release-notes-v1.0.0.md](docs/release-notes-v1.0.0.md) — release notes v1.0.0 (Production Ready)
 - [deploy/logrotate/chessclass](deploy/logrotate/chessclass) — ротация файловых логов
 - [docs/release-notes-v0.9.0.md](docs/release-notes-v0.9.0.md) — release notes v0.9.0

@@ -1,21 +1,21 @@
-# Чек-лист production-готовности ChessClass v1.0.0
+# Чек-лист production-готовности ChessClass v1.0.1
 
 **Назначение:** проверка перед первым запуском и перед каждым мажорным
 релизом. `✅` — проверено в репозитории/локально, `⏳` — требует сервера или
 боевых ключей, `❌` — блокер, устранить до запуска.
 
-Ссылки: [production-deployment-v1.0.0.md](production-deployment-v1.0.0.md),
-[operations.md](operations.md), `docs/release-notes-v1.0.0.md`.
+Ссылки: [production-deployment-v1.0.1.md](production-deployment-v1.0.1.md),
+[operations.md](operations.md), `docs/release-notes-v1.0.1.md`.
 
 ## 1. Инфраструктура
 
 | Проверка | Статус | Команда / ссылка |
 |---|---|---|
 | `docker-compose.prod.yml` валиден, без `build:` | ✅ | `docker compose --env-file .env.prod.example -f docker-compose.prod.yml config -q` |
-| `IMAGE_TAG` из env, не хардкод | ⚠️ | в compose `1.0.0`, в GHCR тег `v1.0.0` — выставить `IMAGE_TAG=v1.0.0` (блокер) |
+| `IMAGE_TAG` из env, не хардкод | ✅ | compose/env — `1.0.1`, GHCR публикует semver `1.0.1` (P0-1) |
 | `restart: unless-stopped` у сервисов | ✅ | кроме `migrate`/`seed` (`"no"`) — ожидаемо |
 | Healthcheck'и | ✅ | db, redis, api, edge, tempo, prometheus, alertmanager; у `web` нет (P2) |
-| Наружу только 80/443 | ⚠️ | `web` публикуется на `0.0.0.0:3200`; задать `WEB_PORT=127.0.0.1:3200` |
+| Наружу только 80/443 | ✅ | `web` биндится на `127.0.0.1:${WEB_PORT:-3200}` (P1-1) |
 | Миграции гейтом до api/worker | ✅ | `depends_on: migrate: service_completed_successfully` |
 | `seed` не запускается сам | ✅ | профиль `tools` |
 | Лимиты CPU/RAM | ❌ | `deploy.resources.limits` отсутствуют во всём compose |
@@ -31,7 +31,7 @@
 |---|---|---|
 | RS256, `JWT_LEGACY_HS256=false` | ✅ | `.env.prod.example`, `/auth/jwks` |
 | Ключи не в git, права 644 | ✅ | `deploy/jwt/.gitignore`, runbook §3 |
-| Secrets scan | ⚠️ | CI gitleaks (range) зелёный; локально `detect` даёт 3 исторические false-positive — нужен `.gitleaks.toml` (P1) |
+| Secrets scan | ✅ | CI gitleaks + `.gitleaksignore` для исторических false-positive (P2-1) |
 | pip-audit | ✅ | `No known vulnerabilities` (osv) |
 | Non-root в образе | ✅ | `USER appuser` (uid 1000) |
 | Seccomp для sandbox | ✅ | `deploy/seccomp-sandbox.json` на api/worker/match-* |
@@ -68,7 +68,7 @@
 | mTLS collector↔Tempo | ✅ | `deploy/internal-certs`, `observability-selftest` |
 | Static self-test | ✅ | `observability-selftest.ps1` (все проверки ok) |
 | `-Stack` на сервере | ⏳ | нужен стенд и токены Telegram |
-| Alertmanager без токена не стартует | ❌ | `TELEGRAM_BOT_TOKEN`/`TELEGRAM_ALERT_CHAT_ID` обязательны (P1) |
+| Alertmanager без токена не стартует | ✅ | без Telegram — receiver `"null"`, без CrashLoop (P1-6) |
 | `/admin/observability/alerts` без critical | ⏳ | после запуска |
 | Grafana за edge `/grafana/` | ⏳ | вход по `GRAFANA_ADMIN_*` |
 
@@ -97,7 +97,7 @@
 | Алерт `ChessClassBackupFailed` (>25 ч) | ✅ | `alerts.yml` |
 | Ключ age/openssl хранится вне сервера | ⏳ | менеджер секретов |
 
-## 7. Чек-лист оператора из release notes v1.0.0
+## 7. Чек-лист оператора из release notes v1.0.1
 
 - [ ] ⏳ SMTP: SPF/DKIM/DMARC **pass**, письмо не в Spam.
 - [ ] ⏳ S3 backup + restore: объект загружен/проверен, restore в temp PG —

@@ -170,7 +170,8 @@ def test_alertmanager_telegram_route_and_inhibit():
     assert config["templates"] == ["/etc/alertmanager/telegram.tmpl"]
 
     receivers = {item["name"]: item for item in config["receivers"]}
-    assert set(receivers) == {"telegram", "telegram-critical", "email"}
+    # P1-6 (v1.0.1): "null" — receiver-заглушка, когда Telegram не настроен.
+    assert set(receivers) == {"telegram", "telegram-critical", "email", "null"}
     for name in ("telegram", "telegram-critical"):
         telegram = receivers[name]["telegram_configs"][0]
         assert telegram["bot_token"] == "__TELEGRAM_BOT_TOKEN__"
@@ -179,7 +180,8 @@ def test_alertmanager_telegram_route_and_inhibit():
         assert telegram["parse_mode"] == "HTML"
 
     route = config["route"]
-    assert route["receiver"] == "telegram"
+    # P1-6: при старте рендер подставит telegram или "null".
+    assert route["receiver"] == "__DEFAULT_RECEIVER__"
     assert set(route["group_by"]) == {"alertname", "severity", "component"}
     assert route["group_wait"] == "30s"
     assert route["repeat_interval"] == "3h"
@@ -398,7 +400,10 @@ def test_entrypoints_and_cert_script():
 
     alertmanager_render = (PROD / "alertmanager-render.sh").read_text(encoding="utf-8")
     assert alertmanager_render.startswith("#!/bin/sh")
-    assert "TELEGRAM_BOT_TOKEN:?" in alertmanager_render
+    # P1-6: Telegram опционален, пустой токен не валит рендер.
+    assert "telegram_enabled=0" in alertmanager_render
+    assert 'default_receiver=\'"null"\'' in alertmanager_render
+    assert ': "${TELEGRAM_BOT_TOKEN:?' not in alertmanager_render
     assert "chmod 600" in alertmanager_render
     assert "sed_escape" in alertmanager_render
     assert "__SMTP_PASSWORD__" in alertmanager_render

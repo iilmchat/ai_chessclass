@@ -1,17 +1,15 @@
-# Runbook: production-деплой ChessClass v1.0.0
+# Runbook: production-деплой ChessClass v1.0.1
 
-**Версия:** v1.0.0 · **Дата:** 2026-11-12 · **Стенд:** Linux (Ubuntu 24.04+),
+**Версия:** v1.0.1 · **Дата:** 2026-11-12 · **Стенд:** Linux (Ubuntu 24.04+),
 Docker 29+, Compose v2 · **Тип:** first deploy + обновление
 
 Документ описывает развёртывание production-контура из GHCR-образов.
 Источник истины по эксплуатации — [operations.md](operations.md); здесь —
 линейный сценарий первого запуска и проверки.
 
-> ⚠️ **Известный блокер на момент приёмки:** образы опубликованы с тегом
-> `v1.0.0`, а compose и `.env.prod.example` по умолчанию используют
-> `IMAGE_TAG=1.0.0`. Тег `1.0.0` в GHCR отсутствует, `docker compose pull`
-> упадёт с `manifest unknown`. В шаге 2 обязательно выставьте
-> `IMAGE_TAG=v1.0.0`.
+> ✅ **v1.0.1:** блокеры деплоя v1.0.0 исправлены. GHCR публикует тег
+> **`1.0.1`** без префикса `v`, а `.env.prod.example` содержит
+> `IMAGE_TAG=1.0.1` и `ENV_FILE=.env.prod` — обходные пути не нужны.
 
 ## 0. Предусловия
 
@@ -44,31 +42,31 @@ edge/web/caddy по 128 МБ, observability 1–1.5 ГБ при включённ
 git clone https://github.com/iilmchat/ai_chessclass.git /opt/chessclass
 cd /opt/chessclass
 git fetch --tags
-git checkout v1.0.0
-git describe --tags --exact-match      # → v1.0.0
+git checkout v1.0.1
+git describe --tags --exact-match      # → v1.0.1
 ```
 
 Рабочее дерево должно быть чистым: `git status --short` пуст.
 
 ## 2. Подготовить окружение
 
-**Важно:** сервисы читают env через `env_file: ${ENV_FILE:-.env}`. Файл
-`.env.prod` сам по себе контейнерам не виден — `--env-file .env.prod` влияет
-только на подстановку переменных в compose. Поэтому:
+**Важно:** `env_file` сервисов указывает на `${ENV_FILE:-.env}`, а в
+`.env.prod.example` уже задано `ENV_FILE=.env.prod`. Поэтому compose и
+контейнеры читают один и тот же файл:
 
 ```bash
-cp .env.prod.example .env
-chmod 600 .env
+cp .env.prod.example .env.prod
+chmod 600 .env.prod
 ```
 
-(альтернатива: оставить `.env.prod` и всегда запускать compose с
-`ENV_FILE=.env.prod`; тогда переменные попадут и в контейнеры).
+Запускайте все команды с `--env-file .env.prod` — SMTP/S3/LRS/TELEGRAM
+попадут в контейнеры, а не только в подстановку compose.
 
 Обязательно заполнить:
 
 | Переменная | Комментарий |
 |---|---|
-| `IMAGE_TAG` | **`v1.0.0`** (не `1.0.0` — см. блокер выше) |
+| `IMAGE_TAG` | **`1.0.1`** (без префикса `v` — GHCR публикует semver) |
 | `POSTGRES_PASSWORD` | 32+ символа, только из менеджера секретов |
 | `JWT_SECRET` | 64 случайных символа (даже при RS256 обязателен) |
 | `JWT_ALGORITHM`, `JWT_LEGACY_HS256` | `RS256`, `false` |
@@ -80,13 +78,13 @@ chmod 600 .env
 | `BACKUP_S3_ACCESS_KEY/SECRET_KEY` | ключ с правами на бакет |
 | `BACKUP_ENCRYPTION_KEY` | ровно 32 hex-символа |
 | `BACKUP_EXPECTED_ALEMBIC` | `0036_s98_legal_hold` |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALERT_CHAT_ID` | обязательны при `--profile observability`, иначе Alertmanager не стартует |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALERT_CHAT_ID` | для алертов; при пустых значениях Alertmanager стартует с receiver `"null"` (без CrashLoop) |
 | `GRAFANA_ADMIN_PASSWORD` | не `CHANGE_ME` |
 | `METRICS_TOKEN` | рекомендуется задать (иначе `/metrics` без токена) |
 | `SENTRY_DSN` | опционально; пусто — error-tracking выключен |
 | `WEB_BASE_URL` | `https://<domain>` |
 | `PROXY_TRUSTED_HOSTS` | `172.16.0.0/12,127.0.0.1` |
-| `WEB_PORT` | `127.0.0.1:3200` — так web не торчит наружу (см. §5) |
+| `WEB_PORT` | `3200` — compose биндит `127.0.0.1:3200`, наружу только edge (см. §5) |
 
 `SEED_*` менять не нужно и **запускать seed на prod нельзя**: сервис `seed`
 создаёт демо-пользователей и включён только в профиль `tools`.
@@ -94,7 +92,7 @@ chmod 600 .env
 Проверка синтаксиса без секретов:
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env config -q && echo OK
+docker compose -f docker-compose.prod.yml --env-file .env.prod config -q && echo OK
 ```
 
 ## 3. RS256-ключи
@@ -132,7 +130,7 @@ pwsh scripts/gen-self-signed-cert.ps1 -Force   # или openssl на серве�
 
 ```bash
 # 1) поднять edge с self-signed, чтобы challenge был доступен
-docker compose -f docker-compose.prod.yml --env-file .env up -d edge
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d edge
 
 # 2) выпустить сертификат
 docker run --rm \
@@ -146,14 +144,14 @@ cp /etc/letsencrypt/live/<domain>/privkey.pem   deploy/certs/privkey.pem
 chmod 644 deploy/certs/*.pem
 
 # 4) перечитать конфиг
-docker compose -f docker-compose.prod.yml --env-file .env exec edge nginx -s reload
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec edge nginx -s reload
 ```
 
 Автопродление (обязательно добавить — в репозитории автоматизации нет):
 
 ```cron
 # /etc/cron.d/chessclass-cert
-0 4 * * * root certbot renew --quiet --deploy-hook "docker compose -f /opt/chessclass/docker-compose.prod.yml --env-file /opt/chessclass/.env exec edge nginx -s reload"
+0 4 * * * root certbot renew --quiet --deploy-hook "docker compose -f /opt/chessclass/docker-compose.prod.yml --env-file /opt/chessclass/.env.prod exec edge nginx -s reload"
 ```
 
 Контроль: `pwsh scripts/check-cert-expiry.ps1 -Paths deploy/certs/fullchain.pem`
@@ -167,12 +165,9 @@ docker compose -f docker-compose.prod.yml --env-file .env exec edge nginx -s rel
 любой Host).
 
 Наружу должны смотреть только edge (80/443). API уже слушает loopback
-(`API_BIND=127.0.0.1`). Web по умолчанию публикуется на `0.0.0.0:3200` —
-задайте в `.env`:
-
-```dotenv
-WEB_PORT=127.0.0.1:3200
-```
+(`API_BIND=127.0.0.1`). Web в v1.0.1 биндится в compose на
+`127.0.0.1:${WEB_PORT:-3200}` — отдельная настройка не нужна, оставьте
+`WEB_PORT=3200`.
 
 Проверка после `up`:
 
@@ -184,13 +179,13 @@ ss -ltnp | grep -E ':(80|443|8020|3200|9092|9093|3002)\b'
 ## 6. Подъём стека
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env pull
-docker compose -f docker-compose.prod.yml --env-file .env up -d migrate
-docker compose -f docker-compose.prod.yml --env-file .env ps -a | grep migrate
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d migrate
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps -a | grep migrate
 # migrate должен завершиться с кодом 0
 
-docker compose -f docker-compose.prod.yml --env-file .env up -d
-docker compose -f docker-compose.prod.yml --env-file .env ps
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
 ```
 
 Ожидаемо: `db`, `redis`, `api`, `web`, `edge`, `worker*` — `healthy`/`running`;
@@ -219,9 +214,10 @@ Smoke (с админстанции):
 ## 8. Observability
 
 ```bash
-# TELEGRAM_BOT_TOKEN и TELEGRAM_ALERT_CHAT_ID должны быть заданы,
-# иначе Alertmanager уйдёт в restart-loop с "не задан"
-docker compose -f docker-compose.prod.yml --env-file .env \
+# Telegram опционален (P1-6): без токена/chat_id Alertmanager стартует
+# с receiver "null" и не уходит в restart-loop; для реальных алертов
+# задайте TELEGRAM_BOT_TOKEN и TELEGRAM_ALERT_CHAT_ID.
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
   --profile observability up -d
 ```
 
@@ -296,10 +292,10 @@ temp-контейнер.
 ## 11. Откат
 
 ```bash
-# 1) вернуться на предыдущий тег образа
-sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=v0.9.0/' .env
-docker compose -f docker-compose.prod.yml --env-file .env pull
-docker compose -f docker-compose.prod.yml --env-file .env up -d
+# 1) вернуться на предыдущий тег образа (без префикса v)
+sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=1.0.0/' .env.prod
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 # 2) если новая схема несовместима — восстановить БД из offsite-дампа
 ```
@@ -314,6 +310,6 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d
 - [ ] Certbot renew + reload edge в cron.
 - [ ] logrotate `deploy/logrotate/chessclass` установлен.
 - [ ] UFW: 22 (админские IP), 80, 443; fail2ban на sshd/nginx.
-- [ ] Ротация секретов: `.env` 600, ключи 644, доступ только root/deploy.
-- [ ] `git status` на сервере: изменён только `.env` и `deploy/certs/*`
+- [ ] Ротация секретов: `.env.prod` 600, ключи 644, доступ только root/deploy.
+- [ ] `git status` на сервере: изменён только `.env.prod` и `deploy/certs/*`
       (не коммитить).

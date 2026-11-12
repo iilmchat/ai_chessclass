@@ -144,6 +144,23 @@ Check "render alertmanager без email + amtool check-config" {
     Assert-True ($route -notmatch "email") "critical попал в email без SMTP: $route"
 }
 
+# --- 3b. Рендер Alertmanager: Telegram выключен (P1-6 v1.0.1) ---------------
+Check "render alertmanager без Telegram + amtool check-config" {
+    $file = Render-Alertmanager -Name "no-telegram" -Env @{
+        TELEGRAM_BOT_TOKEN = ""
+        TELEGRAM_ALERT_CHAT_ID = ""
+        SMTP_HOST = ""
+        ALERT_EMAIL_TO = ""
+    }
+    Assert-AmtoolConfig -File $file
+    $content = Get-Content -Raw -LiteralPath $file
+    Assert-True ($content -notmatch "(?m)^\s*-\s+name:\s+telegram\s*$") "telegram receiver не удалён"
+    Assert-True ($content -match 'receiver: "null"') "нет receiver null"
+    $route = Get-AmtoolRoute -File $file `
+        -Selector @("severity=critical", "alertname=X", "component=observability")
+    Assert-True ($route -match "null") "critical не в null: $route"
+}
+
 # --- 4. Рендер Alertmanager: email включён (второй receiver) -----------------
 Check "render alertmanager с email + amtool check-config" {
     $file = Render-Alertmanager -Name "email" -Env @{

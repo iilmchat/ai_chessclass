@@ -174,7 +174,8 @@ ChessClass: 4/8 минимум, 8/16 рекомендуется (Stockfish + 5 w
 
 ## 9. Артефакты
 
-- `docs/runbooks/production-deployment-v1.0.0.md` — пошаговый деплой.
+- `docs/runbooks/production-deployment-v1.0.1.md` — пошаговый деплой
+  (обновлён в v1.0.1: тег без `v`, `ENV_FILE`).
 - `docs/runbooks/production-readiness-checklist.md` — чек-лист оператора.
 - этот отчёт.
 

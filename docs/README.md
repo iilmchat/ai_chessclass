@@ -8,8 +8,8 @@
 
 | Документ | Место | Статус | О чём |
 |---|---|---|---|
-| `README.md` | корень | ✅ v1.0.0 | Визитка: возможности, быстрый старт, статус, лицензия |
-| `Design.md` | корень | ✅ v1.0.0 | Архитектура и решения: 20 разделов, ADR-журнал, инвентарь переноса |
+| `README.md` | корень | ✅ v1.0.1 | Визитка: возможности, быстрый старт, статус, лицензия |
+| `Design.md` | корень | ✅ v1.0.1 | Архитектура и решения: 20 разделов, ADR-журнал, инвентарь переноса |
 | `TODO_V0.1.md` | корень | ✅ архив | Спринты v0.1.0: S-01…S-29, этапы E-01…E-10 |
 | `TODO_V0.2.md` | корень | ✅ v0.2.0 | Спринты v0.2.0: S-30…S-45, этапы E-11…E-16 |
 | `TODO_V0.3.md` | корень | ✅ архив | Спринты v0.3.0: S-46…S-57, этапы E-17…E-20 |
@@ -22,6 +22,7 @@
 | `docs/archive/TODO_V0.9.md` | docs/archive/ | ✅ завершён | Спринты v0.9.0: S-95…S-99 (live, isolation, retention); S-95 отложен |
 | `docs/archive/TODO_V1.0.md` | docs/archive/ | ✅ завершён | План v1.0.0: S-101 ✅ (релиз), S-95 ⏸️ → v1.1.0 |
 | `TODO_V1.1.md` | корень | ✅ активный | План v1.1.0: S-95 (⏸️ live LRS/TTS), S-102 feedback, S-103 observability, S-104 релиз |
+| `docs/release-notes-v1.0.1.md` | docs/ | ✅ v1.0.1 | Release notes v1.0.1 (Production Ready Fix: P0/P1) |
 | `docs/release-notes-v1.0.0.md` | docs/ | ✅ v1.0.0 | Release notes v1.0.0 (Production Ready: auth-страницы, приёмка S-100) |
 | `docs/release-notes-v0.9.0.md` | docs/ | ✅ v0.9.0 | Release notes v0.9.0 (isolation, retention, GPU tunnel prep) |
 | `docs/release-notes-v0.8.1.md` | docs/ | ✅ v0.8.1 | Release notes v0.8.1 (patch: absolute `-BackupDir`) |
@@ -56,9 +57,13 @@
 | `docs/sprint-reports/S-96-2026-11-12.md` | docs/ | ✅ S-96 | GPU tunnel (server config, verification, Windows runbook) |
 | `docs/sprint-reports/S-99-2026-11-12.md` | docs/ | ✅ S-99 | Релиз v0.9.0 (версии, release-notes, тег, GHCR) |
 | `docs/runbooks/final-acceptance.md` | docs/ | ✅ S-100 | Финальная приёмка staging + GPU: SMTP, S3, RS256, proxy, observability |
+| `docs/runbooks/production-deployment-v1.0.1.md` | docs/ | ✅ v1.0.1 | Production-деплой: GHCR, `ENV_FILE`, edge, observability, откат |
+| `docs/runbooks/production-readiness-checklist.md` | docs/ | ✅ v1.0.1 | Чек-лист production-готовности перед запуском |
+| `docs/sprint-reports/infra-audit-v1.0.0-2026-11-12.md` | docs/ | ✅ аудит | Инфраструктурный аудит v1.0.0: P0/P1/P2, размещение стенда |
 | `docs/sprint-reports/S-100-2026-11-12.md` | docs/ | ⏳ операция | S-100: подготовка финальной приёмки, архив v0.9.0, план v1.0.0 |
 | `docs/sprint-reports/fix-email-routes-2026-11-12.md` | docs/ | ✅ hotfix | Публичные `/verify-email`, `/reset-password`, `/login` |
 | `docs/sprint-reports/S-101-2026-11-12.md` | docs/ | ✅ S-101 | Релиз v1.0.0 (Production Ready, тег, GHCR, пилот) |
+| `docs/sprint-reports/S-102-fix-v1.0.1-2026-11-12.md` | docs/ | ✅ hotfix | v1.0.1: P0-1/P0-2 деплоя, P1-1/P1-6, gitleaks |
 
 ## Исходные проекты (первоисточники контента)
 

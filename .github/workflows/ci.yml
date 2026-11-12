@@ -231,6 +231,8 @@ jobs:
         run: docker build ./frontend
 
   # S-92: CD — publish immutable images to GHCR after all gates.
+  # v1.0.1: docker/metadata-action publishes semver without the `v` prefix
+  # (tag v1.0.1 -> image tag 1.0.1), matching IMAGE_TAG in compose/.env.
   publish:
     if: github.event_name == 'push'
     needs: [backend, frontend, e2e, secrets]
@@ -238,8 +240,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    env:
-      IMAGE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'main' }}
     steps:
       - uses: actions/checkout@v4
       - name: Normalize GHCR owner (must be lowercase)
@@ -250,14 +250,30 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker metadata (backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ env.GHCR_OWNER }}/chessclass-backend
+          tags: |
+            type=raw,value=${{ github.sha }}
+            type=semver,pattern={{version}}
+            type=raw,value=main,enable=${{ github.ref_type != 'tag' }}
       - name: Build and push backend
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+      - name: Docker metadata (frontend)
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ env.GHCR_OWNER }}/chessclass-frontend
           tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/chessclass-backend:${{ github.sha }}
-            ghcr.io/${{ env.GHCR_OWNER }}/chessclass-backend:${{ env.IMAGE_TAG }}
+            type=raw,value=${{ github.sha }}
+            type=semver,pattern={{version}}
+            type=raw,value=main,enable=${{ github.ref_type != 'tag' }}
       - name: Build and push frontend
         uses: docker/build-push-action@v6
         with:
@@ -266,6 +282,4 @@ jobs:
           build-args: |
             APP_STAGE=prod
             VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}
-          tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/chessclass-frontend:${{ github.sha }}
-            ghcr.io/${{ env.GHCR_OWNER }}/chessclass-frontend:${{ env.IMAGE_TAG }}
+          tags: ${{ steps.meta-frontend.outputs.tags }}

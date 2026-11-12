@@ -1,12 +1,18 @@
 # S-82/S-87: Alertmanager prod — Telegram (основной) + email (второй канал).
-# Это ШАБЛОН: Alertmanager 0.28 не умеет env-expansion в конфиге, поэтому
-# alertmanager-render.sh рендерит этот файл в /tmp/alertmanager.yml, подставляя
+# На сервере: Alertmanager 0.28 не умеет env-expansion в конфиге, поэтому
+# alertmanager-render.sh рендерит файл в /tmp/alertmanager.yml, подставляя
 # env TELEGRAM_BOT_TOKEN, TELEGRAM_ALERT_CHAT_ID, ALERT_TELEGRAM_API_URL и
-# SMTP_*/ALERT_EMAIL_TO. Рендер-файл живёт только в контейнере (chmod 600),
-# токены не логируются и не коммитятся.
+# SMTP_*/ALERT_EMAIL_TO. Готовый файл виден только контейнеру (chmod 600),
+# токены не попадают в git и не логируются.
 #
-# Второй receiver (email) включается условно: если SMTP_HOST и ALERT_EMAIL_TO
-# не заданы, блоки # __EMAIL_BEGIN__ … # __EMAIL_END__ удаляются при рендере.
+# P1-6 (v1.0.1): если TELEGRAM_BOT_TOKEN или TELEGRAM_ALERT_CHAT_ID пусты,
+# alertmanager-render.sh удаляет блоки # __TELEGRAM_BEGIN__ : # __TELEGRAM_END__
+# и переключает route.receiver на "null" — контейнер стартует без
+# CrashLoopBackOff, алерты просто не уходят в Telegram.
+#
+# Второй receiver (email) включается так же: если SMTP_HOST и ALERT_EMAIL_TO
+# не пусты, блоки # __EMAIL_BEGIN__ : # __EMAIL_END__ остаются, иначе
+# удаляются.
 global:
   resolve_timeout: 1m
   telegram_api_url: __ALERT_TELEGRAM_API_URL__
@@ -15,32 +21,36 @@ templates:
   - /etc/alertmanager/telegram.tmpl
 
 route:
-  receiver: telegram
-  # Группируем по сути алерта: один incident — одно сообщение, а не шум.
+  receiver: __DEFAULT_RECEIVER__
+  # Группируем по типу алерта: один incident — одно сообщение, а не по одному.
   group_by: [alertname, severity, component]
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 3h
   routes:
-    # critical — быстрее повторяем; continue: true отправляет тот же алерт
-    # вторым receiver'ом (email), не блокируя Telegram.
+    # __TELEGRAM_BEGIN__
+    # critical — дублируется; continue: true оставляет его в маршруте
+    # второго receiver'а (email), не блокируя Telegram.
     - matchers:
         - severity="critical"
       receiver: telegram-critical
       continue: true
       repeat_interval: 1h
+    # __TELEGRAM_END__
     # __EMAIL_BEGIN__
     - matchers:
         - severity="critical"
       receiver: email
       repeat_interval: 1h
     # __EMAIL_END__
+    # __TELEGRAM_BEGIN__
     # warning — реже, чтобы не будить дежурного ночью.
     - matchers:
         - severity="warning"
       receiver: telegram
       continue: true
       repeat_interval: 6h
+    # __TELEGRAM_END__
     # __EMAIL_BEGIN__
     - matchers:
         - severity="warning"
@@ -49,6 +59,7 @@ route:
     # __EMAIL_END__
 
 receivers:
+  # __TELEGRAM_BEGIN__
   - name: telegram
     telegram_configs:
       - bot_token: "__TELEGRAM_BOT_TOKEN__"
@@ -64,9 +75,14 @@ receivers:
         parse_mode: HTML
         send_resolved: true
         message: '{{ template "telegram.chessclass" . }}'
+  # __TELEGRAM_END__
 
-  # S-87: второй receiver. Отдельный маршрут (а не несколько integrations в
-  # одном receiver) — падение/таймаут SMTP не задерживает Telegram.
+  # P1-6: receiver-заглушка, когда Telegram не настроен. Имя в кавычках,
+  # иначе YAML прочитает null как отсутствие значения.
+  - name: "null"
+
+  # S-87: второй receiver. Отдельные сервисы (не несколько integrations в
+  # одном receiver) — ошибки/таймауты SMTP не блокируют Telegram.
   # __EMAIL_BEGIN__
   - name: email
     email_configs:
@@ -79,9 +95,9 @@ receivers:
         send_resolved: true
   # __EMAIL_END__
 
-# Подавление дублей: critical уже сообщает о проблеме — warning того же
-# alertname/component не нужен. Падение API гасит остальные api-алерты
-# (они следствие недоступности, а не отдельные инциденты).
+# Подавление дублей: critical уже сообщён в проблеме — warning того же
+# alertname/component не нужен. Отдельно API гасит остальные api-алерты
+# (при слиянии деградации, а не отдельного инцидента).
 inhibit_rules:
   - source_matchers:
       - severity="critical"

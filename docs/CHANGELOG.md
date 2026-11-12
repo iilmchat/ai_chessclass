@@ -7,6 +7,29 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-12
+
+### Исправлено
+- **P0-1:** GHCR публикует semver без префикса `v` через
+  `docker/metadata-action`; `IMAGE_TAG=1.0.1` в compose и env-examples
+  совпадает с тегом образа. `docker compose pull` работает из коробки.
+- **P0-2:** `.env.prod.example` / `.env.staging.example` задают
+  `ENV_FILE`, поэтому `--env-file .env.prod` доносит SMTP/S3/LRS/TELEGRAM
+  до контейнеров, а не только до подстановки compose.
+- **P1-1:** web в prod биндится на `127.0.0.1:${WEB_PORT:-3200}`; наружу
+  смотрит только edge-nginx.
+- **P1-6:** Alertmanager без `TELEGRAM_BOT_TOKEN`/`TELEGRAM_ALERT_CHAT_ID`
+  стартует с receiver `"null"` вместо CrashLoopBackOff; добавлена
+  проверка в `observability-selftest.ps1`.
+- **P2-1:** `.gitleaksignore` для ложных срабатываний (лог-строка о legacy
+  HS256 и фиктивный selftest-токен).
+
+### Документация
+- `docs/release-notes-v1.0.1.md`, `docs/runbooks/production-deployment-v1.0.1.md`
+  (обновлён вместо v1.0.0), `docs/sprint-reports/S-102-fix-v1.0.1-2026-11-12.md`.
+- Интегрирован инфраструктурный аудит v1.0.0: runbook деплоя и чек-лист
+  production-готовности.
+
 ## [1.0.0] - 2026-11-12
 
 ### Добавлено

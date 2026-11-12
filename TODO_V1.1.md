@@ -7,7 +7,8 @@ prod-observability до паритета со staging и подключить li
 появлении боевых ключей; выпустить **v1.1.0**.
 
 **Контекст:** v1.0.0 «Production Ready» выпущен (тег `v1.0.0`, GHCR,
-staging acceptance S-100 8/8 OK); план v1.0.0 — в
+staging acceptance S-100 8/8 OK); текущий патч — **v1.0.1** (Production
+Ready Fix: P0-1/P0-2, P1-1/P1-6); план v1.0.0 — в
 [`docs/archive/TODO_V1.0.md`](docs/archive/TODO_V1.0.md).
 
 ## S-95: Live LRS/TTS (P1)
