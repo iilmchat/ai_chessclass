@@ -12,10 +12,10 @@
   C) счётчики тестов в README: backend vs `pytest --collect-only` (--tests-count
      auto|N), frontend vs `it(` в frontend/src/**/*.test.ts(x), e2e vs `test(`
      в frontend/e2e/*.spec.ts;
-  D) ровно один активный план в docs/README.md (TODO_V0.9.md), архивные планы;
+  D) ровно один активный план в docs/README.md (TODO_V1.0.md), архивные планы;
   E) стрейл-маркеры только в активных доках, версия в шапке Design.md,
      release-notes текущей версии;
-  F) активный этап и прогресс в TODO_V0.9.md.
+  F) активный этап и прогресс в TODO_V1.0.md.
 
 CLI:
     python scripts/doc_lint.py [--root PATH] [--tests-count auto|N]
@@ -43,7 +43,8 @@ ACTIVE_DOCS: tuple[str, ...] = (
     "TODO_V0.7.md",
     "TODO_V0.7.1.md",
     "TODO_V0.8.md",
-    "TODO_V0.9.md",
+    "TODO_V1.0.md",
+    "docs/archive/TODO_V0.9.md",
     "docs/README.md",
     "docs/release-notes-v0.3.0.md",
     "docs/release-notes-v0.7.0.md",
@@ -54,6 +55,7 @@ ACTIVE_DOCS: tuple[str, ...] = (
     "docs/runbooks/llm-gateway.md",
     "docs/runbooks/staging.md",
     "docs/runbooks/operations.md",
+    "docs/runbooks/final-acceptance.md",
     "docs/runbooks/release-v0.3.0.md",
 )
 
@@ -75,13 +77,13 @@ README_ALEMBIC_RE = re.compile(
     r"Alembic head \*\*(?P<head>[0-9a-z_]+)\*\* \((?P<count>\d+)\)"
 )
 
-#: Активный план и ожидаемый прогресс: v0.9.0, S-95 отложен, S-96…S-99 (4/5).
-ACTIVE_PLAN: str = "TODO_V0.9.md"
-EXPECTED_PROGRESS: tuple[int, int] = (4, 5)
+#: Активный план и ожидаемый прогресс: v1.0.0 (S-95 ⏸️, S-101 ☐; 0/2).
+ACTIVE_PLAN: str = "TODO_V1.0.md"
+EXPECTED_PROGRESS: tuple[int, int] = (0, 2)
 #: Текущая выпущенная версия (её проверяет A по всем источникам).
 CURRENT_VERSION: str = "0.9.0"
-#: Версия активного плана (совпадает с CURRENT_VERSION после S-99).
-EXPECTED_VERSION: str = "0.9.0"
+#: Версия активного плана (v1.0.0 выпускается после staging acceptance).
+EXPECTED_VERSION: str = "1.0.0"
 
 CollectError = str
 
@@ -393,6 +395,14 @@ def _check_active_plan(root: Path) -> list[str]:
         "TODO_V0.7.md",
         "TODO_V0.8.md",
     ):
+        try:
+            header = "\n".join(read_text(root / name).splitlines()[:10])
+        except OSError:
+            errors.append(f"D: {name} не читается")
+            continue
+        if "✅" not in header and "завершён" not in header:
+            errors.append(f"D: {name}: в шапке нет отметки о завершении")
+    for name in ("docs/archive/TODO_V0.9.md",):
         try:
             header = "\n".join(read_text(root / name).splitlines()[:10])
         except OSError:

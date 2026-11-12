@@ -19,7 +19,8 @@
 | `TODO_V0.7.md` | корень | ✅ завершён | Спринты v0.7.0: S-81…S-85 (S-81/S-84 отложены) |
 | `TODO_V0.7.1.md` | корень | ✅ завершён | Спринты v0.7.1: S-86…S-89 (tech debt cleanup) |
 | `TODO_V0.8.md` | корень | ✅ завершён | Спринты v0.8.0: S-90…S-94; patch v0.8.1 |
-| `TODO_V0.9.md` | корень | ✅ активный | Спринты v0.9.0: S-95…S-99 (live, isolation, retention); S-95 отложен |
+| `docs/archive/TODO_V0.9.md` | docs/archive/ | ✅ завершён | Спринты v0.9.0: S-95…S-99 (live, isolation, retention); S-95 отложен |
+| `TODO_V1.0.md` | корень | ✅ активный | План v1.0.0: S-95 (⏸️ live LRS/TTS), S-101 (релиз после S-100) |
 | `docs/release-notes-v0.9.0.md` | docs/ | ✅ v0.9.0 | Release notes v0.9.0 (isolation, retention, GPU tunnel prep) |
 | `docs/release-notes-v0.8.1.md` | docs/ | ✅ v0.8.1 | Release notes v0.8.1 (patch: absolute `-BackupDir`) |
 | `docs/release-notes-v0.8.0.md` | docs/ | ✅ v0.8.0 | Release notes v0.8.0 (Production Readiness) |
@@ -52,6 +53,8 @@
 | `docs/sprint-reports/S-98-2026-11-12.md` | docs/ | ✅ S-98 | Retention email_outbox, legal hold, DSAR erase |
 | `docs/sprint-reports/S-96-2026-11-12.md` | docs/ | ✅ S-96 | GPU tunnel (server config, verification, Windows runbook) |
 | `docs/sprint-reports/S-99-2026-11-12.md` | docs/ | ✅ S-99 | Релиз v0.9.0 (версии, release-notes, тег, GHCR) |
+| `docs/runbooks/final-acceptance.md` | docs/ | ✅ S-100 | Финальная приёмка staging + GPU: SMTP, S3, RS256, proxy, observability |
+| `docs/sprint-reports/S-100-2026-11-12.md` | docs/ | ⏳ операция | S-100: подготовка финальной приёмки, архив v0.9.0, план v1.0.0 |
 
 ## Исходные проекты (первоисточники контента)
 

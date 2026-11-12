@@ -7,6 +7,17 @@
 
 ## [Unreleased]
 
+### Добавлено
+- **S-100:** финальная операционная приёмка перед v1.0.0 — runbook
+  `docs/runbooks/final-acceptance.md` (SMTP/SPF-DKIM-DMARC, S3 + lifecycle
+  30 дней, RS256/JWKS, `PROXY_TRUSTED_HOSTS`, GPU-туннель, observability,
+  действия при провале чеков). План v0.9.0 перемещён в
+  `docs/archive/TODO_V0.9.md` (✅ завершён, 4/5); создан черновик
+  `TODO_V1.0.md` (S-95 ⏸️, S-101 — релиз v1.0.0 после приёмки). README:
+  бейдж «staging acceptance pending», прогресс v0.9.0 — 4/5; doc-lint
+  `ACTIVE_PLAN=TODO_V1.0.md`, `EXPECTED_PROGRESS=(0, 2)`,
+  `EXPECTED_VERSION=1.0.0`.
+
 ## [0.9.0] - 2026-11-12
 
 ### Добавлено
