@@ -6,14 +6,17 @@ import { ComplaintsPage } from '../pages/ComplaintsPage';
 import { ConsentPage } from '../pages/ConsentPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { ExportPage } from '../pages/ExportPage';
+import { LoginPage } from '../pages/LoginPage';
 import { ObservabilityPage } from '../pages/ObservabilityPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { PythonPage } from '../pages/PythonPage';
 import { RagEditorPage } from '../pages/RagEditorPage';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import { ReviewPage } from '../pages/ReviewPage';
 import { PvpPage } from '../pages/PvpPage';
 import { SkillsPage } from '../pages/SkillsPage';
 import { TournamentsPage } from '../pages/TournamentsPage';
+import { VerifyEmailPage } from '../pages/VerifyEmailPage';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Дашборд', end: true },
@@ -62,6 +65,9 @@ export function App() {
       </a>
       <main className="main" id="main">
         <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/" element={<DashboardPage />} />
           <Route path="/python" element={<PythonPage />} />
           <Route path="/review" element={<ReviewPage />} />

@@ -107,7 +107,11 @@ def test_hs256_rejected_when_legacy_disabled(monkeypatch):
 
 
 def test_edge_nginx_auth_rate_limit_and_forwarded_headers():
-    """S-90: edge-nginx имеет лимиты auth/API, 429 и X-Forwarded-For."""
+    """S-90: edge-nginx имеет лимиты auth/API, 429 и X-Forwarded-For.
+
+    Edge не принимает клиентский X-Forwarded-For (S-100 hardening): заголовок
+    выставляется из $remote_addr, чтобы нельзя было подделать IP в аудите.
+    """
     edge = (ROOT / "deploy/nginx/edge.conf").read_text(encoding="utf-8")
     assert "limit_req_zone $binary_remote_addr zone=auth_rl:10m rate=10r/m;" in edge
     assert "limit_req_zone $binary_remote_addr zone=api_rl:10m rate=60r/m;" in edge
@@ -115,7 +119,8 @@ def test_edge_nginx_auth_rate_limit_and_forwarded_headers():
     assert "limit_req zone=auth_rl burst=9 nodelay;" in edge
     assert "limit_req_status 429;" in edge
     assert "limit_req zone=api_rl burst=30 nodelay;" in edge
-    assert edge.count("X-Forwarded-For $proxy_add_x_forwarded_for") >= 4
+    assert edge.count("X-Forwarded-For $remote_addr") >= 4
+    assert "X-Forwarded-For $proxy_add_x_forwarded_for" not in edge
     assert edge.count("X-Real-IP $remote_addr") >= 4
 
     web = (ROOT / "frontend/nginx.conf").read_text(encoding="utf-8")

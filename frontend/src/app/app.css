@@ -206,6 +206,47 @@ body {
   max-width: 320px;
 }
 
+/* --- публичные auth-страницы (verify/reset) --- */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-row p {
+  margin: 0;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  flex: none;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.auth-actions {
+  margin-top: 12px;
+}
+
+.auth-button {
+  margin-left: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
 .field {
   padding: 8px 12px;
   border: 1px solid var(--line);

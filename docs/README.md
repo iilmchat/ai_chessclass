@@ -21,6 +21,7 @@
 | `TODO_V0.8.md` | корень | ✅ завершён | Спринты v0.8.0: S-90…S-94; patch v0.8.1 |
 | `docs/archive/TODO_V0.9.md` | docs/archive/ | ✅ завершён | Спринты v0.9.0: S-95…S-99 (live, isolation, retention); S-95 отложен |
 | `TODO_V1.0.md` | корень | ✅ активный | План v1.0.0: S-95 (⏸️ live LRS/TTS), S-101 (релиз после S-100) |
+| `docs/release-notes-v1.0.0.md` | docs/ | 🔶 черновик | Release notes v1.0.0 (auth-страницы, приёмка S-100) |
 | `docs/release-notes-v0.9.0.md` | docs/ | ✅ v0.9.0 | Release notes v0.9.0 (isolation, retention, GPU tunnel prep) |
 | `docs/release-notes-v0.8.1.md` | docs/ | ✅ v0.8.1 | Release notes v0.8.1 (patch: absolute `-BackupDir`) |
 | `docs/release-notes-v0.8.0.md` | docs/ | ✅ v0.8.0 | Release notes v0.8.0 (Production Readiness) |
@@ -55,6 +56,7 @@
 | `docs/sprint-reports/S-99-2026-11-12.md` | docs/ | ✅ S-99 | Релиз v0.9.0 (версии, release-notes, тег, GHCR) |
 | `docs/runbooks/final-acceptance.md` | docs/ | ✅ S-100 | Финальная приёмка staging + GPU: SMTP, S3, RS256, proxy, observability |
 | `docs/sprint-reports/S-100-2026-11-12.md` | docs/ | ⏳ операция | S-100: подготовка финальной приёмки, архив v0.9.0, план v1.0.0 |
+| `docs/sprint-reports/fix-email-routes-2026-11-12.md` | docs/ | ✅ hotfix | Публичные `/verify-email`, `/reset-password`, `/login` |
 
 ## Исходные проекты (первоисточники контента)
 

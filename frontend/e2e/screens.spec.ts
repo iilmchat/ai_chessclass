@@ -159,3 +159,10 @@ test('Telegram-link: код связи создаётся в профиле', as
   const section = page.locator('main');
   await expect(section).toContainText(/Telegram/i, { timeout: 20_000 });
 });
+
+test('Verify email: невалидный токен показывает ошибку', async ({ page }) => {
+  await page.goto('/verify-email?token=fake');
+  await expect(page.locator('main')).toContainText('Токен недействителен', {
+    timeout: 20_000,
+  });
+});
