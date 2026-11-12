@@ -2,7 +2,7 @@
 
 **Дата:** 2026-11-12 · **Тип:** операционная приёмка (не спринт) ·
 **Версия:** v0.9.0 (`8d8c7c9`, tag `v0.9.0-2-g8d8c7c9`) · **Статус:** ✅ стенд
-принят, GPU подтверждён (57,4 ток/с).
+принят, GPU и S3 подтверждены.
 **Артефакты:** `scripts/staging-acceptance.ps1` · `scripts/backup-offsite.ps1` ·
 `scripts/backup-restore-test.ps1` · `scripts/observability-selftest.ps1`.
 **Runbook:** `docs/runbooks/final-acceptance.md`, `docs/runbooks/staging.md` §4.
@@ -26,15 +26,16 @@
 | Admin login | там же | ✅ 200, `role=admin`, `emailVerified=true` |
 | RS256/JWKS | там же | ✅ 1 ключ, `kid=staging-2026-11`, `JWT_LEGACY_HS256=false` |
 | Регистрация ученика | там же | ✅ 201, `emailVerified=false` (письмо отправлено) |
-| Backup-метрика | там же | ✅ `last_success_ts=1794470939`, `outbox_pending=0` |
+| Backup-метрика | там же | ✅ `last_success_ts=1794477160`, `outbox_pending=0` |
 | Observability summary | там же | ✅ `alerts=0`, `failedJobs=0` |
 | Edge smoke | `smoke-prod.ps1` | ✅ healthz/readyz/SPA/HSTS/security headers |
 | SMTP-транспорт | `smtp-smoke.ps1` | ✅ verification + password-reset (локальный sink) |
 | SMTP боевой | `POST /auth/password-reset` | ✅ 202, `{"ok":true}`, ошибок в логах нет |
-| Доставка письма | реальный ящик | ✅ «Подтвердите email — ChessClass» получено, ссылка валидна |
-| S3 offsite | `backup-offsite.ps1` | ✅ `status=ok`, 208 576 Б, sha256 `6234f4c0…` |
-| S3-объект | `aws s3 ls` | ✅ `chessclass-staging/chessclass-20261112T080855Z.dump.enc` |
-| Restore-дрилл | `backup-restore-test.ps1` | ✅ `users=6`, `alembic=0036_s98_legal_hold` |
+| Доставка письма | реальный ящик | ✅ письмо получено; `spf=pass`, `dkim=pass`, `dmarc=pass` |
+| S3 offsite | `backup-offsite.ps1` | ✅ `status=ok`, 211 536 Б, sha256 `3ac41ce4…` |
+| S3-объект | `aws s3 ls` | ✅ `s3://chessclass-backups/chessclass-staging/chessclass-20261112T095235Z.dump.enc` |
+| S3 lifecycle | панель Selectel | ✅ удаление через 720 ч (30 дней) |
+| Restore-дрилл | `backup-restore-test.ps1` | ✅ `users=10`, `alembic=0036_s98_legal_hold` |
 | Observability self-test | `observability-selftest.ps1 -Stack` | ✅ все проверки (prod-профиль, см. §3.3) |
 | TLS-сертификат | `check-cert-expiry.ps1` | ✅ 364 дня |
 | SPF/DKIM/DMARC | `Resolve-DnsName` | ✅ записи `iiruchating.ru` на месте |
@@ -82,13 +83,23 @@ PermissionError: [Errno 13] Permission denied: '/srv/jwt/private.pem'
 `docker-compose.prod.yml`), а не на staging. Требуется либо добавить сервисы в
 staging, либо зафиксировать это как известное ограничение стенда.
 
-### 3.4. P2: S3 — общий бакет и TTL 90 дней
+### 3.4. ✅ S3 переведён на отдельный бакет
 
-Offsite-бэкапы идут в `wf-media-iilmchat` (тот же, что у workflow-builder,
-`S3_PUBLIC_BUCKET=false`) с префиксом `chessclass-staging`. Lifecycle бакета —
-**90 дней**, в чек-листе требуется **30**. Нужен отдельный бакет
-`chessclass-backups` с правилом Expiration 30 дней (или подтвердить 90 как
-приемлемое отклонение).
+Offsite-бэкапы шли в общий `wf-media-iilmchat` (бакет workflow-builder,
+TTL 90 дней). Создан отдельный `chessclass-backups` (ru-7, private, vhosted),
+доступ выдан сервисному пользователю `chess_bckp` (S3-ключ `chess_s3_key`,
+политика на `ListBucket` + `Get/Put/DeleteObject`).
+
+Lifecycle — **720 часов (30 дней)** задан в панели Selectel (вкладка
+«Конфигурации»). Через S3 API правило не сохранялось: `put-bucket-lifecycle-
+configuration` возвращал `0`, но `get` — `NoSuchLifecycleConfiguration`;
+используем панель.
+
+Бэкап и восстановление на новом бакете:
+
+- `s3://chessclass-backups/chessclass-staging/chessclass-20261112T095235Z.dump.enc`
+  — 211 536 Б, sha256 `3ac41ce4…`;
+- restore-дрилл: `users=10`, `alembic=0036_s98_legal_hold`.
 
 ### 3.5. P2: edge не стартует без `grafana`
 
@@ -115,18 +126,19 @@ Docker), поэтому в lockout попадает gateway, а не `127.0.0.1`
 
 - Станция `DESKTOP-67ME6OH`: RTX 3060 12 GB, 32 GB RAM, LM Studio 0.4.25.
   Сервер на порту **8034** (не 1234), «Serve on Local Network» включён,
-  **Require Auth выключен**.
+  **Require Auth включён** (без ключа — `401`, с ключом — `200`).
 - Доступ по Tailscale: `http://100.120.171.61:8034/v1` — отвечает с хоста и
   из контейнера `api` (23 модели).
 - `test-gpu-tunnel.ps1`: `models`/`chat` OK, но `tokens_per_second=4.78` —
   артефакт короткого ответа (4 токена за 837 мс, доминирует latency).
   Корректный замер (194 токена, прогретая модель): **57,4 ток/с**.
 - `.env.staging`: `LLM_LOCAL_BASE_URL=http://100.120.171.61:8034/v1`,
-  `LLM_LOCAL_MODEL=qwen/qwen2.5-coder-7b-instruct`, `LLM_LOCAL_API_KEY` пуст.
-  Провайдер из приложения отвечает (`answer=Париж`).
-- Отклонения: нет reverse-SSH-туннеля на `172.18.0.1:8035` (станция и стенд
-  в одном tailnet) и нет Require Auth. Перед prod включить ключ LM Studio и
-  положить его в `LLM_LOCAL_API_KEY`.
+  `LLM_LOCAL_MODEL=qwen/qwen2.5-coder-7b-instruct`, `LLM_LOCAL_API_KEY` задан
+  (ключ LM Studio хранится только в env). Провайдер из приложения отвечает
+  (`answer=Париж`).
+- Отклонение: нет reverse-SSH-туннеля на `172.18.0.1:8035` — станция и стенд
+  в одном tailnet, поэтому используется прямой адрес. При переходе стенда на
+  отдельный хост вернуть туннель.
 - Failover cloud → local → echo реализован в `llm/gateway.py` и покрыт
   `test_llm_gateway.py`; live-проверка шла напрямую в local.
 
@@ -150,16 +162,10 @@ frontend (`frontend/src/app/App.tsx`) таких маршрутов нет. По
 
 1. Добавить во frontend маршруты `/verify-email` и `/reset-password` (§3.9) —
    без них пользователь не может подтвердить email или сменить пароль.
-2. Проверить заголовки письма (`spf=pass`/`dkim=pass`/`dmarc=pass`) в реальном
-   ящике — доставка подтверждена, аутентификация письма пока нет.
-3. GPU: включить в LM Studio Require Auth, выпустить API-key и положить его в
-   `LLM_LOCAL_API_KEY`; при переходе на отдельный хост — вернуть reverse-SSH
-   туннель на `172.18.0.1:8035`.
-4. S3: создать бакет `chessclass-backups` (private, ru-7, vhosted) с
-   lifecycle 30 дней и переключить `BACKUP_S3_*`; сейчас используется общий
-   `wf-media-iilmchat` с TTL 90 дней.
-5. Решить судьбу staging-observability (§3.3): паритет с prod или ограничение.
-6. Live LRS/TTS (S-95) — по-прежнему ⏸️, нужно письменное решение владельца.
+2. Решить судьбу staging-observability (§3.3): паритет с prod или ограничение.
+3. Live LRS/TTS (S-95) — по-прежнему ⏸️, нужно письменное решение владельца.
+4. Перед prod-деплоем вернуть reverse-SSH туннель на `172.18.0.1:8035`
+   (сейчас GPU доступен напрямую по tailnet).
 
 ## 6. Риски
 
