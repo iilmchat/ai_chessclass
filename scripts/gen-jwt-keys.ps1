@@ -21,6 +21,10 @@ if ($LASTEXITCODE -ne 0) { throw "genpkey failed" }
 docker run --rm -v "${target}:/keys" alpine/openssl rsa `
     -pubout -in /keys/private.pem -out /keys/public.pem
 if ($LASTEXITCODE -ne 0) { throw "rsa pubout failed" }
+# API работает под non-root: без этого ключ (0600 от openssl) не читается
+# и логин падает с PermissionError 500.
+docker run --rm -v "${target}:/keys" alpine chmod 0644 /keys/private.pem /keys/public.pem
+if ($LASTEXITCODE -ne 0) { throw "chmod keys failed" }
 Write-Host "[jwt] private: $private"
 Write-Host "[jwt] public:  $public"
 Write-Host "[jwt] задайте JWT_ALGORITHM=RS256 и пути/ключи в .env (не коммитить PEM)"
