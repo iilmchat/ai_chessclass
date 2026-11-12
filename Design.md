@@ -1,6 +1,6 @@
 # Design.md — Единая экосистема «Шахматно-программистский класс» (ChessClass)
 
-**Версия:** v0.9.0 · **Дата:** 2026-11-12
+**Версия:** v1.0.0 · **Дата:** 2026-11-12
 **Стек:** Python 3.12 + FastAPI · React 19 + Vite + TypeScript · PostgreSQL 17 + pgvector · Redis 7 · Stockfish 17 · RestrictedPython 8.5 · python-chess · LM Studio / RouterAI (OpenAI-совместимые LLM) · arq · Docker Compose
 **© 2026 RuChating (iilmchat)**
 
@@ -1521,6 +1521,13 @@ ELEVENLABS_API_KEY=   # v0.2, озвучка
   GHCR-образы `chessclass-backend:v0.9.0` / `chessclass-frontend:v0.9.0`;
   S-95 (live LRS/TTS) остаётся отложенным до появления боевых ключей;
   backend — 342 collected (339 passed + 3 skipped), e2e 16.
+- S-101 (v1.0.0): финальный релиз **Production Ready** — staging acceptance
+  S-100 (8/8 OK, SPF/DKIM/DMARC pass, S3 backup + restore users=10,
+  GPU 57.4 ток/с); версия **1.0.0** во всех источниках, release notes
+  `docs/release-notes-v1.0.0.md`, CHANGELOG `[1.0.0]`, тег `v1.0.0`,
+  GHCR-образы `chessclass-backend:v1.0.0` / `chessclass-frontend:v1.0.0`;
+  S-95 отложен до v1.1.0 решением владельца; backend — 342 collected
+  (339 passed + 3 skipped), frontend 7, e2e 17.
 - CI: GitHub Actions (или локальный `scripts/ci.sh`): lint (ruff +
   eslint/prettier), typecheck (mypy, tsc), tests, e2e-vs-docker (порты
   8021/3201), сборка образов.

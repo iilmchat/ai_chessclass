@@ -5,8 +5,8 @@
   A) согласованность версий: backend/pyproject.toml, frontend/package.json,
      backend/app/__init__.py (__version__), backend/app/main.py (FastAPI version),
      default IMAGE_TAG в docker-compose.prod.yml / docker-compose.staging.yml;
-     все источники должны совпасть с CURRENT_VERSION (0.9.0);
-     EXPECTED_VERSION (0.9.0) — версия активного плана;
+     все источники должны совпасть с CURRENT_VERSION (1.0.0);
+     EXPECTED_VERSION (1.0.0) — версия активного плана;
   B) alembic-граф: head (revision, не встречающийся в down_revision) и число
      миграций = строке README «Alembic head **<head>** (<count>)»;
   C) счётчики тестов в README: backend vs `pytest --collect-only` (--tests-count
@@ -52,6 +52,7 @@ ACTIVE_DOCS: tuple[str, ...] = (
     "docs/release-notes-v0.8.0.md",
     "docs/release-notes-v0.8.1.md",
     "docs/release-notes-v0.9.0.md",
+    "docs/release-notes-v1.0.0.md",
     "docs/runbooks/llm-gateway.md",
     "docs/runbooks/staging.md",
     "docs/runbooks/operations.md",
@@ -77,12 +78,12 @@ README_ALEMBIC_RE = re.compile(
     r"Alembic head \*\*(?P<head>[0-9a-z_]+)\*\* \((?P<count>\d+)\)"
 )
 
-#: Активный план и ожидаемый прогресс: v1.0.0 (S-95 ⏸️, S-101 ☐; 0/2).
+#: Активный план и ожидаемый прогресс: v1.0.0 (S-101 ✅, S-95 ⏸️; 1/2).
 ACTIVE_PLAN: str = "TODO_V1.0.md"
-EXPECTED_PROGRESS: tuple[int, int] = (0, 2)
+EXPECTED_PROGRESS: tuple[int, int] = (1, 2)
 #: Текущая выпущенная версия (её проверяет A по всем источникам).
-CURRENT_VERSION: str = "0.9.0"
-#: Версия активного плана (v1.0.0 выпускается после staging acceptance).
+CURRENT_VERSION: str = "1.0.0"
+#: Версия активного плана (v1.0.0 выпущена — Production Ready).
 EXPECTED_VERSION: str = "1.0.0"
 
 CollectError = str

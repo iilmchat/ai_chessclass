@@ -7,27 +7,36 @@
 
 ## [Unreleased]
 
-### Исправлено
-- **Hotfix email-routes:** ссылки из писем больше не ведут на пустую
-  страницу. Добавлены публичные `/verify-email` (токен из query,
+## [1.0.0] - 2026-11-12
+
+### Добавлено
+- **S-101:** финальный релиз **v1.0.0 — Production Ready**. Версия
+  **1.0.0** во всех источниках (backend/frontend, `IMAGE_TAG` prod/staging
+  и env-examples), release notes `docs/release-notes-v1.0.0.md`, тег
+  `v1.0.0`, GHCR-образы `chessclass-backend:v1.0.0` /
+  `chessclass-frontend:v1.0.0`; README — бейдж **Production Ready**,
+  `TODO_V1.0.md` — S-101 ✅, S-95 ⏸️ → v1.1.0, прогресс **1/2**;
+  doc-lint `CURRENT_VERSION=1.0.0`, `EXPECTED_PROGRESS=(1, 2)`.
+- **S-100:** финальная операционная приёмка — runbook
+  `docs/runbooks/final-acceptance.md` (SMTP/SPF-DKIM-DMARC, S3 + lifecycle
+  30 дней, RS256/JWKS, `PROXY_TRUSTED_HOSTS`, GPU-туннель, observability).
+  Результат: **8/8 OK**, SPF/DKIM/DMARC pass, S3 backup + restore
+  (users=10), GPU **57.4 ток/с**.
+- **Hotfix email-routes:** публичные `/verify-email` (токен из query,
   `POST /auth/verify`, состояния loading/success/error) и `/reset-password`
   (валидация ≥ 8 символов, `POST /auth/password-reset/confirm`,
   `newPassword`), а также `/login`. API-клиент: `verifyEmail`,
   `resetPassword`; Vitest (2 теста) и Playwright (невалидный токен).
+
+### Исправлено
 - **CI:** тест `test_edge_auth_s90.py` синхронизирован с hardening
   `7bbdf90` — edge выставляет `X-Forwarded-For` из `$remote_addr` и не
   принимает клиентский заголовок.
 
-### Добавлено
-- **S-100:** финальная операционная приёмка перед v1.0.0 — runbook
-  `docs/runbooks/final-acceptance.md` (SMTP/SPF-DKIM-DMARC, S3 + lifecycle
-  30 дней, RS256/JWKS, `PROXY_TRUSTED_HOSTS`, GPU-туннель, observability,
-  действия при провале чеков). План v0.9.0 перемещён в
-  `docs/archive/TODO_V0.9.md` (✅ завершён, 4/5); создан черновик
-  `TODO_V1.0.md` (S-95 ⏸️, S-101 — релиз v1.0.0 после приёмки). README:
-  бейдж «staging acceptance pending», прогресс v0.9.0 — 4/5; doc-lint
-  `ACTIVE_PLAN=TODO_V1.0.md`, `EXPECTED_PROGRESS=(0, 2)`,
-  `EXPECTED_VERSION=1.0.0`.
+### Отложено
+- **S-95 (live LRS/TTS):** нет боевых ключей LRS/ElevenLabs; по решению
+  владельца перенесён в **v1.1.0**. Контракты и fallback покрыты тестами
+  (MockTransport).
 
 ## [0.9.0] - 2026-11-12
 
