@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     llm_retry_delay_s: float = 2.0  # §8.4: 1 retry через 2 с
     llm_local_fallback: bool = False
     llm_local_base_url: str = "http://localhost:1234/v1"
+    # S-96: id модели LM Studio (GET /v1/models); пусто — effective.slug.
+    llm_local_model: str = ""
     # S-78: отдельный ключ LM Studio (Require Auth); облачный ключ не переиспользуем
     llm_local_api_key: str = ""
     llm_cost_currency: str = "RUB"

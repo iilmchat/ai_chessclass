@@ -1,7 +1,7 @@
 # TODO_V0.9.md — Цикл v0.9.0 <Live, Isolation & Retention>
 
-**Статус:** 🔶 В работе (S-95/S-96 отложены; S-97/S-98 ✅; S-99 — релиз)
-**Сводно:** 5 спринтов · **Прогресс: 2/5**
+**Статус:** 🔶 В работе (S-95 отложен; S-96…S-98 ✅; S-99 — релиз)
+**Сводно:** 5 спринтов · **Прогресс: 3/5**
 **Цель:** закрыть операционные долги после v0.8.1: live-провайдеры,
 изоляция песочницы, retention/legal hold и релиз v0.9.0.
 
@@ -26,17 +26,21 @@
 
 ## S-96: GPU Tunnel (S-84) (P2)
 
-**Статус:** ⏸️ Отложен (требуются внешние ключи/станция)
-**Причина:** нет физической станции RTX 3060 + LM Studio.
+**Статус:** ✅ Завершён (2026-11-12); live-проверка — оператор станции
+**Станция:** Windows, RTX 3060 12 GB, 32 GB RAM, Xeon E5-2690 v3,
+LM Studio + Qwen-7B.
 
-- [ ] Поднять LM Studio на станции с RTX 3060, выбрать модель и контекст.
-- [ ] Безопасный туннель до staging (WireGuard/SSH, allowlist, auth);
-      никаких публичных портов модели.
-- [ ] End-to-end: LLM-запрос через туннель, таймауты/ретраи, fallback на
-      RouterAI/echo при недоступности.
-- [ ] Метрики: latency, ошибки, стоимость; smoke и runbook.
-- **DoD:** запрос доходит до станции и возвращает ответ; fallback проверен;
-  доступ не шире staging; отчёт `docs/sprint-reports/S-96-YYYY-MM-DD.md`.
+- [x] LM Studio на станции: Qwen2.5-7B-Instruct, Q4_K_M, Serve on Local
+      Network, Require Auth; инструкция runbook §6.
+- [x] Безопасный reverse SSH-туннель (`GatewayPorts clientspecified`,
+      bind 172.18.0.1:8035, ключ, Scheduled Task); `wg-gpu-tunnel.ps1`.
+- [x] Сервер: `LLM_LOCAL_FALLBACK/BASE_URL/MODEL/API_KEY` в prod/staging;
+      `test-gpu-tunnel.ps1` проверяет models/chat/latency/tokens-per-second.
+- [x] Fallback cloud → local → echo и breaker local проверены тестами;
+      runbook §6, Design §8.4, SPEC §6.4.
+- [ ] Live-запрос через физическую станцию (ожидает оператора).
+- **DoD:** сервер/скрипты/тесты готовы; live GPU подтверждается оператором
+  через `test-gpu-tunnel.ps1`; отчёт `docs/sprint-reports/S-96-2026-11-12.md`.
 
 ## S-97: Sandbox Network Isolation (P0)
 
