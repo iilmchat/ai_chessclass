@@ -7,6 +7,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Реестр KI и RoadMap** ([`KNOWN_ISSUES.md`](KNOWN_ISSUES.md),
+  [`ROADMAP_KI.md`](development/ROADMAP_KI.md)): 18 реальных проблем по фактам
+  инфраструктурного аудита v1.0.0, юридического review и отложенных спринтов
+  v1.1; 5 спринтов по 3–4 KI.
+
 ## [1.0.1] - 2026-11-12
 
 ### Исправлено
