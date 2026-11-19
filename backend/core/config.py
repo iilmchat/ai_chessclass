@@ -28,7 +28,8 @@ class Settings(BaseSettings):
 
     # --- infra
     database_url: str = "postgresql+asyncpg://chess:chess_dev_2026@localhost:5438/chessclass"
-    db_pool_size: int = 10
+    # KI-002: 5 × ~9 процессов ≈ 45 < max_connections=100 (дефолт PostgreSQL).
+    db_pool_size: int = 5
     db_echo: bool = False
     redis_url: str = "redis://localhost:6384/0"
 

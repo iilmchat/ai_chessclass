@@ -1,0 +1,6 @@
+# /etc/cron.d/chessclass-cert-metric (KI-003)
+# Ежедневная запись срока TLS в textfile-collector node-exporter.
+# Установка: cp deploy/cron/chessclass-cert-metric /etc/cron.d/ && chmod 0644 /etc/cron.d/chessclass-cert-metric
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+15 4 * * * root CERT_FILE=/opt/chessclass/deploy/certs/fullchain.pem TEXTFILE_DIR=/var/lib/node_exporter/textfile_collector bash /opt/chessclass/scripts/write-cert-metric.sh >> /var/log/chessclass-cert-metric.log 2>&1

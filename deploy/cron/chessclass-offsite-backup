@@ -1,0 +1,6 @@
+# /etc/cron.d/chessclass-offsite-backup (KI-004)
+# Еженедельный offsite-бэкап в S3/MinIO с AES-256 (Linux-аналог backup-offsite.ps1).
+# Секреты задаются в /etc/chessclass/backup.env (mode 0600), не в cron-файле.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+0 4 * * 0 root set -a; . /etc/chessclass/backup.env; set +a; cd /opt/chessclass && bash scripts/backup-offsite.sh >> /var/log/chessclass-offsite-backup.log 2>&1

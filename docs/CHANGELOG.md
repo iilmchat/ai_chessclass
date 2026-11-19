@@ -7,6 +7,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **KI-S01** (KI-001…004): лимиты CPU/RAM в prod compose, `db_pool_size=5`,
+  метрика срока TLS + алерты, Linux offsite-бэкап с cron.
+
 ### Added
 
 - **Реестр KI и RoadMap** ([`KNOWN_ISSUES.md`](KNOWN_ISSUES.md),

@@ -9,6 +9,29 @@
 
 name: chessclass-prod
 
+
+# KI-001: явные лимиты CPU/RAM — Stockfish-воркер не должен съедать весь хост.
+x-resources-db: &resources-db
+  resources:
+    limits:
+      cpus: "2.0"
+      memory: 3G
+x-resources-service: &resources-service
+  resources:
+    limits:
+      cpus: "1.5"
+      memory: 1536M
+x-resources-worker: &resources-worker
+  resources:
+    limits:
+      cpus: "1.0"
+      memory: 1G
+x-resources-edge: &resources-edge
+  resources:
+    limits:
+      cpus: "0.5"
+      memory: 256M
+
 # S-92: json-file rotation для api/worker (10 MB × 5 файлов).
 x-logging: &default-logging
   driver: json-file
@@ -56,6 +79,7 @@ services:
   db:
     image: pgvector/pgvector:pg17
     container_name: chessclass-prod-db
+    deploy: *resources-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?set in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
@@ -73,6 +97,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: chessclass-prod-redis
+    deploy: *resources-service
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - chessclass_redisdata:/data
@@ -101,6 +126,7 @@ services:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
     image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-1.0.1}
     container_name: chessclass-prod-api
+    deploy: *resources-service
     security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command:
       ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020",
@@ -141,6 +167,7 @@ services:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
     image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-1.0.1}
     container_name: chessclass-prod-worker
+    deploy: *resources-worker
     security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -166,6 +193,7 @@ services:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
     image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-1.0.1}
     container_name: chessclass-prod-worker-match-random
+    deploy: *resources-worker
     security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -190,6 +218,7 @@ services:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
     image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-1.0.1}
     container_name: chessclass-prod-worker-match-greedy
+    deploy: *resources-worker
     security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -214,6 +243,7 @@ services:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
     image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-1.0.1}
     container_name: chessclass-prod-worker-match-minimax
+    deploy: *resources-worker
     security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -238,6 +268,7 @@ services:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
     image: ghcr.io/iilmchat/chessclass-backend:${IMAGE_TAG:-1.0.1}
     container_name: chessclass-prod-worker-match-sf
+    deploy: *resources-worker
     security_opt: ["seccomp=./deploy/seccomp-sandbox.json"]
     command: arq app.worker.WorkerSettings
     env_file: *env-file
@@ -262,6 +293,7 @@ services:
     # S-92: образ из GHCR (publish workflow), локальная сборка только в CI.
     image: ghcr.io/iilmchat/chessclass-frontend:${IMAGE_TAG:-1.0.1}
     container_name: chessclass-prod-web
+    deploy: *resources-service
     ports:
       # P1-1 (v1.0.1): web доступен только через edge-nginx на loopback.
       - "127.0.0.1:${WEB_PORT:-3200}:80"
@@ -274,6 +306,7 @@ services:
   edge:
     image: nginx:1.27-alpine
     container_name: chessclass-prod-edge
+    deploy: *resources-edge
     volumes:
       - ./deploy/nginx/edge.conf:/etc/nginx/conf.d/default.conf:ro
       - ${CERTS_DIR:-./deploy/certs}:/etc/nginx/certs:ro
@@ -353,6 +386,8 @@ services:
       - chessclass_prod_prometheus:/prometheus:ro
       - chessclass_prod_alertmanager:/alertmanager:ro
       - chessclass_prod_grafana:/var/lib/grafana:ro
+      # KI-003: метрика срока TLS из текстового файла (cron → node-exporter).
+      - chessclass_cert_metrics:/var/lib/node_exporter/textfile_collector:ro
     profiles: ["observability"]
     networks: [ccnet]
     restart: unless-stopped
@@ -483,6 +518,9 @@ volumes:
     name: chessclass_prod_archive
   chessclass_certbot:
     name: chessclass_prod_certbot
+  # KI-003: textfile-collector метрики срока TLS.
+  chessclass_cert_metrics:
+    name: chessclass_prod_cert_metrics
   # S-82: persistent storage observability-профиля (Tempo 7 дней, Prometheus 15d)
   chessclass_prod_tempo:
     name: chessclass_prod_tempo

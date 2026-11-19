@@ -18,7 +18,7 @@
 ---
 
 ### KI-001 — Нет лимитов CPU/RAM у сервисов prod compose
-- **Приоритет:** 🟠 High | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P1-2)
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** KI-S01 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P1-2)
 - **Файлы:** `docker-compose.prod.yml`
 - **Описание:** `deploy.resources.limits` отсутствует у api/db/redis/worker'ов;
   Stockfish-воркер может занять весь хост (4/8 — минимальный профиль).
@@ -27,7 +27,7 @@
 - **Связанные:** KI-002, KI-005.
 
 ### KI-002 — Пул БД ≈ лимиту соединений PostgreSQL
-- **Приоритет:** 🟠 High | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P1-3)
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** KI-S01 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P1-3)
 - **Файлы:** `backend/app/core/config.py`, `docker-compose.prod.yml`
 - **Описание:** `db_pool_size=10` × ~9 процессов ≈ 90 при `max_connections=100`
   (дефолт PG). При росте воркеров — `too many clients`.
@@ -35,7 +35,7 @@
 - **Связанные:** KI-001.
 
 ### KI-003 — TLS не продлевается автоматически, нет алерта на срок сертификата
-- **Приоритет:** 🟠 High | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P1-4)
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** KI-S01 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P1-4)
 - **Файлы:** `deploy/certs/README.md`, `deploy/observability/alerts.yml`
 - **Описание:** certbot-сервис/cron отсутствуют; в alerts.yml нет правила на
   срок сертификата (скрипт `check-cert-expiry.ps1` есть, но только вручную).
@@ -43,7 +43,7 @@
 - **Связанные:** KI-005.
 
 ### KI-004 — Offsite-бэкап только на PowerShell
-- **Приоритет:** 🟠 High | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P1-5)
+- **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** KI-S01 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P1-5)
 - **Файлы:** `deploy/cron/`, `scripts/backup-offsite.ps1`
 - **Описание:** cron делает только локальный `backup.sh`; `backup-offsite.ps1`
   на Linux без `pwsh` не запускается → offsite-копии на prod нет.
@@ -157,6 +157,10 @@
 - **Описание:** в аудите вынесен отдельной строкой §6; объединён с KI-003 как
   одна проблема «TLS renewal + alert», чтобы не дублировать работу.
 - **Связанные:** KI-003.
+- **Fix:** в `docker-compose.prod.yml` добавлены якоря `x-resources-*` и `deploy.resources.limits` для db/redis/api/воркеров/web/edge; `docker compose config -q` проходит.
+- **Fix:** дефолт `db_pool_size` снижен с 10 до 5 (`backend/core/config.py`) — ~45 соединений при 9 процессах укладываются в 100.
+- **Fix:** cron пишет метрику `chessclass_tls_cert_expiry_days` в textfile-collector node-exporter (`scripts/write-cert-metric.sh`, `deploy/cron/chessclass-cert-metric`, volume `chessclass_cert_metrics`); добавлены алерты <30 и <7 дней в `alerts.yml`.
+- **Fix:** добавлены `scripts/backup-offsite.sh` (Linux, совместим с PowerShell-версией по openssl/S3/статусу) и cron `deploy/cron/chessclass-offsite-backup`; синтаксис проверен в bash:5.2, `--dry-run` работает.
 
 ---
 
@@ -166,8 +170,8 @@
 
 | Статус | Количество |
 |---|---:|
-| Open | 12 |
+| Open | 8 |
 | Deferred | 5 |
-| Fixed | 1 |
+| Fixed | 5 |
 | Documented | 0 |
 | **Итого** | **18** |

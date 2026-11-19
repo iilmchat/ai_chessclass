@@ -182,3 +182,32 @@ groups:
             места: Tempo перестанет принимать трейсы, Prometheus/Alertmanager
             могут потерять данные. Проверьте `df -h` и размер volumes,
             освободите место или уменьшите retention (operations.md §10.8).
+
+      # --- TLS: срок сертификата (KI-003) ----------------------------------
+      # Метрику пишет cron → scripts/write-cert-metric.sh в textfile-collector
+      # node-exporter; без неё алерт не срабатывает (fail-closed по времени).
+      - alert: ChessClassTlsCertificateExpiring
+        expr: chessclass_tls_cert_expiry_days < 30
+        for: 1h
+        labels:
+          severity: warning
+          component: edge
+        annotations:
+          summary: "ChessClass: TLS-сертификат истекает через <30 дней"
+          description: >-
+            Проверьте `openssl x509 -enddate -noout -in deploy/certs/fullchain.pem`
+            и запустите продление (certbot/runbook §8). Метрика пишется cron'ом
+            ежедневно; если series отсутствует — проверьте cron и volume
+            chessclass_prod_cert_metrics.
+
+      - alert: ChessClassTlsCertificateCritical
+        expr: chessclass_tls_cert_expiry_days < 7
+        for: 15m
+        labels:
+          severity: critical
+          component: edge
+        annotations:
+          summary: "ChessClass: TLS-сертификат истекает через <7 дней"
+          description: >-
+            Немедленно продлите сертификат по runbook §8, иначе edge откажет
+            посетителям в HTTPS.
