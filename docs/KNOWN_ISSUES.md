@@ -51,7 +51,7 @@
 - **Связанные:** KI-014.
 
 ### KI-005 — Нет артефактов host-hardening (UFW, DNS runbook)
-- **Приоритет:** 🟡 Medium | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P1-7)
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** KI-S02 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P1-7)
 - **Файлы:** `deploy/`, `docs/runbooks/`
 - **Описание:** отсутствуют `deploy/firewall/` (UFW/fail2ban) и
   `docs/runbooks/dns-setup.md`; на новом сервере настраивается вручную.
@@ -59,7 +59,7 @@
 - **Связанные:** KI-012.
 
 ### KI-006 — `server_name _;` — catch-all без проверки Host
-- **Приоритет:** 🟡 Medium | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P2-2)
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** KI-S02 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-2)
 - **Файлы:** `deploy/nginx/edge.conf`
 - **Описание:** edge принимает любой Host; при unknown-host возможен обход части
   проверок и неверные redirect'ы.
@@ -67,14 +67,14 @@
 - **Связанные:** KI-005.
 
 ### KI-007 — `web` без healthcheck в prod compose
-- **Приоритет:** 🟢 Low | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P2-3)
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** KI-S02 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-3)
 - **Файлы:** `docker-compose.prod.yml`
 - **Описание:** единственный сервис без healthcheck; сбой web не виден в статусе стека.
 - **Решение:** добавить healthcheck на `/` с `start_period`.
 - **Связанные:** —
 
 ### KI-008 — `METRICS_TOKEN` пуст по умолчанию
-- **Приоритет:** 🟢 Low | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P2-4)
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** KI-S02 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-4)
 - **Файлы:** `docker-compose.prod.yml`, `.env.prod.example`
 - **Описание:** `/metrics` на loopback без токена — любой локальный процесс видит метрики.
 - **Решение:** обязательный токен в `.env.prod.example` + проверка в compose.
@@ -161,6 +161,10 @@
 - **Fix:** дефолт `db_pool_size` снижен с 10 до 5 (`backend/core/config.py`) — ~45 соединений при 9 процессах укладываются в 100.
 - **Fix:** cron пишет метрику `chessclass_tls_cert_expiry_days` в textfile-collector node-exporter (`scripts/write-cert-metric.sh`, `deploy/cron/chessclass-cert-metric`, volume `chessclass_cert_metrics`); добавлены алерты <30 и <7 дней в `alerts.yml`.
 - **Fix:** добавлены `scripts/backup-offsite.sh` (Linux, совместим с PowerShell-версией по openssl/S3/статусу) и cron `deploy/cron/chessclass-offsite-backup`; синтаксис проверен в bash:5.2, `--dry-run` работает.
+- **Fix:** добавлены `deploy/firewall/ufw.sh` и `fail2ban-sshd.conf`, а также `docs/runbooks/dns-setup.md` (A/SPF/DKIM/DMARC и проверки).
+- **Fix:** `edge.conf` монтируется как nginx-шаблон с `${CHESSCLASS_HOST}`, добавлены `default_server`-блоки с `return 444` для неизвестных Host; compose передаёт `CHESSCLASS_HOST` и подставляет envsubst.
+- **Fix:** в prod compose добавлен healthcheck web (wget наloopback).
+- **Fix:** `METRICS_TOKEN` стал обязательным (`${METRICS_TOKEN:?set in .env}`), в `.env.prod.example` — `CHANGE_ME_METRICS_TOKEN`.
 
 ---
 
@@ -170,8 +174,8 @@
 
 | Статус | Количество |
 |---|---:|
-| Open | 8 |
+| Open | 4 |
 | Deferred | 5 |
-| Fixed | 5 |
+| Fixed | 9 |
 | Documented | 0 |
 | **Итого** | **18** |

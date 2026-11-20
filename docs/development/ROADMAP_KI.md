@@ -26,10 +26,10 @@
 
 ### Спринт 02 (Medium/Low)
 
-- [ ] **KI-005** 🟡 — Нет артефактов host-hardening (UFW, DNS runbook)
-- [ ] **KI-006** 🟡 — `server_name _;` — catch-all без проверки Host
-- [ ] **KI-007** 🟢 — `web` без healthcheck в prod compose
-- [ ] **KI-008** 🟢 — `METRICS_TOKEN` пуст по умолчанию
+- [x] **KI-005** 🟡 — Нет артефактов host-hardening (UFW, DNS runbook)
+- [x] **KI-006** 🟡 — `server_name _;` — catch-all без проверки Host
+- [x] **KI-007** 🟢 — `web` без healthcheck в prod compose
+- [x] **KI-008** 🟢 — `METRICS_TOKEN` пуст по умолчанию
 
 ### Спринт 03 (Medium/Low)
 
@@ -54,4 +54,5 @@
 
 | Спринт | KI | Результат | Коммит |
 |---|---|---|---|
-| S01 | KI-001…004 | 4 Fixed (лимиты, пул БД, TLS-метрика+алерты, Linux offsite) | (текущий) |
+| S01 | KI-001…004 | 4 Fixed (лимиты, пул БД, TLS-метрика+алерты, Linux offsite) | `ba84b38` |
+| S02 | KI-005…008 | 4 Fixed (UFW/fail2ban, Host, healthcheck, METRICS_TOKEN) | (текущий) |

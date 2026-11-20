@@ -9,6 +9,8 @@
 
 ### Fixed
 
+- **KI-S02** (KI-005…008): UFW/fail2ban + DNS runbook, Host-проверка edge,
+  healthcheck web, обязательный `METRICS_TOKEN`.
 - **KI-S01** (KI-001…004): лимиты CPU/RAM в prod compose, `db_pool_size=5`,
   метрика срока TLS + алерты, Linux offsite-бэкап с cron.
 

@@ -300,6 +300,13 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    # KI-007: web — последний сервис без healthcheck.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     networks: [ccnet]
     restart: unless-stopped
 
@@ -307,8 +314,11 @@ services:
     image: nginx:1.27-alpine
     container_name: chessclass-prod-edge
     deploy: *resources-edge
+    environment:
+      # KI-006: подставляется в edge.conf как шаблон nginx (envsubst).
+      CHESSCLASS_HOST: ${CHESSCLASS_HOST:-localhost}
     volumes:
-      - ./deploy/nginx/edge.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/edge.conf:/etc/nginx/templates/default.conf.template:ro
       - ${CERTS_DIR:-./deploy/certs}:/etc/nginx/certs:ro
       - chessclass_certbot:/var/www/certbot:ro
     ports:
@@ -398,7 +408,8 @@ services:
     # Конфиг — шаблон: entrypoint рендерит METRICS_TOKEN и запускает Prometheus.
     entrypoint: ["/bin/sh", "/etc/prometheus/prometheus-entrypoint.sh"]
     environment:
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      # KI-008: пустой токен не должен тихо открывать /metrics на loopback.
+      METRICS_TOKEN: ${METRICS_TOKEN:?set in .env}
       PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
     volumes:
       - ./deploy/observability/prod:/etc/prometheus:ro
