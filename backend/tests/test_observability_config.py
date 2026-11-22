@@ -337,9 +337,12 @@ def test_alerts_cover_required_signals():
         "ChessClassRetentionFailed",
         "ChessClassBackupFailed",
         "ChessClassBackupRestoreFailed",
+        # KI-003: срок TLS-сертификата.
+        "ChessClassTlsCertificateExpiring",
+        "ChessClassTlsCertificateCritical",
     ):
         assert name in rules, name
-    assert len(rules) == 12
+    assert len(rules) == 14
     for rule in rules.values():
         assert rule["labels"]["severity"] in {"info", "warning", "critical"}
         assert rule["labels"]["component"] in {
@@ -347,6 +350,7 @@ def test_alerts_cover_required_signals():
             "worker",
             "observability",
             "backup",
+            "edge",
         }
         assert rule["annotations"]["summary"]
         assert rule["annotations"]["description"]

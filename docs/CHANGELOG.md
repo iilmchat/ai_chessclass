@@ -9,6 +9,8 @@
 
 ### Fixed
 
+- **KI-S01 follow-up:** тест `test_alerts_cover_required_signals` обновлён под
+  14 правил и component `edge` (новые TLS-алерты) — CI зелёный.
 - **KI-S05 (Final)** (KI-016…018): 2 Deferred и закрытие дубля KI-003;
   реестр 18/18 обработано, Open = 0.
 - **KI-S04** (KI-013…015): Deferred по внешним ключам/доступу; чек-лист
