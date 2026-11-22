@@ -9,6 +9,8 @@
 
 ### Fixed
 
+- **KI-S05 (Final)** (KI-016…018): 2 Deferred и закрытие дубля KI-003;
+  реестр 18/18 обработано, Open = 0.
 - **KI-S04** (KI-013…015): Deferred по внешним ключам/доступу; чек-лист
   production-готовности приведён к факту S01–S03.
 - **KI-S03** (KI-009…012): ревизия Alembic в runbook, CHANGE_ME в SMTP-env,
