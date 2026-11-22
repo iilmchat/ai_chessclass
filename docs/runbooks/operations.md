@@ -924,7 +924,7 @@ BACKUP_S3_SECRET_KEY=CHANGE_ME
 BACKUP_ENCRYPTION_KEY=       # ровно 32 hex-символа, только в секретах
 BACKUP_STATUS_VOLUME=chessclass_prod_archive
 BACKUP_DOCKER_NETWORK=chessclass-prod-net
-BACKUP_EXPECTED_ALEMBIC=0035_s83_email_outbox
+BACKUP_EXPECTED_ALEMBIC=0036_s98_legal_hold
 ```
 
 - **Запуск** (вручную или cron/Task Scheduler ежедневно):

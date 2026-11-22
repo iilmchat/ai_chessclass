@@ -9,6 +9,8 @@
 
 ### Fixed
 
+- **KI-S03** (KI-009…012): ревизия Alembic в runbook, CHANGE_ME в SMTP-env,
+  `-DryRun` у операционных скриптов, CI-гейт IMAGE_TAG. Бэклог Open = 0.
 - **KI-S02** (KI-005…008): UFW/fail2ban + DNS runbook, Host-проверка edge,
   healthcheck web, обязательный `METRICS_TOKEN`.
 - **KI-S01** (KI-001…004): лимиты CPU/RAM в prod compose, `db_pool_size=5`,

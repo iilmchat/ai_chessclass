@@ -15,20 +15,48 @@
 #Requires -Version 7.0
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string]$BaseUrl,
-    [Parameter(Mandatory)][string]$AdminEmail,
-    [Parameter(Mandatory)][string]$AdminPassword,
-    [Parameter(Mandatory)][string]$TestStudentEmail,
+    # KI-011: параметры необязательны в -DryRun (проверка конфигурации без боёвых данных).
+    [string]$BaseUrl = "",
+    [string]$AdminEmail = "",
+    [string]$AdminPassword = "",
+    [string]$TestStudentEmail = "",
     [string]$StudentPassword = "",
     [int]$TimeoutSec = 20,
     [string]$DbContainer = "chessclass-staging-db",
     [string]$DbUser = "chess",
     [string]$DbName = "chessclass",
     [switch]$SkipStudentRegistration,
-    [switch]$RequireEmailOutbox
+    [switch]$RequireEmailOutbox,
+    [switch]$DryRun
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($DryRun) {
+    [pscustomobject]@{
+        status = "dry-run"
+        base_url = $BaseUrl
+        base_url_is_https = ($BaseUrl -match '^https://')
+        admin_email_set = [bool]$AdminEmail
+        admin_password_set = [bool]$AdminPassword
+        student_email_set = [bool]$TestStudentEmail
+        db_container = $DbContainer
+        db_name = $DbName
+        require_email_outbox = [bool]$RequireEmailOutbox
+    } | ConvertTo-Json -Compress
+    return
+}
+
+foreach ($required in @(
+    @{ Name = 'BaseUrl'; Value = $BaseUrl },
+    @{ Name = 'AdminEmail'; Value = $AdminEmail },
+    @{ Name = 'AdminPassword'; Value = $AdminPassword },
+    @{ Name = 'TestStudentEmail'; Value = $TestStudentEmail }
+)) {
+    if ([string]::IsNullOrWhiteSpace($required.Value)) {
+        throw "-$($required.Name) обязателен без -DryRun"
+    }
+}
 $script:results = [System.Collections.Generic.List[object]]::new()
 $script:exitCode = 0
 

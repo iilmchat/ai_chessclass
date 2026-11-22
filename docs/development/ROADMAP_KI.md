@@ -33,10 +33,10 @@
 
 ### Спринт 03 (Medium/Low)
 
-- [ ] **KI-009** 🟡 — `operations.md` ссылается на устаревшую ревизию Alembic
-- [ ] **KI-010** 🟢 — Example-значения SMTP без маркера `CHANGE_ME`
-- [ ] **KI-011** 🟢 — Нет `-DryRun` у операционных скриптов
-- [ ] **KI-012** 🟡 — Нет CI-проверки `docker manifest inspect` для IMAGE_TAG
+- [x] **KI-009** 🟡 — `operations.md` ссылается на устаревшую ревизию Alembic
+- [x] **KI-010** 🟢 — Example-значения SMTP без маркера `CHANGE_ME`
+- [x] **KI-011** 🟢 — Нет `-DryRun` у операционных скриптов
+- [x] **KI-012** 🟡 — Нет CI-проверки `docker manifest inspect` для IMAGE_TAG
 
 ### Спринт 04 (Deferred — внешние ключи/доступ)
 
@@ -55,4 +55,5 @@
 | Спринт | KI | Результат | Коммит |
 |---|---|---|---|
 | S01 | KI-001…004 | 4 Fixed (лимиты, пул БД, TLS-метрика+алерты, Linux offsite) | `ba84b38` |
-| S02 | KI-005…008 | 4 Fixed (UFW/fail2ban, Host, healthcheck, METRICS_TOKEN) | (текущий) |
+| S02 | KI-005…008 | 4 Fixed (UFW/fail2ban, Host, healthcheck, METRICS_TOKEN) | `ec14975` |
+| S03 | KI-009…012 | 4 Fixed (runbook, SMTP, DryRun, CI manifest); **Open = 0** | (текущий) |

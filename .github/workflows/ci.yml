@@ -283,3 +283,14 @@ jobs:
             APP_STAGE=prod
             VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}
           tags: ${{ steps.meta-frontend.outputs.tags }}
+      # KI-012: деплойный тег из .env.prod.example должен существовать в GHCR —
+      # ловит расхождение IMAGE_TAG и опубликованного semver (было P0-1).
+      - name: Verify IMAGE_TAG manifests (KI-012)
+        run: |
+          set -euo pipefail
+          tag=$(grep -E '^IMAGE_TAG=' .env.prod.example | cut -d= -f2)
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          for image in chessclass-backend chessclass-frontend; do
+            echo "manifest: ghcr.io/${owner}/${image}:${tag}"
+            docker manifest inspect "ghcr.io/${owner}/${image}:${tag}" >/dev/null
+          done

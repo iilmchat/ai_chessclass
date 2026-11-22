@@ -14,11 +14,26 @@ param(
     [string]$StatusFile = $env:BACKUP_STATUS_FILE,
     [string]$ExpectedAlembic = $env:BACKUP_EXPECTED_ALEMBIC,
     [int]$RestorePort = 5439,
-    [switch]$KeepLocal
+    [switch]$KeepLocal,
+    # KI-011: проверка конфигурации без скачивания/расшифровки бэкапа.
+    [switch]$DryRun
 )
 
 $ErrorActionPreference = "Stop"
 $started = Get-Date
+
+if ($DryRun) {
+    [pscustomobject]@{
+        status = "dry-run"
+        backup_dir = $BackupDir
+        s3_bucket = $S3Bucket
+        s3_prefix = $S3Prefix
+        encryption_key_set = [bool]$EncryptionKey
+        expected_alembic = $ExpectedAlembic
+        restore_port = $RestorePort
+    } | ConvertTo-Json -Compress
+    return
+}
 
 # v0.8.1: docker -v требует абсолютный host-path. Относительный BackupDir
 # Docker трактует как named volume, и decrypt/download видят пустой каталог.

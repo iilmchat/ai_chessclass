@@ -81,7 +81,7 @@
 - **Связанные:** —
 
 ### KI-009 — `operations.md` ссылается на устаревшую ревизию Alembic
-- **Приоритет:** 🟡 Medium | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P2-5)
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** KI-S03 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-5)
 - **Файлы:** `docs/runbooks/operations.md`, `docs/development/…` (head)
 - **Описание:** `BACKUP_EXPECTED_ALEMBIC=0035_s83_email_outbox`, фактический head —
   `0036_s98_legal_hold`; проверка бэкапа в runbook всегда упадёт.
@@ -89,7 +89,7 @@
 - **Связанные:** KI-004.
 
 ### KI-010 — Example-значения SMTP без маркера `CHANGE_ME`
-- **Приоритет:** 🟢 Low | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P2-6)
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** KI-S03 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-6)
 - **Файлы:** `.env.prod.example`, `.env.staging.example`
 - **Описание:** `SMTP_HOST=smtp.example.com`, `SMTP_FROM=noreply@example.com` —
   легко забыть заменить, письма уходят в никуда.
@@ -97,7 +97,7 @@
 - **Связанные:** KI-015.
 
 ### KI-011 — Нет `-DryRun` у операционных скриптов
-- **Приоритет:** 🟢 Low | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит P2-7)
+- **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** KI-S03 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-7)
 - **Файлы:** `scripts/backup-restore-test.ps1`, `scripts/staging-acceptance.ps1`,
   `scripts/test-gpu-tunnel.ps1`
 - **Описание:** оператор не может проверить сценарий без боевых данных/ключей.
@@ -105,7 +105,7 @@
 - **Связанные:** KI-005.
 
 ### KI-012 — Нет CI-проверки `docker manifest inspect` для IMAGE_TAG
-- **Приоритет:** 🟡 Medium | **Статус:** Open | **Обнаружено:** 2026-11-12 (аудит §8.1)
+- **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** KI-S03 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит §8.1)
 - **Файлы:** `.github/workflows/ci.yml`, `.env.prod.example`
 - **Описание:** P0-1 (тег v1.0.0 vs 1.0.0) закрыт в v1.0.1, но гейта, который
   ловит расхождение тега образа и `IMAGE_TAG`, нет — баг может вернуться.
@@ -165,6 +165,10 @@
 - **Fix:** `edge.conf` монтируется как nginx-шаблон с `${CHESSCLASS_HOST}`, добавлены `default_server`-блоки с `return 444` для неизвестных Host; compose передаёт `CHESSCLASS_HOST` и подставляет envsubst.
 - **Fix:** в prod compose добавлен healthcheck web (wget наloopback).
 - **Fix:** `METRICS_TOKEN` стал обязательным (`${METRICS_TOKEN:?set in .env}`), в `.env.prod.example` — `CHANGE_ME_METRICS_TOKEN`.
+- **Fix:** `BACKUP_EXPECTED_ALEMBIC` в `docs/runbooks/operations.md` обновлён с 0035_s83_email_outbox до фактического head 0036_s98_legal_hold; doc-lint проходит.
+- **Fix:** example-значения SMTP в `.env.prod.example` и `.env.staging.example` заменены на `CHANGE_ME_SMTP_HOST` / `CHANGE_ME_SMTP_FROM`.
+- **Fix:** `-DryRun` добавлен в `backup-restore-test.ps1`, `staging-acceptance.ps1`, `test-gpu-tunnel.ps1`; обязательные параметры стали необязательными только в dry-run, проверка заполненности — перед основным сценарием. Все три dry-run запущены локально.
+- **Fix:** в CI (job publish) добавлен шаг `Verify IMAGE_TAG manifests` — проверяет наличие образа backend/frontend с тегом из `.env.prod.example` в GHCR.
 
 ---
 
@@ -174,8 +178,8 @@
 
 | Статус | Количество |
 |---|---:|
-| Open | 4 |
+| Open | 0 |
 | Deferred | 5 |
-| Fixed | 9 |
+| Fixed | 13 |
 | Documented | 0 |
 | **Итого** | **18** |

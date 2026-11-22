@@ -3,13 +3,29 @@
 #   -BaseUrl http://172.18.0.1:8035/v1 -ApiKey '<LM Studio token>'
 # Ключ не выводится. Exit: 0 — OK, 1 — ошибка/таймаут.
 param(
-    [Parameter(Mandatory)][string]$BaseUrl,
+    # KI-011: DryRun проверяет конфигурацию без обращения к LM Studio.
+    [string]$BaseUrl = "",
     [string]$ApiKey = "",
     [string]$Model = "",
-    [int]$TimeoutSec = 60
+    [int]$TimeoutSec = 60,
+    [switch]$DryRun
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($DryRun) {
+    [pscustomobject]@{
+        status = "dry-run"
+        base_url = $BaseUrl
+        api_key_set = [bool]$ApiKey
+        model = $Model
+        timeout_sec = $TimeoutSec
+    } | ConvertTo-Json -Compress
+    return
+}
+if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
+    throw "-BaseUrl обязателен без -DryRun"
+}
 $base = $BaseUrl.TrimEnd("/")
 if ($base -notmatch "/v1$") { $base = "$base/v1" }
 $headers = @{}
