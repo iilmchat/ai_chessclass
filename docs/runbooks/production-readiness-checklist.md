@@ -14,11 +14,11 @@
 | `docker-compose.prod.yml` валиден, без `build:` | ✅ | `docker compose --env-file .env.prod.example -f docker-compose.prod.yml config -q` |
 | `IMAGE_TAG` из env, не хардкод | ✅ | compose/env — `1.0.1`, GHCR публикует semver `1.0.1` (P0-1) |
 | `restart: unless-stopped` у сервисов | ✅ | кроме `migrate`/`seed` (`"no"`) — ожидаемо |
-| Healthcheck'и | ✅ | db, redis, api, edge, tempo, prometheus, alertmanager; у `web` нет (P2) |
+| Healthcheck'и | ✅ | db, redis, api, web (KI-007), edge, tempo, prometheus, alertmanager |
 | Наружу только 80/443 | ✅ | `web` биндится на `127.0.0.1:${WEB_PORT:-3200}` (P1-1) |
 | Миграции гейтом до api/worker | ✅ | `depends_on: migrate: service_completed_successfully` |
 | `seed` не запускается сам | ✅ | профиль `tools` |
-| Лимиты CPU/RAM | ❌ | `deploy.resources.limits` отсутствуют во всём compose |
+| Лимиты CPU/RAM | ✅ | `x-resources-*` в compose (KI-001) |
 | Сервер 4/8 (8/16) | ⏳ | см. §7 отчёта аудита |
 | Docker 29+, Compose v2 | ⏳ | `docker version`, `docker compose version` |
 | DNS A-запись на IP | ⏳ | `dig +short <domain>` |
@@ -37,9 +37,9 @@
 | Seccomp для sandbox | ✅ | `deploy/seccomp-sandbox.json` на api/worker/match-* |
 | `PROXY_TRUSTED_HOSTS` только edge | ✅ | `172.16.0.0/12,127.0.0.1`; XFF теперь `$remote_addr` |
 | Edge TLS 1.2/1.3, HSTS, CSP, 80→443 | ✅ | `deploy/nginx/edge.conf` |
-| Автопродление TLS | ❌ | certbot в compose нет, cron в репо нет — runbook §4 |
-| Алерт на срок сертификата | ❌ | `check-cert-expiry.ps1` есть, в cron/метрики не заведён |
-| UFW/fail2ban | ❌ | `deploy/firewall/` отсутствует |
+| Автопродление TLS | ⏳ | cron-метрика и скрипт есть (KI-003), certbot/install — на хосте |
+| Алерт на срок сертификата | ✅ | `chessclass_tls_cert_expiry_days` + два правила (KI-003) |
+| UFW/fail2ban | ⏳ | артефакты `deploy/firewall/` есть (KI-005), установка на хосте |
 | Пароли/токены только в `.env` (600) | ⏳ | проверить на сервере |
 
 ## 3. Данные
@@ -51,10 +51,10 @@
 | `pgvector` создаётся миграцией | ✅ | `0001_initial_infra.py` |
 | RLS-роль `chess_app` + `SET LOCAL ROLE` | ✅ | `0031_s72_rls_isolation`, `core/db.py` |
 | Миграции = head `0036_s98_legal_hold` | ✅ | `/readyz`, doc-lint |
-| Пул соединений vs `max_connections` | ❌ | `db_pool_size=10` × ~9 процессов ≈ 90 при лимите 100 (P1) |
+| Пул соединений vs `max_connections` | ✅ | `db_pool_size=5` (KI-002) |
 | `shared_buffers`/`max_connections` тюнинг | ❌ | дефолты Postgres, в compose не заданы (P2) |
 | Бэкап локальный по cron | ✅ | `deploy/cron/chessclass-backup` |
-| Offsite-бэкап на Linux | ❌ | скрипт только PowerShell; cron-версии нет (P1) |
+| Offsite-бэкап на Linux | ⏳ | `scripts/backup-offsite.sh` + cron добавлены (KI-004), нужна установка на хосте |
 | Restore-дрилл | ⏳ | `backup-restore-test.ps1` / runbook §9 |
 | Retention/lifecycle S3 30 дней | ⏳ | настроить правило на бакете |
 
@@ -62,9 +62,9 @@
 
 | Проверка | Статус | Команда / ссылка |
 |---|---|---|
-| 12 правил `ChessClass*` | ✅ | `deploy/observability/alerts.yml` |
+| 14 правил `ChessClass*` | ✅ | `deploy/observability/alerts.yml` (2 TLS-алерта добавлены в KI-S01) |
 | Алерты: API down, 5xx, latency, DLQ, email, retention, backup, disk | ✅ | — |
-| Алерт на сертификат | ❌ | нет правила |
+| Алерт на сертификат | ✅ | KI-003: `ChessClassTlsCertificateExpiring/Critical` |
 | mTLS collector↔Tempo | ✅ | `deploy/internal-certs`, `observability-selftest` |
 | Static self-test | ✅ | `observability-selftest.ps1` (все проверки ok) |
 | `-Stack` на сервере | ⏳ | нужен стенд и токены Telegram |

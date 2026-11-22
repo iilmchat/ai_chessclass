@@ -40,9 +40,9 @@
 
 ### Спринт 04 (Deferred — внешние ключи/доступ)
 
-- [ ] **KI-013** 🟠 — Тело письма в `email_outbox` хранит одноразовую ссылку открыто
-- [ ] **KI-014** 🟠 — Бэкапы и DSAR не проверены на реальном сервере
-- [ ] **KI-015** 🟠 — Live LRS/TTS (S-95) — нет боевых ключей
+- [x] **KI-013** 🟠 — Тело письма в `email_outbox` хранит одноразовую ссылку открыто (Deferred)
+- [x] **KI-014** 🟠 — Бэкапы и DSAR не проверены на реальном сервере (Deferred)
+- [x] **KI-015** 🟠 — Live LRS/TTS (S-95) — нет боевых ключей (Deferred)
 
 ### Спринт 05 (Deferred/Documented)
 
@@ -56,4 +56,5 @@
 |---|---|---|---|
 | S01 | KI-001…004 | 4 Fixed (лимиты, пул БД, TLS-метрика+алерты, Linux offsite) | `ba84b38` |
 | S02 | KI-005…008 | 4 Fixed (UFW/fail2ban, Host, healthcheck, METRICS_TOKEN) | `ec14975` |
-| S03 | KI-009…012 | 4 Fixed (runbook, SMTP, DryRun, CI manifest); **Open = 0** | (текущий) |
+| S03 | KI-009…012 | 4 Fixed (runbook, SMTP, DryRun, CI manifest); **Open = 0** | `95ec1ca` |
+| S04 | KI-013…015 | 3 Deferred (внешние ключи/доступ); чек-лист приведён к факту | (текущий) |

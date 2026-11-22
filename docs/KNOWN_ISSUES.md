@@ -26,6 +26,7 @@
   `docker compose config`.
 - **Связанные:** KI-002, KI-005.
 
+- **Fix:** в `docker-compose.prod.yml` добавлены якоря `x-resources-*` и `deploy.resources.limits` для db/redis/api/воркеров/web/edge; `docker compose config -q` проходит.
 ### KI-002 — Пул БД ≈ лимиту соединений PostgreSQL
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** KI-S01 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P1-3)
 - **Файлы:** `backend/app/core/config.py`, `docker-compose.prod.yml`
@@ -34,6 +35,7 @@
 - **Решение:** `db_pool_size ≤ 5` и/или явно поднять `max_connections` в compose.
 - **Связанные:** KI-001.
 
+- **Fix:** дефолт `db_pool_size` снижен с 10 до 5 (`backend/core/config.py`) — ~45 соединений при 9 процессах укладываются в 100.
 ### KI-003 — TLS не продлевается автоматически, нет алерта на срок сертификата
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** KI-S01 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P1-4)
 - **Файлы:** `deploy/certs/README.md`, `deploy/observability/alerts.yml`
@@ -42,6 +44,7 @@
 - **Решение:** certbot + deploy-hook либо cron продления, алерт critical/warning.
 - **Связанные:** KI-005.
 
+- **Fix:** cron пишет метрику `chessclass_tls_cert_expiry_days` в textfile-collector node-exporter (`scripts/write-cert-metric.sh`, `deploy/cron/chessclass-cert-metric`, volume `chessclass_cert_metrics`); добавлены алерты <30 и <7 дней в `alerts.yml`.
 ### KI-004 — Offsite-бэкап только на PowerShell
 - **Приоритет:** 🟠 High | **Статус:** Fixed | **Исправлено в:** KI-S01 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P1-5)
 - **Файлы:** `deploy/cron/`, `scripts/backup-offsite.ps1`
@@ -50,6 +53,7 @@
 - **Решение:** Linux-версия `backup-offsite.sh` + cron + еженедельный restore-test.
 - **Связанные:** KI-014.
 
+- **Fix:** добавлены `scripts/backup-offsite.sh` (Linux, совместим с PowerShell-версией по openssl/S3/статусу) и cron `deploy/cron/chessclass-offsite-backup`; синтаксис проверен в bash:5.2, `--dry-run` работает.
 ### KI-005 — Нет артефактов host-hardening (UFW, DNS runbook)
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** KI-S02 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P1-7)
 - **Файлы:** `deploy/`, `docs/runbooks/`
@@ -58,6 +62,7 @@
 - **Решение:** добавить конфиги UFW/fail2ban и runbook DNS (A/SPF/DKIM/DMARC).
 - **Связанные:** KI-012.
 
+- **Fix:** добавлены `deploy/firewall/ufw.sh` и `fail2ban-sshd.conf`, а также `docs/runbooks/dns-setup.md` (A/SPF/DKIM/DMARC и проверки).
 ### KI-006 — `server_name _;` — catch-all без проверки Host
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** KI-S02 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-2)
 - **Файлы:** `deploy/nginx/edge.conf`
@@ -66,6 +71,7 @@
 - **Решение:** явный `server_name` домена + отдельный default_server с 444.
 - **Связанные:** KI-005.
 
+- **Fix:** `edge.conf` монтируется как nginx-шаблон с `${CHESSCLASS_HOST}`, добавлены `default_server`-блоки с `return 444` для неизвестных Host; compose передаёт `CHESSCLASS_HOST` и подставляет envsubst.
 ### KI-007 — `web` без healthcheck в prod compose
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** KI-S02 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-3)
 - **Файлы:** `docker-compose.prod.yml`
@@ -73,6 +79,7 @@
 - **Решение:** добавить healthcheck на `/` с `start_period`.
 - **Связанные:** —
 
+- **Fix:** в prod compose добавлен healthcheck web (wget на loopback).
 ### KI-008 — `METRICS_TOKEN` пуст по умолчанию
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** KI-S02 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-4)
 - **Файлы:** `docker-compose.prod.yml`, `.env.prod.example`
@@ -80,6 +87,7 @@
 - **Решение:** обязательный токен в `.env.prod.example` + проверка в compose.
 - **Связанные:** —
 
+- **Fix:** `METRICS_TOKEN` стал обязательным (`${METRICS_TOKEN:?set in .env}`), в `.env.prod.example` — `CHANGE_ME_METRICS_TOKEN`.
 ### KI-009 — `operations.md` ссылается на устаревшую ревизию Alembic
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** KI-S03 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-5)
 - **Файлы:** `docs/runbooks/operations.md`, `docs/development/…` (head)
@@ -88,6 +96,7 @@
 - **Решение:** обновить константу до 0036 и добавить doc-lint-проверку head.
 - **Связанные:** KI-004.
 
+- **Fix:** `BACKUP_EXPECTED_ALEMBIC` в `docs/runbooks/operations.md` обновлён с 0035_s83_email_outbox до фактического head 0036_s98_legal_hold; doc-lint проходит.
 ### KI-010 — Example-значения SMTP без маркера `CHANGE_ME`
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** KI-S03 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-6)
 - **Файлы:** `.env.prod.example`, `.env.staging.example`
@@ -96,6 +105,7 @@
 - **Решение:** добавить `CHANGE_ME` и fail-fast проверку в smoke.
 - **Связанные:** KI-015.
 
+- **Fix:** example-значения SMTP в `.env.prod.example` и `.env.staging.example` заменены на `CHANGE_ME_SMTP_HOST` / `CHANGE_ME_SMTP_FROM`.
 ### KI-011 — Нет `-DryRun` у операционных скриптов
 - **Приоритет:** 🟢 Low | **Статус:** Fixed | **Исправлено в:** KI-S03 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит P2-7)
 - **Файлы:** `scripts/backup-restore-test.ps1`, `scripts/staging-acceptance.ps1`,
@@ -104,6 +114,7 @@
 - **Решение:** добавить `-DryRun` с проверкой конфигурации без сайд-эффектов.
 - **Связанные:** KI-005.
 
+- **Fix:** `-DryRun` добавлен в `backup-restore-test.ps1`, `staging-acceptance.ps1`, `test-gpu-tunnel.ps1`; обязательные параметры стали необязательными только в dry-run, проверка заполненности — перед основным сценарием. Все три dry-run запущены локально.
 ### KI-012 — Нет CI-проверки `docker manifest inspect` для IMAGE_TAG
 - **Приоритет:** 🟡 Medium | **Статус:** Fixed | **Исправлено в:** KI-S03 (2026-11-20) | **Обнаружено:** 2026-11-12 (аудит §8.1)
 - **Файлы:** `.github/workflows/ci.yml`, `.env.prod.example`
@@ -112,6 +123,7 @@
 - **Решение:** шаг `docker manifest inspect ghcr.io/...:${IMAGE_TAG}` в CI/CD.
 - **Связанные:** —
 
+- **Fix:** в CI (job publish) добавлен шаг `Verify IMAGE_TAG manifests` — проверяет наличие образа backend/frontend с тегом из `.env.prod.example` в GHCR.
 ### KI-013 — Тело письма в `email_outbox` хранит одноразовую ссылку открыто
 - **Приоритет:** 🟠 High | **Статус:** Deferred | **Обнаружено:** 2026-11-08 (legal R-1)
 - **Файлы:** `backend/app/...`, `docs/legal-review-v0.7.md` § 7
@@ -157,18 +169,6 @@
 - **Описание:** в аудите вынесен отдельной строкой §6; объединён с KI-003 как
   одна проблема «TLS renewal + alert», чтобы не дублировать работу.
 - **Связанные:** KI-003.
-- **Fix:** в `docker-compose.prod.yml` добавлены якоря `x-resources-*` и `deploy.resources.limits` для db/redis/api/воркеров/web/edge; `docker compose config -q` проходит.
-- **Fix:** дефолт `db_pool_size` снижен с 10 до 5 (`backend/core/config.py`) — ~45 соединений при 9 процессах укладываются в 100.
-- **Fix:** cron пишет метрику `chessclass_tls_cert_expiry_days` в textfile-collector node-exporter (`scripts/write-cert-metric.sh`, `deploy/cron/chessclass-cert-metric`, volume `chessclass_cert_metrics`); добавлены алерты <30 и <7 дней в `alerts.yml`.
-- **Fix:** добавлены `scripts/backup-offsite.sh` (Linux, совместим с PowerShell-версией по openssl/S3/статусу) и cron `deploy/cron/chessclass-offsite-backup`; синтаксис проверен в bash:5.2, `--dry-run` работает.
-- **Fix:** добавлены `deploy/firewall/ufw.sh` и `fail2ban-sshd.conf`, а также `docs/runbooks/dns-setup.md` (A/SPF/DKIM/DMARC и проверки).
-- **Fix:** `edge.conf` монтируется как nginx-шаблон с `${CHESSCLASS_HOST}`, добавлены `default_server`-блоки с `return 444` для неизвестных Host; compose передаёт `CHESSCLASS_HOST` и подставляет envsubst.
-- **Fix:** в prod compose добавлен healthcheck web (wget наloopback).
-- **Fix:** `METRICS_TOKEN` стал обязательным (`${METRICS_TOKEN:?set in .env}`), в `.env.prod.example` — `CHANGE_ME_METRICS_TOKEN`.
-- **Fix:** `BACKUP_EXPECTED_ALEMBIC` в `docs/runbooks/operations.md` обновлён с 0035_s83_email_outbox до фактического head 0036_s98_legal_hold; doc-lint проходит.
-- **Fix:** example-значения SMTP в `.env.prod.example` и `.env.staging.example` заменены на `CHANGE_ME_SMTP_HOST` / `CHANGE_ME_SMTP_FROM`.
-- **Fix:** `-DryRun` добавлен в `backup-restore-test.ps1`, `staging-acceptance.ps1`, `test-gpu-tunnel.ps1`; обязательные параметры стали необязательными только в dry-run, проверка заполненности — перед основным сценарием. Все три dry-run запущены локально.
-- **Fix:** в CI (job publish) добавлен шаг `Verify IMAGE_TAG manifests` — проверяет наличие образа backend/frontend с тегом из `.env.prod.example` в GHCR.
 
 ---
 
